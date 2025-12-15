@@ -1,0 +1,423 @@
+{
+  "name": "TravelAuditAI",
+  "description": "An AI\u2011powered travel expense auditor that extracts data from receipt images, pulls corporate travel policies and expense system records, evaluates each claim for compliance, flags violations, suggests corrections, and can automatically notify employees or finance teams.",
+  "tools": [
+    {
+      "name": "ocr_receipt",
+      "description": "Runs OCR on a base64\u2011encoded receipt image and returns structured line\u2011item data such as merchant name, transaction date, amount, currency, and line\u2011item description.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "image_base64": {
+            "type": "string",
+            "description": "The receipt image encoded in base64."
+          }
+        },
+        "required": [
+          "image_base64"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_policy",
+      "description": "Retrieves the corporate travel policy for a given company identifier. Returns limits (e.g., max hotel nightly rate), allowed categories, required receipt fields, and any special exceptions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Unique identifier of the company whose policy should be fetched."
+          }
+        },
+        "required": [
+          "company_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "query_expense",
+      "description": "Queries the internal expense management system for a specific expense record or a filtered list. Returns stored expense data such as submitted amount, employee ID, date, and linked receipt IDs.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "expense_id": {
+            "type": "string",
+            "description": "The unique identifier of a single expense claim."
+          },
+          "filters": {
+            "type": "object",
+            "description": "Optional filter object (e.g., month, employee_id).",
+            "additionalProperties": true
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "evaluate_compliance",
+      "description": "Compares OCR\u2011extracted receipt data against the corporate policy and the existing expense record. Returns a compliance verdict and a list of violations or suggested adjustments.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "receipt_data": {
+            "type": "object",
+            "description": "Structured data returned from ocr_receipt.",
+            "additionalProperties": true
+          },
+          "policy": {
+            "type": "object",
+            "description": "Corporate travel policy object returned from fetch_policy.",
+            "additionalProperties": true
+          },
+          "expense_record": {
+            "type": "object",
+            "description": "Existing expense entry returned from query_expense (may be empty for new claims).",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "receipt_data",
+          "policy"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "send_notification",
+      "description": "Sends an email or in\u2011app notification to a user or finance team with a subject and body, typically used to alert about compliance issues or audit results.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Identifier of the notification recipient."
+          },
+          "subject": {
+            "type": "string",
+            "description": "Short title of the notification."
+          },
+          "body": {
+            "type": "string",
+            "description": "Full message content (can contain markdown)."
+          }
+        },
+        "required": [
+          "user_id",
+          "subject",
+          "body"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_report",
+      "description": "Creates a markdown summary report for a batch of compliance evaluations, including totals, number of violations, and per\u2011expense details.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "evaluation_results": {
+            "type": "array",
+            "description": "List of objects returned from evaluate_compliance for each expense.",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "report_title": {
+            "type": "string",
+            "description": "Title to place at the top of the report."
+          }
+        },
+        "required": [
+          "evaluation_results",
+          "report_title"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User uploads a single hotel receipt; the assistant runs OCR, fetches the policy, evaluates compliance, informs the user, and sends a notification about the violation.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are TravelAuditAI, an assistant that audits travel expenses for compliance with corporate policies. Use the provided tools to extract data, evaluate compliance, and communicate results."
+        },
+        {
+          "role": "user",
+          "content": "I just came back from a business trip. Here is the receipt for the hotel stay. Please check if it complies with our corporate travel policy (company_id: \"ABC123\")."
+        },
+        {
+          "role": "assistant",
+          "content": "Processing the receipt and retrieving the relevant policy...",
+          "tool_calls": [
+            {
+              "id": "ocr_receipt_1a2b3c",
+              "name": "ocr_receipt",
+              "arguments": {
+                "image_base64": "<base64\u2011string\u2011placeholder>"
+              }
+            },
+            {
+              "id": "fetch_policy_4d5e6f",
+              "name": "fetch_policy",
+              "arguments": {
+                "company_id": "ABC123"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "ocr_receipt_1a2b3c",
+          "content": "{\"merchant\":\"Grand Hotel\",\"date\":\"2024\u201111\u201120\",\"amount\":250.00,\"currency\":\"USD\",\"description\":\"Room charge\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_policy_4d5e6f",
+          "content": "{\"max_hotel_nightly_rate\":200.00,\"allowed_cities\":[\"New York\",\"Chicago\",\"San Francisco\"],\"receipt_required\":true}"
+        },
+        {
+          "role": "assistant",
+          "content": "Evaluating compliance against the policy...",
+          "tool_calls": [
+            {
+              "id": "evaluate_compliance_7g8h9i",
+              "name": "evaluate_compliance",
+              "arguments": {
+                "receipt_data": {
+                  "merchant": "Grand Hotel",
+                  "date": "2024-11-20",
+                  "amount": 250.0,
+                  "currency": "USD",
+                  "description": "Room charge"
+                },
+                "policy": {
+                  "max_hotel_nightly_rate": 200.0,
+                  "allowed_cities": [
+                    "New York",
+                    "Chicago",
+                    "San Francisco"
+                  ],
+                  "receipt_required": true
+                },
+                "expense_record": {}
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "evaluate_compliance_7g8h9i",
+          "content": "{\"compliant\":false,\"issues\":[\"Hotel nightly rate $250 exceeds the allowed maximum of $200 per night.\"],\"suggested_action\":\"Adjust amount to $200 or provide justification for excess.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "The receipt you provided is **not compliant** with your company's travel policy. The main issue is:\n- Hotel nightly rate $250 exceeds the allowed maximum of $200 per night.\n\nWould you like me to send a notification to your finance team with this finding?\nSending a notification to the finance team...",
+          "tool_calls": [
+            {
+              "id": "send_notification_0j1k2l",
+              "name": "send_notification",
+              "arguments": {
+                "user_id": "finance_team_ABC123",
+                "subject": "Travel Expense Compliance Alert \u2013 Hotel Receipt",
+                "body": "The hotel receipt dated 2024\u201111\u201120 for $250 exceeds the policy limit of $200. Please review or request justification."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_notification_0j1k2l",
+          "content": "Notification queued successfully."
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 The finance team has been notified. Let me know if you need anything else\u2014e.g., a corrected expense entry or a summary of all your recent travel expenses.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User asks for a bulk audit of all March 2024 expenses for a specific employee; the assistant retrieves the expenses, fetches the policy once, evaluates each claim, generates a markdown report, and returns it.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are TravelAuditAI, an assistant that can perform bulk compliance audits on expense data using the provided tools."
+        },
+        {
+          "role": "user",
+          "content": "Please audit all of the expenses for March 2024 submitted by employee ID 789 and give me a summary report."
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching the relevant expense records and the corporate policy for your company\u2026",
+          "tool_calls": [
+            {
+              "id": "query_expense_a1b2c3",
+              "name": "query_expense",
+              "arguments": {
+                "filters": {
+                  "employee_id": "789",
+                  "month": "2024-03"
+                }
+              }
+            },
+            {
+              "id": "fetch_policy_d4e5f6",
+              "name": "fetch_policy",
+              "arguments": {
+                "company_id": "ABC123"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "query_expense_a1b2c3",
+          "content": "[{\"expense_id\":\"exp1001\",\"date\":\"2024-03-05\",\"amount\":120.00,\"currency\":\"USD\",\"receipt_image\":\"<base64\u2011img1>\"},{\"expense_id\":\"exp1002\",\"date\":\"2024-03-12\",\"amount\":75.00,\"currency\":\"USD\",\"receipt_image\":\"<base64\u2011img2>\"}]"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_policy_d4e5f6",
+          "content": "{\"max_hotel_nightly_rate\":200.00,\"max_meal_per_diem\":50.00,\"receipt_required\":true}"
+        },
+        {
+          "role": "assistant",
+          "content": "Running OCR on each receipt and evaluating compliance\u2026",
+          "tool_calls": [
+            {
+              "id": "ocr_receipt_7g8h9i_1",
+              "name": "ocr_receipt",
+              "arguments": {
+                "image_base64": "<base64\u2011img1>"
+              }
+            },
+            {
+              "id": "ocr_receipt_7g8h9i_2",
+              "name": "ocr_receipt",
+              "arguments": {
+                "image_base64": "<base64\u2011img2>"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "ocr_receipt_7g8h9i_1",
+          "content": "{\"merchant\":\"City Diner\",\"date\":\"2024-03-05\",\"amount\":120.00,\"currency\":\"USD\",\"description\":\"Dinner with client\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "ocr_receipt_7g8h9i_2",
+          "content": "{\"merchant\":\"Metro Taxi\",\"date\":\"2024-03-12\",\"amount\":75.00,\"currency\":\"USD\",\"description\":\"Airport to hotel\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Comparing each receipt with policy...",
+          "tool_calls": [
+            {
+              "id": "evaluate_compliance_10x11y",
+              "name": "evaluate_compliance",
+              "arguments": {
+                "receipt_data": {
+                  "merchant": "City Diner",
+                  "date": "2024-03-05",
+                  "amount": 120.0,
+                  "currency": "USD",
+                  "description": "Dinner with client"
+                },
+                "policy": {
+                  "max_hotel_nightly_rate": 200.0,
+                  "max_meal_per_diem": 50.0,
+                  "receipt_required": true
+                },
+                "expense_record": {
+                  "expense_id": "exp1001",
+                  "amount": 120.0,
+                  "currency": "USD"
+                }
+              }
+            },
+            {
+              "id": "evaluate_compliance_12z13a",
+              "name": "evaluate_compliance",
+              "arguments": {
+                "receipt_data": {
+                  "merchant": "Metro Taxi",
+                  "date": "2024-03-12",
+                  "amount": 75.0,
+                  "currency": "USD",
+                  "description": "Airport to hotel"
+                },
+                "policy": {
+                  "max_hotel_nightly_rate": 200.0,
+                  "max_meal_per_diem": 50.0,
+                  "receipt_required": true
+                },
+                "expense_record": {
+                  "expense_id": "exp1002",
+                  "amount": 75.0,
+                  "currency": "USD"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "evaluate_compliance_10x11y",
+          "content": "{\"compliant\":false,\"issues\":[\"Meal amount $120 exceeds per\u2011diem limit of $50.\"],\"suggested_action\":\"Reduce claim to $50 or provide justification.\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "evaluate_compliance_12z13a",
+          "content": "{\"compliant\":true,\"issues\":[],\"suggested_action\":\"None\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating a markdown summary report for the audit...",
+          "tool_calls": [
+            {
+              "id": "generate_report_14b15c",
+              "name": "generate_report",
+              "arguments": {
+                "evaluation_results": [
+                  {
+                    "expense_id": "exp1001",
+                    "compliant": false,
+                    "issues": [
+                      "Meal amount $120 exceeds per\u2011diem limit of $50."
+                    ],
+                    "suggested_action": "Reduce claim to $50 or provide justification."
+                  },
+                  {
+                    "expense_id": "exp1002",
+                    "compliant": true,
+                    "issues": [],
+                    "suggested_action": "None"
+                  }
+                ],
+                "report_title": "March\u202f2024 Travel Expense Compliance Report \u2013 Employee\u202f789"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_report_14b15c",
+          "content": "# March\u202f2024 Travel Expense Compliance Report \u2013 Employee\u202f789\n\n| Expense ID | Date | Amount | Category | Compliant | Issues | Suggested Action |\n|------------|------|--------|----------|-----------|--------|------------------|\n| exp1001 | 2024\u201103\u201105 | $120.00 | Meal | \u274c | Meal amount $120 exceeds per\u2011diem limit of $50. | Reduce claim to $50 or provide justification. |\n| exp1002 | 2024\u201103\u201112 | $75.00 | Taxi | \u2705 | \u2013 | None |\n\n**Summary**\n- Total expenses audited: 2\n- Compliant: 1 (50\u202f%)\n- Non\u2011compliant: 1 (50\u202f%)\n\nPlease let me know if you would like to adjust any claims or forward this report to your finance department."
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the audit report you requested. If you need any changes or want me to submit the compliant claim automatically, just say the word.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

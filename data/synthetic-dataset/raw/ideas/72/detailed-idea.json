@@ -1,0 +1,447 @@
+{
+  "name": "MediSched AI",
+  "description": "An AI\u2011enhanced patient scheduler that automatically finds optimal appointment slots by balancing provider availability, patient urgency, insurance network constraints, and preferred clinic locations, then books and confirms the appointment on behalf of the patient.",
+  "tools": [
+    {
+      "name": "get_patient_record",
+      "description": "Retrieves the patient's demographic data, medical history, and preferred contact method from the EMR using the patient_id.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "patient_id": {
+            "type": "string",
+            "description": "Unique identifier of the patient in the EMR."
+          }
+        },
+        "required": [
+          "patient_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "check_insurance_coverage",
+      "description": "Checks whether the patient's insurance plan covers a specific provider or clinic location and returns any network restrictions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "patient_id": {
+            "type": "string",
+            "description": "Unique identifier of the patient."
+          },
+          "provider_id": {
+            "type": "string",
+            "description": "Unique identifier of the provider being considered."
+          },
+          "clinic_id": {
+            "type": "string",
+            "description": "Unique identifier of the clinic location."
+          }
+        },
+        "required": [
+          "patient_id",
+          "provider_id",
+          "clinic_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_provider_schedule",
+      "description": "Returns the provider's open time slots for a given date range, filtered by urgency level and location.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "provider_id": {
+            "type": "string",
+            "description": "Identifier of the provider to query."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Start of the date range (inclusive)."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "End of the date range (inclusive)."
+          },
+          "urgency": {
+            "type": "string",
+            "enum": [
+              "routine",
+              "high",
+              "emergency"
+            ],
+            "description": "Urgency level of the appointment request."
+          }
+        },
+        "required": [
+          "provider_id",
+          "start_date",
+          "end_date",
+          "urgency"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "book_appointment",
+      "description": "Creates a new appointment record for the given patient, provider, time slot, and clinic, and returns a confirmation ID.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "patient_id": {
+            "type": "string",
+            "description": "Patient identifier."
+          },
+          "provider_id": {
+            "type": "string",
+            "description": "Provider identifier."
+          },
+          "clinic_id": {
+            "type": "string",
+            "description": "Clinic location identifier."
+          },
+          "appointment_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Exact start time of the appointment in ISO 8601 format."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Brief description of the visit purpose (e.g., knee pain)."
+          }
+        },
+        "required": [
+          "patient_id",
+          "provider_id",
+          "clinic_id",
+          "appointment_time",
+          "reason"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "send_confirmation_email",
+      "description": "Sends an email (or SMS) to the patient with appointment details and a link to modify or cancel.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "patient_contact": {
+            "type": "string",
+            "description": "Email address or phone number of the patient."
+          },
+          "appointment_id": {
+            "type": "string",
+            "description": "The confirmation ID returned by book_appointment."
+          },
+          "details": {
+            "type": "string",
+            "description": "Human\u2011readable summary of the appointment (date, time, provider, location)."
+          }
+        },
+        "required": [
+          "patient_contact",
+          "appointment_id",
+          "details"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "suggest_alternative_times",
+      "description": "Given a list of unavailable slots, returns a ranked list of alternative appointment times that satisfy urgency, insurance, and patient preferences.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "unavailable_slots": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "List of time slots that cannot be used."
+          },
+          "urgency": {
+            "type": "string",
+            "enum": [
+              "routine",
+              "high",
+              "emergency"
+            ],
+            "description": "Urgency level of the request."
+          },
+          "preferred_days": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday"
+              ]
+            },
+            "description": "Days of the week the patient prefers."
+          },
+          "preferred_time_of_day": {
+            "type": "string",
+            "enum": [
+              "morning",
+              "afternoon",
+              "evening"
+            ],
+            "description": "Time\u2011of\u2011day window the patient prefers."
+          }
+        },
+        "required": [
+          "unavailable_slots",
+          "urgency",
+          "preferred_days",
+          "preferred_time_of_day"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "Patient requests a quick appointment for knee pain, prefers weekday mornings near downtown, and uses BlueCross insurance. The assistant pulls the patient record, checks insurance, looks up provider availability, suggests the best slot, books it, and sends a confirmation.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are MediSched AI, an autonomous scheduling assistant for a multi\u2011location health system. Use the provided tools to retrieve patient data, verify insurance, find provider slots, book appointments, and notify patients. Always confirm the final details with the patient."
+        },
+        {
+          "role": "user",
+          "content": "I need an appointment for my knee pain as soon as possible. I have BlueCross and would like a weekday morning near downtown."
+        },
+        {
+          "role": "assistant",
+          "content": "Let me gather the necessary information and find the earliest suitable slot for you.",
+          "tool_calls": [
+            {
+              "id": "get_patient_record_1a2b3c",
+              "name": "get_patient_record",
+              "arguments": {
+                "patient_id": "PAT_004582"
+              }
+            },
+            {
+              "id": "check_insurance_coverage_4d5e6f",
+              "name": "check_insurance_coverage",
+              "arguments": {
+                "patient_id": "PAT_004582",
+                "provider_id": "PROV_112",
+                "clinic_id": "CLINIC_07"
+              }
+            },
+            {
+              "id": "get_provider_schedule_7g8h9i",
+              "name": "get_provider_schedule",
+              "arguments": {
+                "provider_id": "PROV_112",
+                "start_date": "2025-12-09",
+                "end_date": "2025-12-16",
+                "urgency": "high"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_patient_record_1a2b3c",
+          "content": "{\"patient_id\":\"PAT_004582\",\"name\":\"Alex Rivera\",\"contact\":\"alex.rivera@example.com\",\"preferred_location\":\"downtown\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "check_insurance_coverage_4d5e6f",
+          "content": "{\"patient_id\":\"PAT_004582\",\"provider_id\":\"PROV_112\",\"clinic_id\":\"CLINIC_07\",\"in_network\":true}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_provider_schedule_7g8h9i",
+          "content": "{\"provider_id\":\"PROV_112\",\"available_slots\":[\"2025-12-10T09:00:00-05:00\",\"2025-12-10T09:30:00-05:00\",\"2025-12-11T08:30:00-05:00\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "I have found the following in\u2011network morning slots for Dr. Kim (PROV_112) near downtown:\n- Dec 10, 2025 at 9:00\u202fAM\n- Dec 10, 2025 at 9:30\u202fAM\n- Dec 11, 2025 at 8:30\u202fAM\nWhich one works best for you?",
+          "tool_calls": []
+        },
+        {
+          "role": "user",
+          "content": "The Dec 10 at 9:00\u202fAM slot works for me."
+        },
+        {
+          "role": "assistant",
+          "content": "Great, I will book that appointment for you.",
+          "tool_calls": [
+            {
+              "id": "book_appointment_a1b2c3",
+              "name": "book_appointment",
+              "arguments": {
+                "patient_id": "PAT_004582",
+                "provider_id": "PROV_112",
+                "clinic_id": "CLINIC_07",
+                "appointment_time": "2025-12-10T09:00:00-05:00",
+                "reason": "knee pain"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "book_appointment_a1b2c3",
+          "content": "{\"appointment_id\":\"APPT_987654\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Your appointment is confirmed! Appointment ID: APPT_987654.\nDate & Time: Dec 10, 2025 at 9:00\u202fAM\nProvider: Dr. Kim\nLocation: Downtown Clinic (CLINIC_07).\nI will also send a confirmation email to alex.rivera@example.com.",
+          "tool_calls": [
+            {
+              "id": "send_confirmation_email_d4e5f6",
+              "name": "send_confirmation_email",
+              "arguments": {
+                "patient_contact": "alex.rivera@example.com",
+                "appointment_id": "APPT_987654",
+                "details": "Dec 10, 2025 at 9:00\u202fAM with Dr. Kim at Downtown Clinic"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_confirmation_email_d4e5f6",
+          "content": "{\"status\":\"sent\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "The confirmation has been sent. Let me know if you need to reschedule or have any other questions.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "Patient requests a routine follow\u2011up but the preferred provider is out of network; the assistant suggests an in\u2011network alternative and books it.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are MediSched AI, a scheduling assistant that respects insurance networks, patient preferences, and urgency levels."
+        },
+        {
+          "role": "user",
+          "content": "I need a routine follow\u2011up for my hypertension. My insurance is UnitedHealth, and I normally see Dr. Lee."
+        },
+        {
+          "role": "assistant",
+          "content": "Checking Dr. Lee\u2019s network status and finding available slots.",
+          "tool_calls": [
+            {
+              "id": "check_insurance_coverage_abc123",
+              "name": "check_insurance_coverage",
+              "arguments": {
+                "patient_id": "PAT_009321",
+                "provider_id": "PROV_210",
+                "clinic_id": "CLINIC_03"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "check_insurance_coverage_abc123",
+          "content": "{\"patient_id\":\"PAT_009321\",\"provider_id\":\"PROV_210\",\"clinic_id\":\"CLINIC_03\",\"in_network\":false}"
+        },
+        {
+          "role": "assistant",
+          "content": "Dr. Lee is out of network for your UnitedHealth plan. I can look for an in\u2011network provider who offers hypertension follow\u2011ups. Would you like me to proceed?",
+          "tool_calls": []
+        },
+        {
+          "role": "user",
+          "content": "Yes, please find another provider."
+        },
+        {
+          "role": "assistant",
+          "content": "Searching for in\u2011network providers with open routine slots.",
+          "tool_calls": [
+            {
+              "id": "get_provider_schedule_xyz789",
+              "name": "get_provider_schedule",
+              "arguments": {
+                "provider_id": "PROV_215",
+                "start_date": "2025-12-15",
+                "end_date": "2025-12-22",
+                "urgency": "routine"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_provider_schedule_xyz789",
+          "content": "{\"provider_id\":\"PROV_215\",\"available_slots\":[\"2025-12-16T10:00:00-05:00\",\"2025-12-17T14:00:00-05:00\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Dr. Patel (PROV_215) is in\u2011network and has the following routine slots:\n- Dec 16 at 10:00\u202fAM\n- Dec 17 at 2:00\u202fPM\nWhich would you prefer?",
+          "tool_calls": []
+        },
+        {
+          "role": "user",
+          "content": "Dec 16 at 10:00\u202fAM works."
+        },
+        {
+          "role": "assistant",
+          "content": "Booking your follow\u2011up with Dr. Patel.",
+          "tool_calls": [
+            {
+              "id": "book_appointment_fedcba",
+              "name": "book_appointment",
+              "arguments": {
+                "patient_id": "PAT_009321",
+                "provider_id": "PROV_215",
+                "clinic_id": "CLINIC_04",
+                "appointment_time": "2025-12-16T10:00:00-05:00",
+                "reason": "hypertension follow\u2011up"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "book_appointment_fedcba",
+          "content": "{\"appointment_id\":\"APPT_554433\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Your appointment is confirmed (APPT_554433) for Dec 16, 2025 at 10:00\u202fAM with Dr. Patel at the Northside Clinic. A confirmation email will be sent shortly.",
+          "tool_calls": [
+            {
+              "id": "send_confirmation_email_123xyz",
+              "name": "send_confirmation_email",
+              "arguments": {
+                "patient_contact": "patient009321@example.com",
+                "appointment_id": "APPT_554433",
+                "details": "Dec 16, 2025 at 10:00\u202fAM with Dr. Patel at Northside Clinic"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_confirmation_email_123xyz",
+          "content": "{\"status\":\"sent\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Confirmation sent! Let me know if you need anything else.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,479 @@
+{
+  "name": "LexiResearch",
+  "description": "An AI\u2011powered legal research assistant that searches public law databases, pulls statutes and case opinions, extracts the passages most relevant to a lawyer's issue, and returns concise, citation\u2011ready summaries and reports for attorney review.",
+  "tools": [
+    {
+      "name": "search_law_database",
+      "description": "Queries a public legal database (e.g., CourtListener, Google Scholar, or government site) for statutes, regulations, or case law matching the provided keywords and optional jurisdiction/source filters. Returns a Markdown\u2011formatted list of up to 10 results, each with title, citation, short excerpt, and a permanent URL.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The free\u2011text search query describing the legal issue (e.g., \"California employment discrimination gender\")."
+          },
+          "jurisdiction": {
+            "type": "string",
+            "description": "Optional jurisdiction filter (e.g., \"California\", \"US Federal\")."
+          },
+          "source": {
+            "type": "string",
+            "description": "Optional source type: \"case\", \"statute\", \"regulation\"."
+          },
+          "max_results": {
+            "type": "integer",
+            "description": "Maximum number of results to return (default 10).",
+            "minimum": 1,
+            "maximum": 20
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_document",
+      "description": "Retrieves the full text (or the primary opinion) of a legal document given its permanent URL or citation identifier. Returns the document in plain text wrapped in a Markdown code block.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Permanent URL to the document (e.g., a CourtListener or Justia link)."
+          },
+          "citation": {
+            "type": "string",
+            "description": "Optional Bluebook citation if the URL is not known; the tool will resolve it via a public index."
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "extract_relevant_sections",
+      "description": "Scans the provided legal text and extracts the paragraphs or sections that directly address the user\u2011specified issue. Returns the extracted snippets in Markdown bullet format, preserving original citations where possible.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "document_text": {
+            "type": "string",
+            "description": "Full text of the legal document (plain text or Markdown)."
+          },
+          "issue_description": {
+            "type": "string",
+            "description": "Short description of the legal issue to focus the extraction (e.g., \"gender\u2011based employment discrimination\")."
+          }
+        },
+        "required": [
+          "document_text",
+          "issue_description"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "summarize_holding",
+      "description": "Generates a concise, attorney\u2011ready summary of the key holdings or statutory provisions from the extracted sections. Output is a short paragraph followed by a bullet list of the main points, all in plain English.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "extracted_sections": {
+            "type": "string",
+            "description": "Markdown list of the relevant excerpts returned by `extract_relevant_sections`."
+          }
+        },
+        "required": [
+          "extracted_sections"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "cite_cases",
+      "description": "Formats a list of case citations or statutory references into proper Bluebook style. Returns a Markdown\u2011formatted bibliography.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Raw citation string (e.g., \"Doe v. Smith, 123 Cal.4th 567 (2020)\")."
+            },
+            "description": "List of citations to format."
+          }
+        },
+        "required": [
+          "citations"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_report",
+      "description": "Combines a summary, formatted citations, and source links into a single, polished Markdown research memo ready for attorney review.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "string",
+            "description": "The concise holding summary produced by `summarize_holding`."
+          },
+          "bibliography": {
+            "type": "string",
+            "description": "Formatted citations from `cite_cases`."
+          },
+          "source_links": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri",
+              "description": "Permanent URL to the original document."
+            },
+            "description": "List of URLs for the documents referenced in the memo."
+          }
+        },
+        "required": [
+          "summary",
+          "bibliography",
+          "source_links"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "Attorney asks for recent California appellate decisions on gender\u2011based employment discrimination; the bot searches, pulls full opinions, extracts the relevant holdings, and delivers a ready\u2011to\u2011use memo.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LexiResearch, an AI legal research assistant. Use the provided tools to locate, retrieve, and synthesize relevant legal authority for the user. Return the final answer in a concise Markdown memo."
+        },
+        {
+          "role": "user",
+          "content": "Find the latest California Court of Appeal decisions (past 3 years) that address gender\u2011based employment discrimination and give me a short memo summarizing the holdings."
+        },
+        {
+          "role": "assistant",
+          "content": "Searching for recent California appellate opinions on gender\u2011based employment discrimination.",
+          "tool_calls": [
+            {
+              "id": "search_law_database_1a2b3c",
+              "name": "search_law_database",
+              "arguments": {
+                "query": "gender based employment discrimination California Court of Appeal",
+                "jurisdiction": "California",
+                "source": "case",
+                "max_results": 5
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_law_database_1a2b3c",
+          "content": "1. **Doe v. XYZ Corp.**, 45 Cal. App. 5th 123 (2022) \u2013 https://www.courtlistener.com/opinion/1234567/doe-v-xyz-corp/\n   *Excerpt:* The court held that an employer's disparate impact on female employees constituted unlawful discrimination under Cal. Civ. Code \u00a7 12950.3.\n2. **Smith v. Acme Inc.**, 46 Cal. App. 5th 456 (2023) \u2013 https://www.courtlistener.com/opinion/2345678/smith-v-acme-inc/\n   *Excerpt:* Reaffirmed that gender\u2011neutral job qualifications must be validated by a business necessity analysis.\n3. **Lee v. TechCo**, 47 Cal. App. 5th 789 (2024) \u2013 https://www.courtlistener.com/opinion/3456789/lee-v-techco/\n   *Excerpt:* Clarified the standard for proving intentional discrimination in promotion decisions.\n"
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching the full text of each opinion.",
+          "tool_calls": [
+            {
+              "id": "fetch_document_4d5e6f",
+              "name": "fetch_document",
+              "arguments": {
+                "url": "https://www.courtlistener.com/opinion/1234567/doe-v-xyz-corp/"
+              }
+            },
+            {
+              "id": "fetch_document_7g8h9i",
+              "name": "fetch_document",
+              "arguments": {
+                "url": "https://www.courtlistener.com/opinion/2345678/smith-v-acme-inc/"
+              }
+            },
+            {
+              "id": "fetch_document_0j1k2l",
+              "name": "fetch_document",
+              "arguments": {
+                "url": "https://www.courtlistener.com/opinion/3456789/lee-v-techco/"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_document_4d5e6f",
+          "content": "```text\n[Full text of Doe v. XYZ Corp. opinion ...] \n```"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_document_7g8h9i",
+          "content": "```text\n[Full text of Smith v. Acme Inc. opinion ...] \n```"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_document_0j1k2l",
+          "content": "```text\n[Full text of Lee v. TechCo opinion ...] \n```"
+        },
+        {
+          "role": "assistant",
+          "content": "Extracting the portions of each opinion that discuss the legal holdings on gender\u2011based discrimination.",
+          "tool_calls": [
+            {
+              "id": "extract_relevant_sections_a1b2c3",
+              "name": "extract_relevant_sections",
+              "arguments": {
+                "document_text": "[Full text of Doe v. XYZ Corp. opinion ...]",
+                "issue_description": "gender based employment discrimination"
+              }
+            },
+            {
+              "id": "extract_relevant_sections_d4e5f6",
+              "name": "extract_relevant_sections",
+              "arguments": {
+                "document_text": "[Full text of Smith v. Acme Inc. opinion ...]",
+                "issue_description": "gender based employment discrimination"
+              }
+            },
+            {
+              "id": "extract_relevant_sections_g7h8i9",
+              "name": "extract_relevant_sections",
+              "arguments": {
+                "document_text": "[Full text of Lee v. TechCo opinion ...]",
+                "issue_description": "gender based employment discrimination"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_relevant_sections_a1b2c3",
+          "content": "- **Holding:** Disparate impact on female employees violates Cal. Civ. Code \u00a7 12950.3 when the employer cannot demonstrate a legitimate business necessity.\n- **Citation:** Doe v. XYZ Corp., 45 Cal. App. 5th 123 (2022)"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_relevant_sections_d4e5f6",
+          "content": "- **Holding:** Gender\u2011neutral qualification tests must be validated by a business necessity analysis; failure to do so constitutes discrimination.\n- **Citation:** Smith v. Acme Inc., 46 Cal. App. 5th 456 (2023)"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_relevant_sections_g7h8i9",
+          "content": "- **Holding:** Intentional discrimination in promotion decisions is proven by showing a pattern of adverse treatment toward female employees.\n- **Citation:** Lee v. TechCo, 47 Cal. App. 5th 789 (2024)"
+        },
+        {
+          "role": "assistant",
+          "content": "Summarizing the holdings.",
+          "tool_calls": [
+            {
+              "id": "summarize_holding_x1y2z3",
+              "name": "summarize_holding",
+              "arguments": {
+                "extracted_sections": "- **Holding:** Disparate impact on female employees violates Cal. Civ. Code \u00a7 12950.3 when the employer cannot demonstrate a legitimate business necessity.\n- **Citation:** Doe v. XYZ Corp., 45 Cal. App. 5th 123 (2022)\n- **Holding:** Gender\u2011neutral qualification tests must be validated by a business necessity analysis; failure to do so constitutes discrimination.\n- **Citation:** Smith v. Acme Inc., 46 Cal. App. 5th 456 (2023)\n- **Holding:** Intentional discrimination in promotion decisions is proven by showing a pattern of adverse treatment toward female employees.\n- **Citation:** Lee v. TechCo, 47 Cal. App. 5th 789 (2024)"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_holding_x1y2z3",
+          "content": "The California Court of Appeal has recently clarified that:\n- Disparate impact on female employees is unlawful unless the employer can prove a legitimate business necessity (Doe v. XYZ Corp., 2022).\n- Gender\u2011neutral job qualifications must undergo a business necessity analysis; otherwise they constitute discrimination (Smith v. Acme Inc., 2023).\n- Intentional discrimination in promotions requires evidence of a pattern of adverse treatment toward women (Lee v. TechCo, 2024)."
+        },
+        {
+          "role": "assistant",
+          "content": "Formatting the citations in Bluebook style.",
+          "tool_calls": [
+            {
+              "id": "cite_cases_m4n5o6",
+              "name": "cite_cases",
+              "arguments": {
+                "citations": [
+                  "Doe v. XYZ Corp., 45 Cal. App. 5th 123 (2022)",
+                  "Smith v. Acme Inc., 46 Cal. App. 5th 456 (2023)",
+                  "Lee v. TechCo, 47 Cal. App. 5th 789 (2024)"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "cite_cases_m4n5o6",
+          "content": "- Doe v. XYZ Corp., 45 Cal. App. 5th 123 (2022).\n- Smith v. Acme Inc., 46 Cal. App. 5th 456 (2023).\n- Lee v. TechCo, 47 Cal. App. 5th 789 (2024)."
+        },
+        {
+          "role": "assistant",
+          "content": "Generating the final research memo.",
+          "tool_calls": [
+            {
+              "id": "generate_report_p7q8r9",
+              "name": "generate_report",
+              "arguments": {
+                "summary": "The California Court of Appeal has recently clarified that:\n- Disparate impact on female employees is unlawful unless the employer can prove a legitimate business necessity (Doe v. XYZ Corp., 2022).\n- Gender\u2011neutral job qualifications must undergo a business necessity analysis; otherwise they constitute discrimination (Smith v. Acme Inc., 2023).\n- Intentional discrimination in promotions requires evidence of a pattern of adverse treatment toward women (Lee v. TechCo, 2024).",
+                "bibliography": "- Doe v. XYZ Corp., 45 Cal. App. 5th 123 (2022).\n- Smith v. Acme Inc., 46 Cal. App. 5th 456 (2023).\n- Lee v. TechCo, 47 Cal. App. 5th 789 (2024).",
+                "source_links": [
+                  "https://www.courtlistener.com/opinion/1234567/doe-v-xyz-corp/",
+                  "https://www.courtlistener.com/opinion/2345678/smith-v-acme-inc/",
+                  "https://www.courtlistener.com/opinion/3456789/lee-v-techco/"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_report_p7q8r9",
+          "content": "# Research Memo: Gender\u2011Based Employment Discrimination \u2013 California (2022\u20112024)\n\n**Summary**\nThe California Court of Appeal has recently clarified that:\n- Disparate impact on female employees is unlawful unless the employer can prove a legitimate business necessity (Doe v. XYZ Corp., 2022).\n- Gender\u2011neutral job qualifications must undergo a business necessity analysis; otherwise they constitute discrimination (Smith v. Acme Inc., 2023).\n- Intentional discrimination in promotions requires evidence of a pattern of adverse treatment toward women (Lee v. TechCo, 2024).\n\n**Key Authorities**\n- Doe v. XYZ Corp., 45 Cal. App. 5th 123 (2022).\n- Smith v. Acme Inc., 46 Cal. App. 5th 456 (2023).\n- Lee v. TechCo, 47 Cal. App. 5th 789 (2024).\n\n**Sources**\n- https://www.courtlistener.com/opinion/1234567/doe-v-xyz-corp/\n- https://www.courtlistener.com/opinion/2345678/smith-v-acme-inc/\n- https://www.courtlistener.com/opinion/3456789/lee-v-techco/\n"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the memo you requested. Let me know if you need deeper analysis of any of the cases or related statutory provisions.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User asks for the statutory provisions of the California Consumer Privacy Act (CCPA) that govern data\u2011breach notification requirements; the bot locates the statute, extracts the relevant sections, summarizes the obligations, and returns a concise brief.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LexiResearch, an AI legal research assistant. Use the available tools to locate statutory text, extract the relevant parts, and produce a short briefing for the user."
+        },
+        {
+          "role": "user",
+          "content": "Give me a brief overview of the CCPA sections that address a company's duty to notify consumers after a data breach."
+        },
+        {
+          "role": "assistant",
+          "content": "Searching for the California Consumer Privacy Act text and pinpointing breach\u2011notification provisions.",
+          "tool_calls": [
+            {
+              "id": "search_law_database_aa11bb",
+              "name": "search_law_database",
+              "arguments": {
+                "query": "\"California Consumer Privacy Act\" breach notification",
+                "jurisdiction": "California",
+                "source": "statute",
+                "max_results": 1
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_law_database_aa11bb",
+          "content": "1. **California Consumer Privacy Act (CCPA) \u2013 Cal. Civ. Code \u00a7\u00a7 1798.100\u20111798.199** \u2013 https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?lawCode=CIV&division=3.&title=1.81.5.&part=4.&chapter=&article=\n   *Excerpt (Sec. 1798.150(c))(2023):* \"A business that conducts a breach ... shall provide notice to affected consumers ... within 45 days ...\""
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching the full statutory text for the identified citation.",
+          "tool_calls": [
+            {
+              "id": "fetch_document_ccpa",
+              "name": "fetch_document",
+              "arguments": {
+                "url": "https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?lawCode=CIV&division=3.&title=1.81.5.&part=4.&chapter=&article="
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_document_ccpa",
+          "content": "```text\n[Full text of Cal. Civ. Code \u00a7\u00a7 1798.100\u20111798.199 ... Section 1798.150(c):\n\n\"(c) A business that conducts a breach of security affecting personal information... shall provide notice to each affected consumer in writing, electronically, or via telephone, consistent with the best practices for such notification. The notice must be provided within forty\u2011five (45) days after the discovery of the breach, and shall contain ...\"\n```"
+        },
+        {
+          "role": "assistant",
+          "content": "Extracting the breach\u2011notification language.",
+          "tool_calls": [
+            {
+              "id": "extract_relevant_sections_ccpa",
+              "name": "extract_relevant_sections",
+              "arguments": {
+                "document_text": "[Full text of Cal. Civ. Code \u00a7\u00a7 1798.100\u20111798.199 ... Section 1798.150(c): ... ]",
+                "issue_description": "data breach notification requirements"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_relevant_sections_ccpa",
+          "content": "- **Statutory Requirement (Sec. 1798.150(c))**: A business that experiences a breach of security affecting personal information must provide written, electronic, or telephone notice to each affected consumer within **45 days** after discovery of the breach. The notice must include a description of the breach, the categories of personal information compromised, and steps consumers can take to protect themselves.\n- **Citation**: Cal. Civ. Code \u00a7 1798.150(c) (2023)."
+        },
+        {
+          "role": "assistant",
+          "content": "Summarizing the obligations.",
+          "tool_calls": [
+            {
+              "id": "summarize_holding_ccpa",
+              "name": "summarize_holding",
+              "arguments": {
+                "extracted_sections": "- **Statutory Requirement (Sec. 1798.150(c))**: A business that experiences a breach of security affecting personal information must provide written, electronic, or telephone notice to each affected consumer within **45 days** after discovery of the breach. The notice must include a description of the breach, the categories of personal information compromised, and steps consumers can take to protect themselves.\n- **Citation**: Cal. Civ. Code \u00a7 1798.150(c) (2023)."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_holding_ccpa",
+          "content": "Under the CCPA, a covered business must **notify affected consumers within 45 days** of discovering a data\u2011breach. The notice must be delivered in writing, electronically, or by telephone and must contain (i) a description of the breach, (ii) the categories of personal information involved, and (iii) recommended protective steps for consumers."
+        },
+        {
+          "role": "assistant",
+          "content": "Formatting the citation.",
+          "tool_calls": [
+            {
+              "id": "cite_cases_ccpa",
+              "name": "cite_cases",
+              "arguments": {
+                "citations": [
+                  "Cal. Civ. Code \u00a7 1798.150(c) (2023)"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "cite_cases_ccpa",
+          "content": "- Cal. Civ. Code \u00a7 1798.150(c) (2023)."
+        },
+        {
+          "role": "assistant",
+          "content": "Creating the briefing memo.",
+          "tool_calls": [
+            {
+              "id": "generate_report_ccpa",
+              "name": "generate_report",
+              "arguments": {
+                "summary": "Under the CCPA, a covered business must **notify affected consumers within 45 days** of discovering a data\u2011breach. The notice must be delivered in writing, electronically, or by telephone and must contain (i) a description of the breach, (ii) the categories of personal information involved, and (iii) recommended protective steps for consumers.",
+                "bibliography": "- Cal. Civ. Code \u00a7 1798.150(c) (2023).",
+                "source_links": [
+                  "https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?lawCode=CIV&division=3.&title=1.81.5.&part=4.&chapter=&article="
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_report_ccpa",
+          "content": "# Briefing Memo: CCPA \u2013 Data\u2011Breach Notification Duty\n\n**Summary**\nUnder the CCPA, a covered business must **notify affected consumers within 45 days** of discovering a data\u2011breach. The notice must be delivered in writing, electronically, or by telephone and must contain (i) a description of the breach, (ii) the categories of personal information involved, and (iii) recommended protective steps for consumers.\n\n**Key Authority**\n- Cal. Civ. Code \u00a7 1798.150(c) (2023).\n\n**Source**\n- https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?lawCode=CIV&division=3.&title=1.81.5.&part=4.&chapter=&article=\n"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is a concise briefing on the CCPA\u2019s breach\u2011notification requirement. Let me know if you\u2019d like a deeper dive into enforcement penalties or related privacy statutes.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

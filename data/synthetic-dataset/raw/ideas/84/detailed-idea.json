@@ -1,0 +1,258 @@
+{
+  "name": "PodMatch AI",
+  "description": "An AI\u2011driven service that matches podcast hosts with ideal guests by analysing past episode topics, audience interests, and expert profiles, then generates outreach material and optional scheduling.",
+  "tools": [
+    {
+      "name": "fetch_podcast_metadata",
+      "description": "Retrieves episode titles, descriptions, guest names, and extracted topics from a given podcast RSS feed URL. Returns a JSON array of episode objects.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "rss_url": {
+            "type": "string",
+            "description": "The publicly accessible RSS URL of the podcast."
+          }
+        },
+        "required": [
+          "rss_url"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "search_expert_profiles",
+      "description": "Searches professional or academic databases for experts that match a list of keywords. Returns an array of candidate objects containing name, affiliation, short bio, contact email, and recent work links.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Key topics or skill terms to match against expert profiles."
+          },
+          "max_results": {
+            "type": "integer",
+            "description": "Maximum number of candidate profiles to return."
+          }
+        },
+        "required": [
+          "keywords",
+          "max_results"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "analyze_audience_interests",
+      "description": "Consumes audience analytics data (CSV or JSON string) and extracts the top interest categories as a list of strings.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "analytics_data": {
+            "type": "string",
+            "description": "Raw analytics data in JSON or CSV format (as a string)."
+          }
+        },
+        "required": [
+          "analytics_data"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "rank_candidates",
+      "description": "Scores each candidate against the podcast's past episode topics and audience interests, returning a ranked list with suitability percentages.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "bio": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": "string"
+                },
+                "recent_work": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "bio",
+                "email"
+              ]
+            },
+            "description": "Array of candidate objects returned by search_expert_profiles."
+          },
+          "episode_topics": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of key topics extracted from past episodes."
+          },
+          "audience_interests": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Top audience interest categories derived from analytics."
+          }
+        },
+        "required": [
+          "candidates",
+          "episode_topics",
+          "audience_interests"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_guest_pitch",
+      "description": "Creates a personalized email pitch to a selected guest, referencing the episode theme, host name, and why the guest's expertise is a perfect fit.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "guest_name": {
+            "type": "string",
+            "description": "Full name of the guest."
+          },
+          "guest_bio": {
+            "type": "string",
+            "description": "Short biography or description of the guest."
+          },
+          "episode_theme": {
+            "type": "string",
+            "description": "The central theme or title of the upcoming episode."
+          },
+          "host_name": {
+            "type": "string",
+            "description": "Name of the podcast host who will be sending the email."
+          }
+        },
+        "required": [
+          "guest_name",
+          "guest_bio",
+          "episode_theme",
+          "host_name"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks for guest suggestions for an upcoming episode on AI governance; the assistant calls multiple tools to fetch past episode data, analyse audience interests, search for experts, rank them, and returns three top candidates.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are PodMatch AI, an autonomous assistant that matches podcast hosts with ideal guests using the provided tools."
+        },
+        {
+          "role": "user",
+          "content": "I host a podcast called AI Talk where we discuss AI ethics and policy. Our last three episodes covered AI bias, transparency, and regulation. Our audience is mostly machine learning engineers and policy makers. Can you suggest three potential guests for the next episode on AI governance?"
+        },
+        {
+          "role": "assistant",
+          "content": "Sure, let me gather the necessary data and find the best matches.",
+          "tool_calls": [
+            {
+              "id": "fetch_podcast_metadata_1a2b3c",
+              "name": "fetch_podcast_metadata",
+              "arguments": {
+                "rss_url": "https://example.com/aitalk/rss.xml"
+              }
+            },
+            {
+              "id": "analyze_audience_interests_4d5e6f",
+              "name": "analyze_audience_interests",
+              "arguments": {
+                "analytics_data": "{ \"top_countries\": [\"US\",\"UK\"], \"interests\": [\"machine learning\",\"public policy\",\"AI safety\"] }"
+              }
+            },
+            {
+              "id": "search_expert_profiles_7g8h9i",
+              "name": "search_expert_profiles",
+              "arguments": {
+                "keywords": [
+                  "AI governance",
+                  "AI policy",
+                  "ethical AI"
+                ],
+                "max_results": 10
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_podcast_metadata_1a2b3c",
+          "content": "[{\"title\":\"AI Bias in Hiring\",\"guest\":\"Dr. Maya Patel\",\"topics\":[\"bias\",\"fairness\"]},{\"title\":\"Transparency in Machine Learning\",\"guest\":\"Prof. Luis Gomez\",\"topics\":[\"transparency\",\"explainability\"]},{\"title\":\"Regulating AI Systems\",\"guest\":\"Ms. Hannah Lee\",\"topics\":[\"regulation\",\"policy\"]}]"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "analyze_audience_interests_4d5e6f",
+          "content": "[\"machine learning\",\"public policy\",\"AI safety\",\"ethics\"]"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_expert_profiles_7g8h9i",
+          "content": "[{\"name\":\"Dr. Kate Crawford\",\"bio\":\"Senior Principal Researcher at Microsoft Research, co\u2011author of 'Artificial Intelligence Policy: A Primer'.\",\"email\":\"kate.crawford@example.com\",\"recent_work\":\"https://example.com/kate-crawford-paper\"},{\"name\":\"Prof. Nick Bostrom\",\"bio\":\"Director of the Future of Humanity Institute, author of 'Superintelligence'.\",\"email\":\"nick.bostrom@example.com\",\"recent_work\":\"https://example.com/bostrom-book\"},{\"name\":\"Ms. Caroline Criado Perez\",\"bio\":\"Founder of The Centre for Data Ethics, author of 'Invisible Women'.\",\"email\":\"caroline.perez@example.com\",\"recent_work\":\"https://example.com/creado-perez\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "I've processed the data and scored each candidate against your past episode topics and audience interests. Here are the top three matches for an episode on **AI Governance**:\n\n1. **Dr. Kate Crawford** \u2013 Expertise in AI policy and ethics, frequent speaker on governance frameworks. Suitability: 92%.\n2. **Prof. Nick Bostrom** \u2013 World\u2011renowned researcher on the long\u2011term impacts of AI and governance challenges. Suitability: 87%.\n3. **Ms. Caroline Criado Perez** \u2013 Specialist in data ethics and gender\u2011biased AI, strong focus on policy recommendations. Suitability: 84%.\n\nWould you like a personalized pitch email for any of these guests?",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User selects Dr. Kate Crawford and asks for a pitch email; the assistant generates the email using the generate_guest_pitch tool.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are PodMatch AI, helping podcast hosts secure expert guests."
+        },
+        {
+          "role": "user",
+          "content": "Great, I want to invite Dr. Kate Crawford to our next episode. Can you draft a short, friendly invitation email?"
+        },
+        {
+          "role": "assistant",
+          "content": "Absolutely, let me create a tailored invitation for Dr. Crawford.",
+          "tool_calls": [
+            {
+              "id": "generate_guest_pitch_ab12cd",
+              "name": "generate_guest_pitch",
+              "arguments": {
+                "guest_name": "Dr. Kate Crawford",
+                "guest_bio": "Senior Principal Researcher at Microsoft Research, co\u2011author of 'Artificial Intelligence Policy: A Primer'.",
+                "episode_theme": "AI Governance: Crafting Effective Policy Frameworks",
+                "host_name": "Jordan Lee"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_guest_pitch_ab12cd",
+          "content": "Subject: Invitation to discuss AI Governance on **AI Talk**\n\nDear Dr. Crawford,\n\nI hope you\u2019re doing well. My name is Jordan Lee, host of *AI Talk*, a podcast that explores the ethical, technical, and policy dimensions of artificial intelligence. Our listeners \u2013 a mix of machine\u2011learning engineers and policy makers \u2013 have responded enthusiastically to recent episodes on AI bias, transparency, and regulation.\n\nWe are planning an upcoming episode titled **\u201cAI Governance: Crafting Effective Policy Frameworks.\u201d** Given your pioneering research on AI policy and your recent work co\u2011authoring *Artificial Intelligence Policy: A Primer*, we would be thrilled to have you share your insights on how governments and industry can collaborate to shape responsible AI systems.\n\nThe interview would be a relaxed, 30\u2011minute conversation conducted via Zoom at a time that works best for you. We can also provide a brief outline in advance to make preparation easy.\n\nWould you be interested in joining us? I would be happy to discuss any details or answer questions you might have.\n\nThank you for considering our invitation. I look forward to the possibility of featuring your expertise on *AI Talk*.\n\nWarm regards,\nJordan Lee\nHost, AI Talk\njordan.lee@aitalkpodcast.com"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the draft email you can send to Dr. Kate Crawford:\n\n---\n\n*Email body as above*\n---\n\nLet me know if you\u2019d like any tweaks or if you\u2019d like me to help schedule the interview.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

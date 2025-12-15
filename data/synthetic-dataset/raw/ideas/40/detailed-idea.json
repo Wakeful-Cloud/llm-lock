@@ -1,0 +1,388 @@
+{
+  "name": "GrantScout AI",
+  "description": "GrantScout AI is an autonomous assistant that continuously monitors funding agency portals, extracts grant opportunities, matches them against a researcher's profile and eligibility, and delivers personalized grant recommendations and application outlines. It streamlines grant discovery, eligibility verification, and early drafting, turning a time\u2011consuming search into a proactive, automated service for nonprofits, universities, and research labs.",
+  "tools": [
+    {
+      "name": "fetch_grant_listings",
+      "description": "Retrieves the raw HTML of a grant listings page from a specified funding agency URL. This provides the source material for further parsing and extraction of grant data.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The HTTPS URL of the grant listings page to fetch."
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "parse_grant_page",
+      "description": "Parses raw HTML from a grant portal and extracts a structured list of grant entries, including title, deadline, amount, eligibility criteria, and application link.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "html_content": {
+            "type": "string",
+            "description": "The HTML source code of the grant listings page."
+          }
+        },
+        "required": [
+          "html_content"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "retrieve_user_profile",
+      "description": "Loads the stored profile for a given user, containing organization type, research focus, location, and past grant history, which is used for eligibility matching.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Unique identifier of the user."
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "filter_by_eligibility",
+      "description": "Compares a list of grant entries against the user's profile and returns only those grants for which the user meets the eligibility criteria.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "grants": {
+            "type": "array",
+            "description": "Array of grant objects as produced by parse_grant_page.",
+            "items": {
+              "type": "object"
+            }
+          },
+          "profile": {
+            "type": "object",
+            "description": "The user profile object obtained from retrieve_user_profile."
+          }
+        },
+        "required": [
+          "grants",
+          "profile"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "store_grant_record",
+      "description": "Saves a single grant entry into the system's persistent database for later reference and tracking, returning a unique internal record ID.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "grant": {
+            "type": "object",
+            "description": "A single structured grant entry."
+          }
+        },
+        "required": [
+          "grant"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "send_email_notification",
+      "description": "Emails the user a concise summary of recommended grants, including titles, deadlines, amounts, and direct application links.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_email": {
+            "type": "string",
+            "description": "Recipient email address."
+          },
+          "subject": {
+            "type": "string",
+            "description": "Subject line of the email."
+          },
+          "body": {
+            "type": "string",
+            "description": "Full email body in Markdown format."
+          }
+        },
+        "required": [
+          "user_email",
+          "subject",
+          "body"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "schedule_periodic_check",
+      "description": "Creates or updates a recurring background job that re\u2011runs the grant discovery pipeline for the user on the chosen interval (daily, weekly, or monthly).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Identifier of the user to schedule for."
+          },
+          "interval": {
+            "type": "string",
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly"
+            ],
+            "description": "How often the check should be performed."
+          }
+        },
+        "required": [
+          "user_id",
+          "interval"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_application_outline",
+      "description": "Produces a draft outline for a grant application, tailored to the selected grant's requirements and the user's research profile, ready for the user to flesh out.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "grant_id": {
+            "type": "string",
+            "description": "Internal record ID of the grant for which to draft the outline."
+          },
+          "user_id": {
+            "type": "string",
+            "description": "Identifier of the user requesting the outline."
+          }
+        },
+        "required": [
+          "grant_id",
+          "user_id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "A user asks for new AI\u2011related nonprofit grants; the assistant fetches listings from the NSF website, parses them, retrieves the user profile, filters by eligibility, stores matches, and emails a summary.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are GrantScout AI, an autonomous grant\u2011search assistant. Use the available tools to find grants that match a user's profile, store results, and notify the user."
+        },
+        {
+          "role": "user",
+          "content": "Hi, can you find any new grants this week that fit my nonprofit AI research focus? My org ID is user_123."
+        },
+        {
+          "role": "assistant",
+          "content": "Sure, I will look up the latest NSF grant listings, extract the opportunities, compare them with your profile, and send you a summary.",
+          "tool_calls": [
+            {
+              "id": "fetch_grant_listings_aa1b2c",
+              "name": "fetch_grant_listings",
+              "arguments": {
+                "url": "https://www.nsf.gov/funding/pgm_summ.jsp?pims_id=505123"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_grant_listings_aa1b2c",
+          "content": "<html>...NSF grant listings HTML...</html>"
+        },
+        {
+          "role": "assistant",
+          "content": "Parsing the fetched HTML to extract individual grant entries.",
+          "tool_calls": [
+            {
+              "id": "parse_grant_page_bb2c3d",
+              "name": "parse_grant_page",
+              "arguments": {
+                "html_content": "<html>...NSF grant listings HTML...</html>"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "parse_grant_page_bb2c3d",
+          "content": "[{\"title\":\"AI for Social Good\",\"deadline\":\"2025-02-15\",\"amount\":\"$150,000\",\"eligibility\":\"Non\u2011profit, US\u2011based\",\"link\":\"https://www.nsf.gov/awardsearch/...\"}, {\"title\":\"Machine Learning for Healthcare\",\"deadline\":\"2025-02-20\",\"amount\":\"$200,000\",\"eligibility\":\"University or Non\u2011profit, US\u2011based\",\"link\":\"https://www.nsf.gov/awardsearch/...\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Retrieving your profile to evaluate eligibility.",
+          "tool_calls": [
+            {
+              "id": "retrieve_user_profile_cc3d4e",
+              "name": "retrieve_user_profile",
+              "arguments": {
+                "user_id": "user_123"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "retrieve_user_profile_cc3d4e",
+          "content": "{\"organization_type\":\"Non\u2011profit\",\"research_focus\":\"Artificial Intelligence\",\"location\":\"USA\",\"past_grants\":[\"AI Ethics Initiative 2022\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Filtering grants based on your profile.",
+          "tool_calls": [
+            {
+              "id": "filter_by_eligibility_dd4e5f",
+              "name": "filter_by_eligibility",
+              "arguments": {
+                "grants": [
+                  {
+                    "title": "AI for Social Good",
+                    "deadline": "2025-02-15",
+                    "amount": "$150,000",
+                    "eligibility": "Non-profit, US-based",
+                    "link": "https://www.nsf.gov/awardsearch/..."
+                  },
+                  {
+                    "title": "Machine Learning for Healthcare",
+                    "deadline": "2025-02-20",
+                    "amount": "$200,000",
+                    "eligibility": "University or Non-profit, US-based",
+                    "link": "https://www.nsf.gov/awardsearch/..."
+                  }
+                ],
+                "profile": {
+                  "organization_type": "Non-profit",
+                  "research_focus": "Artificial Intelligence",
+                  "location": "USA",
+                  "past_grants": [
+                    "AI Ethics Initiative 2022"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "filter_by_eligibility_dd4e5f",
+          "content": "[{\"title\":\"AI for Social Good\",\"deadline\":\"2025-02-15\",\"amount\":\"$150,000\",\"link\":\"https://www.nsf.gov/awardsearch/...\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Storing the matching grant for your reference.",
+          "tool_calls": [
+            {
+              "id": "store_grant_record_ee5f6g",
+              "name": "store_grant_record",
+              "arguments": {
+                "grant": {
+                  "title": "AI for Social Good",
+                  "deadline": "2025-02-15",
+                  "amount": "$150,000",
+                  "link": "https://www.nsf.gov/awardsearch/..."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "store_grant_record_ee5f6g",
+          "content": "{\"record_id\":\"grant_987\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Composing the email summary.",
+          "tool_calls": [
+            {
+              "id": "send_email_notification_ff6g7h",
+              "name": "send_email_notification",
+              "arguments": {
+                "user_email": "user123@example.org",
+                "subject": "New Grant Match: AI for Social Good",
+                "body": "## Grant Recommendation\n- **Title:** AI for Social Good\n- **Deadline:** 2025-02-15\n- **Amount:** $150,000\n- **Apply here:** https://www.nsf.gov/awardsearch/...\n\nGood luck!"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_email_notification_ff6g7h",
+          "content": "{\"status\":\"sent\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "I've emailed you a summary of the grant that matches your nonprofit AI focus. Let me know if you\u2019d like a draft outline for the application or want to set up regular alerts.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "A user selects a previously stored grant and asks for a draft application outline; the assistant retrieves the grant and user profile, then generates the outline.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are GrantScout AI, helping users turn grant opportunities into actionable application drafts."
+        },
+        {
+          "role": "user",
+          "content": "I liked the 'AI for Social Good' grant you sent me (record ID grant_987). Can you give me a first\u2011draft outline for the proposal?"
+        },
+        {
+          "role": "assistant",
+          "content": "Sure, I\u2019ll pull the grant details and your profile, then generate a tailored outline.",
+          "tool_calls": [
+            {
+              "id": "retrieve_user_profile_gg7h8i",
+              "name": "retrieve_user_profile",
+              "arguments": {
+                "user_id": "user_123"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "retrieve_user_profile_gg7h8i",
+          "content": "{\"organization_type\":\"Non-profit\",\"research_focus\":\"Artificial Intelligence\",\"location\":\"USA\",\"past_grants\":[\"AI Ethics Initiative 2022\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating an application outline for grant_987 based on the retrieved profile.",
+          "tool_calls": [
+            {
+              "id": "generate_application_outline_hh8i9j",
+              "name": "generate_application_outline",
+              "arguments": {
+                "grant_id": "grant_987",
+                "user_id": "user_123"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_application_outline_hh8i9j",
+          "content": "### Draft Outline for \"AI for Social Good\"\n\n1. **Executive Summary** (0.5 pages)\n   - Brief description of the nonprofit and mission.\n   - Statement of need: societal impact of AI.\n   - High\u2011level project goals and expected outcomes.\n\n2. **Project Description** (2 pages)\n   - **Problem Statement**: Current gaps in AI applications for social good.\n   - **Objectives**: Specific, measurable targets (e.g., develop 3 AI tools for community health).\n   - **Methodology**: Technical approach, data sources, partnership plan.\n   - **Innovation**: How the project advances AI beyond existing solutions.\n\n3. **Work Plan & Timeline** (1 page)\n   - Gantt chart or month\u2011by\u2011month tasks.\n   - Milestones and deliverables.\n\n4. **Budget Narrative** (0.5 pages)\n   - Breakdown of personnel, equipment, cloud services, and outreach.\n   - Justification linked to each work package.\n\n5. **Evaluation & Impact Assessment** (0.5 pages)\n   - Metrics for technical performance and social impact.\n   - Data collection plan and reporting schedule.\n\n6. **Organization Capability** (0.5 pages)\n   - Track record (e.g., AI Ethics Initiative 2022).\n   - Team expertise and partner contributions.\n\n7. **Sustainability Plan** (0.25 pages)\n   - Post\u2011grant continuation strategy.\n\nFeel free to adjust any sections; let me know if you need more detail on a specific part."
+        },
+        {
+          "role": "assistant",
+          "content": "Here's the draft outline. Let me know if you'd like me to flesh out any section, suggest language, or set a reminder for the submission deadline.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

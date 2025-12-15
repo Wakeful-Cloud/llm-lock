@@ -1,0 +1,446 @@
+{
+  "name": "TrendScout Bot",
+  "description": "An agentic LLM that continuously monitors social\u2011media hashtags, internal sales dashboards, and competitor catalogs to surface product\u2011line extension ideas and recommend dynamic pricing adjustments for e\u2011commerce merchants.",
+  "tools": [
+    {
+      "name": "fetch_social_media",
+      "description": "Retrieves recent public posts (text, images, video URLs) for a given hashtag or keyword from Instagram, TikTok, and Twitter within a specified date range.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "hashtag": {
+            "type": "string",
+            "description": "Hashtag or keyword to search, without the leading #."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "ISO\u20118601 start date for the search window (inclusive)."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "ISO\u20118601 end date for the search window (exclusive)."
+          },
+          "platforms": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "instagram",
+                "tiktok",
+                "twitter"
+              ]
+            },
+            "description": "List of platforms to query. If omitted, all three are queried."
+          },
+          "max_posts": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 100,
+            "description": "Maximum number of posts to return per platform."
+          }
+        },
+        "required": [
+          "hashtag",
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_sales_dashboard",
+      "description": "Pulls aggregated sales metrics (units sold, revenue, conversion rate, price elasticity) for a product category or SKU from the merchant's analytics API.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "entity_type": {
+            "type": "string",
+            "enum": [
+              "category",
+              "sku"
+            ],
+            "description": "Whether the request is for a product category or a specific SKU."
+          },
+          "entity_id": {
+            "type": "string",
+            "description": "The identifier of the category or SKU."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Start of the reporting period (inclusive)."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "End of the reporting period (exclusive)."
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "units_sold",
+                "revenue",
+                "conversion_rate",
+                "price_elasticity"
+              ]
+            },
+            "description": "Which metrics to return. If omitted, all are returned."
+          }
+        },
+        "required": [
+          "entity_type",
+          "entity_id",
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_competitor_catalog",
+      "description": "Queries public competitor e\u2011commerce sites (via their product feeds or web scraping) for items in a given category, returning titles, prices, images and stock status.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "The product category to search (e.g., \"women's sunglasses\")."
+          },
+          "competitor_domains": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri",
+              "description": "Base domain of a competitor (e.g., \"https://www.competitor1.com\")."
+            },
+            "description": "List of competitor sites to query. If omitted, a default curated list is used."
+          },
+          "max_items": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 200,
+            "description": "Maximum number of items to retrieve per competitor."
+          }
+        },
+        "required": [
+          "category"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "analyze_sentiment",
+      "description": "Runs a sentiment and theme analysis on a collection of text snippets, returning aggregated scores and the most frequent emerging topics.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "texts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "A social\u2011media caption, comment, or review."
+            },
+            "description": "List of texts to analyze."
+          },
+          "language": {
+            "type": "string",
+            "default": "en",
+            "description": "ISO 639\u20111 language code of the input texts."
+          },
+          "top_n_topics": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 5,
+            "description": "Number of most frequent topics to return."
+          }
+        },
+        "required": [
+          "texts"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_recommendations",
+      "description": "Creates a structured recommendation report (new product ideas, suggested price ranges, marketing angles) based on supplied insights from social, sales and competitor data.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "insights": {
+            "type": "object",
+            "description": "A JSON object containing aggregated insights (e.g., sentiment scores, top trending keywords, sales lift, competitor price gaps).",
+            "additionalProperties": true
+          },
+          "target_market": {
+            "type": "string",
+            "description": "Brief description of the intended audience for the new product line."
+          },
+          "budget_usd": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Maximum development/marketing budget for the recommended ideas."
+          }
+        },
+        "required": [
+          "insights",
+          "target_market"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "update_pricing_model",
+      "description": "Proposes a new price for a SKU based on current price, estimated elasticity, competitor prices and sales velocity.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string",
+            "description": "Identifier of the product to reprice."
+          },
+          "current_price": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Current selling price in USD."
+          },
+          "elasticity": {
+            "type": "number",
+            "description": "Price elasticity coefficient derived from recent sales data."
+          },
+          "competitor_prices": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": 0
+            },
+            "description": "List of average competitor prices for similar items."
+          },
+          "desired_margin": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Target gross margin (e.g., 0.25 for 25%)."
+          }
+        },
+        "required": [
+          "sku",
+          "current_price",
+          "elasticity",
+          "competitor_prices",
+          "desired_margin"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks for new accessory ideas for the upcoming summer collection based on Instagram trends. The bot gathers social data, competitor products, runs sentiment analysis, and returns a concise recommendation report.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are TrendScout Bot, an autonomous assistant that helps e\u2011commerce merchants discover product\u2011line extensions and price adjustments by pulling data from social media, sales dashboards, and competitor catalogs. Use the provided tools whenever you need raw data, then synthesize a clear answer."
+        },
+        {
+          "role": "user",
+          "content": "We are launching a summer 2025 line of swimwear. Based on the hashtag #summer2025 on Instagram, give me 3 accessory ideas (e.g., bags, sunglasses) that are gaining traction, plus suggested price ranges."
+        },
+        {
+          "role": "assistant",
+          "content": "Let me collect the latest Instagram posts for #summer2025, see what accessories are mentioned, and compare them with competitor offerings.",
+          "tool_calls": [
+            {
+              "id": "fetch_social_media_1a2b3c",
+              "name": "fetch_social_media",
+              "arguments": {
+                "hashtag": "summer2025",
+                "start_date": "2025-05-01",
+                "end_date": "2025-06-01",
+                "platforms": [
+                  "instagram"
+                ],
+                "max_posts": 200
+              }
+            },
+            {
+              "id": "fetch_competitor_catalog_4d5e6f",
+              "name": "fetch_competitor_catalog",
+              "arguments": {
+                "category": "summer accessories",
+                "max_items": 100
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_social_media_1a2b3c",
+          "content": "{\"posts\": [{\"caption\": \"Loving these oversized straw bags! #summer2025\", \"image_url\": \"...\"}, {\"caption\": \"Retro round sunglasses are back! #summer2025\", \"image_url\": \"...\"}, {\"caption\": \"Cute anklet chains for beach vibes #summer2025\", \"image_url\": \"...\"}], \"metadata\": {\"total\": 180}}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_competitor_catalog_4d5e6f",
+          "content": "{\"items\": [{\"title\": \"Straw tote bag\", \"price_usd\": 45, \"stock\": \"in_stock\"}, {\"title\": \"Round metal sunglasses\", \"price_usd\": 38, \"stock\": \"low\"}, {\"title\": \"Beaded anklet\", \"price_usd\": 22, \"stock\": \"in_stock\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "I have the raw data. I will now analyse sentiment and extract the most common accessory themes.",
+          "tool_calls": [
+            {
+              "id": "analyze_sentiment_7g8h9i",
+              "name": "analyze_sentiment",
+              "arguments": {
+                "texts": [
+                  "Loving these oversized straw bags! #summer2025",
+                  "Retro round sunglasses are back! #summer2025",
+                  "Cute anklet chains for beach vibes #summer2025"
+                ],
+                "top_n_topics": 3
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "analyze_sentiment_7g8h9i",
+          "content": "{\"overall_sentiment\": \"positive\", \"topics\": [{\"keyword\": \"straw bag\", \"frequency\": 0.42}, {\"keyword\": \"round sunglasses\", \"frequency\": 0.35}, {\"keyword\": \"anklet\", \"frequency\": 0.23}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I will combine the social trends, competitor pricing, and generate concrete recommendations.",
+          "tool_calls": [
+            {
+              "id": "generate_recommendations_ab12cd",
+              "name": "generate_recommendations",
+              "arguments": {
+                "insights": {
+                  "social_topics": [
+                    {
+                      "keyword": "straw bag",
+                      "sentiment": "positive"
+                    },
+                    {
+                      "keyword": "round sunglasses",
+                      "sentiment": "positive"
+                    },
+                    {
+                      "keyword": "anklet",
+                      "sentiment": "positive"
+                    }
+                  ],
+                  "competitor_prices": {
+                    "straw bag": 45,
+                    "round sunglasses": 38,
+                    "anklet": 22
+                  }
+                },
+                "target_market": "Women aged 18\u201135 who shop for beach\u2011vacation outfits.",
+                "budget_usd": 15000
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_recommendations_ab12cd",
+          "content": "{\"recommendations\": [{\"product\": \"Oversized straw tote bag\", \"price_range_usd\": \"$48\u2011$58\", \"rationale\": \"High positive sentiment; competitor price $45 leaves room for a premium design.\"}, {\"product\": \"Retro round metal sunglasses\", \"price_range_usd\": \"$42\u2011$52\", \"rationale\": \"Trend is strong; competitor price $38 \u2013 add UV coating to justify higher price.\"}, {\"product\": \"Beaded anklet set\", \"price_range_usd\": \"$24\u2011$30\", \"rationale\": \"Emerging micro\u2011trend; low competition lets us capture niche market.\"}], \"estimated_profit_usd\": 8200}"
+        },
+        {
+          "role": "assistant",
+          "content": "Here are three accessory ideas that are trending for #summer2025, together with suggested price ranges and brief rationales:\n\n1. **Oversized straw tote bag** \u2013 $48\u2011$58\n   *Positive sentiment on Instagram and low\u2011to\u2011moderate competitor pricing.*\n2. **Retro round metal sunglasses** \u2013 $42\u2011$52\n   *Strong buzz; adding UV protection lets you price above the $38 competitor average.*\n3. **Beaded anklet set** \u2013 $24\u2011$30\n   *Emerging niche trend with little competition, perfect for impulse\u2011buy add\u2011ons.*\n\nBased on the $15,000 development/marketing budget, these three products should comfortably fit within the forecasted profit of about $8,200.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User requests a dynamic price update for SKU 12345 after noticing a sales slowdown and competitor price drop. The bot pulls sales data, competitor pricing, computes elasticity, and suggests a new price.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are TrendScout Bot, an autonomous assistant that helps merchants adjust pricing by analysing sales performance and competitor data."
+        },
+        {
+          "role": "user",
+          "content": "Our SKU 12345 (women's sunglasses) has seen a 12% drop in units sold this week vs last week. Competitors are now offering similar styles at $34. Can you suggest a new price to regain volume while keeping at least a 30% margin?"
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll gather the recent sales metrics for SKU 12345 and see what competitors are charging.",
+          "tool_calls": [
+            {
+              "id": "fetch_sales_dashboard_zz99yy",
+              "name": "fetch_sales_dashboard",
+              "arguments": {
+                "entity_type": "sku",
+                "entity_id": "12345",
+                "start_date": "2025-06-01",
+                "end_date": "2025-06-08",
+                "metrics": [
+                  "units_sold",
+                  "revenue",
+                  "price_elasticity"
+                ]
+              }
+            },
+            {
+              "id": "fetch_competitor_catalog_xx11ww",
+              "name": "fetch_competitor_catalog",
+              "arguments": {
+                "category": "women's sunglasses",
+                "competitor_domains": [
+                  "https://www.competitorA.com",
+                  "https://www.competitorB.com"
+                ],
+                "max_items": 50
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_sales_dashboard_zz99yy",
+          "content": "{\"units_sold\": 420, \"revenue_usd\": 15120, \"price_elasticity\": -1.45}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_competitor_catalog_xx11ww",
+          "content": "{\"items\": [{\"title\": \"Aviator sunglasses\", \"price_usd\": 34, \"stock\": \"in_stock\"}, {\"title\": \"Classic round sunglasses\", \"price_usd\": 33, \"stock\": \"low\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "I have the sales metrics (elasticity\u202f=\u202f\u20111.45) and competitor prices (average $33.5). Let me compute a price that restores volume yet respects a 30\u202f% margin.",
+          "tool_calls": [
+            {
+              "id": "update_pricing_model_qq22ee",
+              "name": "update_pricing_model",
+              "arguments": {
+                "sku": "12345",
+                "current_price": 40,
+                "elasticity": -1.45,
+                "competitor_prices": [
+                  34,
+                  33
+                ],
+                "desired_margin": 0.3
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "update_pricing_model_qq22ee",
+          "content": "{\"suggested_price_usd\": 36.5, \"expected_units_sold\": 470, \"expected_margin\": 0.312}"
+        },
+        {
+          "role": "assistant",
+          "content": "Based on the \u20131.45 price elasticity and competitor average price of $33.5, a new price of **$36.50** should bring your margin back to about 31\u202f% and lift weekly units sold to roughly 470 (a ~12\u202f% increase). This price stays competitive while meeting your margin goal.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

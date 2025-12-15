@@ -1,0 +1,286 @@
+{
+  "name": "LexTimeKeeper",
+  "description": "An AI\u2011powered legal time\u2011keeping assistant that reads attorney activity logs, extracts work descriptions, maps them to billing codes and client agreements, and automatically creates accurate time\u2011sheet entries for law firms.",
+  "tools": [
+    {
+      "name": "parse_document",
+      "description": "Reads a PDF, DOCX or plain\u2011text file from a given path and returns the extracted raw text as a single string.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "description": "Absolute or relative path to the document that contains the attorney activity log."
+          }
+        },
+        "required": [
+          "file_path"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "extract_activities",
+      "description": "Analyzes raw activity\u2011log text and returns a structured list of individual work items, each with date, attorney, description, duration (in minutes) and optional matter identifier.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "raw_text": {
+            "type": "string",
+            "description": "The full text extracted from the activity log file."
+          }
+        },
+        "required": [
+          "raw_text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_billing_code",
+      "description": "Looks up the appropriate billing code for a given activity description and client based on the firm\u2019s coding matrix and the client\u2019s agreement.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "activity_description": {
+            "type": "string",
+            "description": "Free\u2011form description of the work performed."
+          },
+          "client_id": {
+            "type": "string",
+            "description": "Unique identifier of the client (e.g., Acme Corp = \"acme_corp\")."
+          }
+        },
+        "required": [
+          "activity_description",
+          "client_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_client_agreement",
+      "description": "Retrieves the billing\u2011rate agreement for a specific client, including any special caps, discounts, or prohibited codes.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "description": "Unique identifier of the client."
+          }
+        },
+        "required": [
+          "client_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "create_time_entry",
+      "description": "Creates a new time\u2011sheet entry in the firm\u2019s billing system and returns the entry identifier.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "attorney_id": {
+            "type": "string",
+            "description": "Unique identifier for the attorney who performed the work."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Date when the work was performed (YYYY\u2011MM\u2011DD)."
+          },
+          "duration_minutes": {
+            "type": "integer",
+            "description": "Length of the activity in minutes."
+          },
+          "billing_code": {
+            "type": "string",
+            "description": "Billable code that maps to the firm\u2019s rate schedule."
+          },
+          "description": {
+            "type": "string",
+            "description": "Original activity description from the log."
+          },
+          "matter_id": {
+            "type": "string",
+            "description": "Identifier of the legal matter or case."
+          },
+          "client_id": {
+            "type": "string",
+            "description": "Identifier of the client."
+          }
+        },
+        "required": [
+          "attorney_id",
+          "date",
+          "duration_minutes",
+          "billing_code",
+          "description",
+          "matter_id",
+          "client_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_summary_report",
+      "description": "Produces a markdown\u2011formatted summary of all time entries created for a given date range and optional client filter.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Start of the reporting period (inclusive)."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "End of the reporting period (inclusive)."
+          },
+          "client_id": {
+            "type": "string",
+            "description": "If supplied, limits the report to this client."
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks the assistant to process an April activity log for Acme Corp; the assistant extracts the log, determines billing codes, creates a time entry and returns a confirmation.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LexTimeKeeper, an AI assistant that converts attorney activity logs into accurate billing entries using the provided tools."
+        },
+        {
+          "role": "user",
+          "content": "Please process the activity log at /files/April2024_log.pdf for client Acme Corp and create the corresponding time entries."
+        },
+        {
+          "role": "assistant",
+          "content": "I will start by extracting the raw text from the PDF.",
+          "tool_calls": [
+            {
+              "id": "parse_document_1a2b3c",
+              "name": "parse_document",
+              "arguments": {
+                "file_path": "/files/April2024_log.pdf"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "parse_document_1a2b3c",
+          "content": "Raw text extracted (truncated): \"2024-04-03 09:15 John Doe Drafted memorandum on \u00a7 1983 claim \u2013 45 min \u2013 Matter: 2024-001. 2024-04-03 11:00 Jane Smith Reviewed client\u2011provided contracts \u2013 30 min \u2013 Matter: 2024-001. ...\""
+        },
+        {
+          "role": "assistant",
+          "content": "Now I will parse the raw text into individual activity records.",
+          "tool_calls": [
+            {
+              "id": "extract_activities_4d5e6f",
+              "name": "extract_activities",
+              "arguments": {
+                "raw_text": "2024-04-03 09:15 John Doe Drafted memorandum on \u00a7 1983 claim \u2013 45 min \u2013 Matter: 2024-001. 2024-04-03 11:00 Jane Smith Reviewed client\u2011provided contracts \u2013 30 min \u2013 Matter: 2024-001."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_activities_4d5e6f",
+          "content": "[{\"date\":\"2024-04-03\",\"attorney_id\":\"john_doe\",\"description\":\"Drafted memorandum on \u00a7 1983 claim\",\"duration_minutes\":45,\"matter_id\":\"2024-001\"},{\"date\":\"2024-04-03\",\"attorney_id\":\"jane_smith\",\"description\":\"Reviewed client-provided contracts\",\"duration_minutes\":30,\"matter_id\":\"2024-001\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "I will look up the billing code for each activity using Acme Corp\u2019s agreement and then create the time entries.",
+          "tool_calls": [
+            {
+              "id": "get_billing_code_7g8h9i",
+              "name": "get_billing_code",
+              "arguments": {
+                "activity_description": "Drafted memorandum on \u00a7 1983 claim",
+                "client_id": "acme_corp"
+              }
+            },
+            {
+              "id": "create_time_entry_0j1k2l",
+              "name": "create_time_entry",
+              "arguments": {
+                "attorney_id": "john_doe",
+                "date": "2024-04-03",
+                "duration_minutes": 45,
+                "billing_code": "LGL-MEMO",
+                "description": "Drafted memorandum on \u00a7 1983 claim",
+                "matter_id": "2024-001",
+                "client_id": "acme_corp"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_billing_code_7g8h9i",
+          "content": "LGL-MEMO"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "create_time_entry_0j1k2l",
+          "content": "{\"entry_id\":\"TS-987654\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "The first activity has been recorded with billing code **LGL\u2011MEMO** (entry ID TS\u2011987654). I will repeat the same steps for the remaining activity.\n\n**Next steps:**\n- Retrieve billing code for \"Reviewed client\u2011provided contracts\".\n- Create the corresponding entry.\n",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User requests a summary report for all time entries created for Acme Corp during April 2024; the assistant fetches the data and returns a markdown report.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LexTimeKeeper, an AI assistant that can generate billing\u2011summary reports using the provided tools."
+        },
+        {
+          "role": "user",
+          "content": "Give me a summary of all time entries for Acme Corp from 2024\u201104\u201101 to 2024\u201104\u201130."
+        },
+        {
+          "role": "assistant",
+          "content": "Generating the requested report\u2026",
+          "tool_calls": [
+            {
+              "id": "generate_summary_report_abc123",
+              "name": "generate_summary_report",
+              "arguments": {
+                "start_date": "2024-04-01",
+                "end_date": "2024-04-30",
+                "client_id": "acme_corp"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_summary_report_abc123",
+          "content": "# Acme Corp \u2013 April\u202f2024 Time\u2011Entry Summary\n\n| Date | Attorney | Matter | Description | Duration (min) | Billing Code |\n|------|----------|--------|-------------|----------------|--------------|\n| 2024\u201104\u201103 | John Doe | 2024\u2011001 | Drafted memorandum on \u00a7\u202f1983 claim | 45 | LGL\u2011MEMO |\n| 2024\u201104\u201103 | Jane Smith | 2024\u2011001 | Reviewed client\u2011provided contracts | 30 | LGL\u2011REVIEW |\n| 2024\u201104\u201110 | John Doe | 2024\u2011002 | Court appearance \u2013 pre\u2011trial conference | 60 | LGL\u2011COURT |\n\n**Total billed minutes:** 135\n**Total billed hours:** 2.25\n"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the summary you requested:\n\n# Acme Corp \u2013 April\u202f2024 Time\u2011Entry Summary\n\n| Date | Attorney | Matter | Description | Duration (min) | Billing Code |\n|------|----------|--------|-------------|----------------|--------------|\n| 2024\u201104\u201103 | John Doe | 2024\u2011001 | Drafted memorandum on \u00a7\u202f1983 claim | 45 | LGL\u2011MEMO |\n| 2024\u201104\u201103 | Jane Smith | 2024\u2011001 | Reviewed client\u2011provided contracts | 30 | LGL\u2011REVIEW |\n| 2024\u201104\u201110 | John Doe | 2024\u2011002 | Court appearance \u2013 pre\u2011trial conference | 60 | LGL\u2011COURT |\n\n**Total billed minutes:** 135\n**Total billed hours:** 2.25\n\nLet me know if you need anything else, such as exporting this report to PDF or adjusting the date range.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

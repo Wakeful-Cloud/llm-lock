@@ -1,0 +1,433 @@
+{
+  "name": "SupplyRisk Monitor",
+  "description": "An agentic LLM service that continuously monitors geopolitical news, supplier bankruptcy filings, and logistics data to warn businesses of impending supply\u2011chain disruptions. It aggregates data from multiple real\u2011time APIs, synthesizes risk scores, stores reports, and can push alerts via email or webhook.",
+  "tools": [
+    {
+      "name": "fetch_news",
+      "description": "Searches curated news sources for recent articles matching a query and returns a list of items with title, URL, publication date, and a short snippet.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search terms, e.g., \"Taiwan semiconductor supply chain\"."
+          },
+          "language": {
+            "type": "string",
+            "description": "ISO language code (e.g., \"en\"). Optional; defaults to English."
+          },
+          "num_results": {
+            "type": "integer",
+            "description": "Maximum number of articles to return. Optional; default 10."
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_bankruptcy_filings",
+      "description": "Queries a legal\u2011filings database for recent bankruptcy or insolvency filings related to a company or industry.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "company_name": {
+            "type": "string",
+            "description": "Exact or partial company name to look up. Optional if industry is provided."
+          },
+          "industry": {
+            "type": "string",
+            "description": "Industry sector (e.g., \"automotive\"). Optional if company_name is provided."
+          },
+          "date_from": {
+            "type": "string",
+            "format": "date",
+            "description": "Start of the date range (inclusive)."
+          },
+          "date_to": {
+            "type": "string",
+            "format": "date",
+            "description": "End of the date range (inclusive)."
+          },
+          "max_results": {
+            "type": "integer",
+            "description": "Maximum number of filings to return. Optional; default 20."
+          }
+        },
+        "required": [
+          "date_from",
+          "date_to"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_logistics_status",
+      "description": "Pulls real\u2011time logistics information such as shipment ETA, port closures, customs delays, and carrier incidents for a given route.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "origin": {
+            "type": "string",
+            "description": "Origin location (e.g., \"Taiwan\")."
+          },
+          "destination": {
+            "type": "string",
+            "description": "Destination location (e.g., \"United States\")."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Start of the monitoring window."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "End of the monitoring window."
+          },
+          "carrier": {
+            "type": "string",
+            "description": "Optional carrier name (e.g., \"Maersk\")."
+          }
+        },
+        "required": [
+          "origin",
+          "destination",
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_geopolitical_risk",
+      "description": "Returns a numeric risk score (0\u2011100) and key event summaries for a specified country/region based on recent geopolitical developments.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "country": {
+            "type": "string",
+            "description": "Country or region name (e.g., \"Taiwan\")."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Date for which to compute the risk score. Optional; defaults to today."
+          }
+        },
+        "required": [
+          "country"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "send_email_alert",
+      "description": "Sends an email to a designated address with a subject line and body content.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "type": "string",
+            "format": "email",
+            "description": "Recipient email address."
+          },
+          "subject": {
+            "type": "string",
+            "description": "Subject line of the email."
+          },
+          "body": {
+            "type": "string",
+            "description": "Full email body (plain text or markdown)."
+          }
+        },
+        "required": [
+          "to",
+          "subject",
+          "body"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "store_report",
+      "description": "Persists a JSON\u2011serializable risk report into a database and returns a stable reference ID.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "report": {
+            "type": "object",
+            "description": "Full risk report object to be saved."
+          }
+        },
+        "required": [
+          "report"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User requests a current risk assessment for semiconductor components sourced from Taiwan. The assistant gathers news, geopolitical risk, and logistics data, stores the report, and emails the summary to the user.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are SupplyRisk Monitor, an expert analyst that aggregates news, bankruptcy filings, logistics, and geopolitical data to produce actionable supply\u2011chain risk reports."
+        },
+        {
+          "role": "user",
+          "content": "Please give me a risk overview for the semiconductor chips we source from Taiwan for the next 30 days."
+        },
+        {
+          "role": "assistant",
+          "content": "Sure, I\u2019ll pull the latest news, geopolitical risk score for Taiwan, and logistics status for shipments to the US. Please hold on.",
+          "tool_calls": [
+            {
+              "id": "fetch_news_1a2b3c",
+              "name": "fetch_news",
+              "arguments": {
+                "query": "Taiwan semiconductor supply chain disruptions",
+                "language": "en",
+                "num_results": 5
+              }
+            },
+            {
+              "id": "get_geopolitical_risk_4d5e6f",
+              "name": "get_geopolitical_risk",
+              "arguments": {
+                "country": "Taiwan"
+              }
+            },
+            {
+              "id": "get_logistics_status_7g8h9i",
+              "name": "get_logistics_status",
+              "arguments": {
+                "origin": "Taiwan",
+                "destination": "United States",
+                "start_date": "2025-12-07",
+                "end_date": "2025-12-31"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_news_1a2b3c",
+          "content": "[{\"title\":\"Port strikes in Kaohsiung threaten chip shipments\",\"url\":\"https://news.example.com/kaohsiung-strike\",\"published_date\":\"2025-12-04\",\"snippet\":\"Labor unions call for a 48\u2011hour strike affecting container throughput...\"},{\"title\":\"Taiwan\u2019s semiconductor output steadies after recent quake\",\"url\":\"https://news.example.com/taiwan-quake\",\"published_date\":\"2025-12-05\",\"snippet\":\"Factories report minor damage but no major downtime...\"}]"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_geopolitical_risk_4d5e6f",
+          "content": "{\"country\":\"Taiwan\",\"risk_score\":68,\"key_events\":[{\"date\":\"2025-12-03\",\"event\":\"Increased Chinese naval activity near Taiwan\"},{\"date\":\"2025-12-05\",\"event\":\"Domestic protests over semiconductor subsidies\"}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_logistics_status_7g8h9i",
+          "content": "{\"origin\":\"Taiwan\",\"destination\":\"United States\",\"shipments\":[{\"carrier\":\"Maersk\",\"eta\":\"2025-12-15\",\"status\":\"On schedule\"},{\"carrier\":\"MSC\",\"eta\":\"2025-12-22\",\"status\":\"Delayed due to port congestion\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "### Risk Overview \u2013 Taiwan Semiconductor Supply (Next 30 Days)\n\n**Geopolitical Risk:** 68/100 (elevated). Recent Chinese naval drills and local protests increase uncertainty.\n\n**News Highlights:**\n1. *Port strikes in Kaohsiung* \u2013 potential 48\u2011hour delay for container handling.\n2. *Taiwan earthquake* \u2013 minor factory impact, no production shutdown reported.\n\n**Logistics Status:**\n- Maersk shipment ETA 15\u202fDec \u2013 on schedule.\n- MSC shipment ETA 22\u202fDec \u2013 delayed by ~2\u202fdays due to port congestion.\n\n**Overall Assessment:** Moderate\u2011high risk. Recommend:\n- Diversify carriers (favor Maersk for critical loads).\n- Keep safety stock for at least 10\u202fdays.\n- Monitor port\u2011strike developments daily.\n\nI have stored this report and will email it to you.\n",
+          "tool_calls": [
+            {
+              "id": "store_report_a1b2c3",
+              "name": "store_report",
+              "arguments": {
+                "report": {
+                  "geopolitical_risk": {
+                    "country": "Taiwan",
+                    "risk_score": 68,
+                    "key_events": [
+                      {
+                        "date": "2025-12-03",
+                        "event": "Increased Chinese naval activity near Taiwan"
+                      },
+                      {
+                        "date": "2025-12-05",
+                        "event": "Domestic protests over semiconductor subsidies"
+                      }
+                    ]
+                  },
+                  "news": [
+                    {
+                      "title": "Port strikes in Kaohsiung threaten chip shipments",
+                      "url": "https://news.example.com/kaohsiung-strike",
+                      "published_date": "2025-12-04"
+                    },
+                    {
+                      "title": "Taiwan\u2019s semiconductor output steadies after recent quake",
+                      "url": "https://news.example.com/taiwan-quake",
+                      "published_date": "2025-12-05"
+                    }
+                  ],
+                  "logistics": [
+                    {
+                      "carrier": "Maersk",
+                      "eta": "2025-12-15",
+                      "status": "On schedule"
+                    },
+                    {
+                      "carrier": "MSC",
+                      "eta": "2025-12-22",
+                      "status": "Delayed due to port congestion"
+                    }
+                  ],
+                  "recommendations": [
+                    "Diversify carriers",
+                    "Maintain 10\u2011day safety stock",
+                    "Daily monitoring of strike news"
+                  ]
+                }
+              }
+            },
+            {
+              "id": "send_email_alert_d4e5f6",
+              "name": "send_email_alert",
+              "arguments": {
+                "to": "supply.chain@example.com",
+                "subject": "SupplyRisk Alert \u2013 Taiwan Semiconductor (30\u2011day outlook)",
+                "body": "Please find attached the latest risk overview for your Taiwan\u2011sourced semiconductors. Report ID: {{report_id}}.\n\n*Summary*: Geopolitical risk 68/100, possible port\u2011strike delays, carrier\u2011specific ETA updates. See the full report in your dashboard."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "store_report_a1b2c3",
+          "content": "{\"report_id\":\"SRM-20251207-001\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_email_alert_d4e5f6",
+          "content": "{\"status\":\"sent\",\"timestamp\":\"2025-12-07T12:34:56Z\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "The report has been saved (Report ID: **SRM-20251207-001**) and the email has been sent to **supply.chain@example.com**. Let me know if you need anything else.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User wants to be notified immediately if any of their listed Tier\u20111 suppliers files for bankruptcy in the next 90 days. The assistant checks the filings database, stores a watchlist, and confirms the setup.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are SupplyRisk Monitor, helping companies stay ahead of supply\u2011chain interruptions."
+        },
+        {
+          "role": "user",
+          "content": "Set up an alert for any bankruptcy filings involving our Tier\u20111 suppliers: Acme Electronics, Global Motors, and Nova Materials, for the next three months."
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll query the bankruptcy database for any recent or pending filings for those companies and set up a watchlist for the next 90 days.",
+          "tool_calls": [
+            {
+              "id": "get_bankruptcy_filings_9z8y7x",
+              "name": "get_bankruptcy_filings",
+              "arguments": {
+                "company_name": "Acme Electronics",
+                "date_from": "2025-12-07",
+                "date_to": "2026-03-07",
+                "max_results": 10
+              }
+            },
+            {
+              "id": "get_bankruptcy_filings_a1b2c3",
+              "name": "get_bankruptcy_filings",
+              "arguments": {
+                "company_name": "Global Motors",
+                "date_from": "2025-12-07",
+                "date_to": "2026-03-07",
+                "max_results": 10
+              }
+            },
+            {
+              "id": "get_bankruptcy_filings_d4e5f6",
+              "name": "get_bankruptcy_filings",
+              "arguments": {
+                "company_name": "Nova Materials",
+                "date_from": "2025-12-07",
+                "date_to": "2026-03-07",
+                "max_results": 10
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_bankruptcy_filings_9z8y7x",
+          "content": "{\"company\":\"Acme Electronics\",\"filings\":[]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_bankruptcy_filings_a1b2c3",
+          "content": "{\"company\":\"Global Motors\",\"filings\":[{\"case_id\":\"BM-2025-9876\",\"date_filed\":\"2025-12-05\",\"status\":\"Pending\"}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_bankruptcy_filings_d4e5f6",
+          "content": "{\"company\":\"Nova Materials\",\"filings\":[]}"
+        },
+        {
+          "role": "assistant",
+          "content": "I found a pending filing for **Global Motors** (case BM-2025-9876 filed on 2025\u201112\u201105). No filings were returned for Acme Electronics or Nova Materials.\n\nI\u2019ll create a watchlist that checks daily for new filings for all three companies over the next 90 days and will email you immediately if anything appears.",
+          "tool_calls": [
+            {
+              "id": "store_report_uvw123",
+              "name": "store_report",
+              "arguments": {
+                "report": {
+                  "watchlist_id": "WL-20251207-01",
+                  "suppliers": [
+                    "Acme Electronics",
+                    "Global Motors",
+                    "Nova Materials"
+                  ],
+                  "expiration_date": "2026-03-07",
+                  "initial_findings": {
+                    "Global Motors": [
+                      {
+                        "case_id": "BM-2025-9876",
+                        "date_filed": "2025-12-05",
+                        "status": "Pending"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "id": "send_email_alert_xyz789",
+              "name": "send_email_alert",
+              "arguments": {
+                "to": "risk.team@example.com",
+                "subject": "SupplyRisk Watchlist Created \u2013 Tier\u20111 Supplier Bankruptcy Monitoring",
+                "body": "Watchlist ID: WL-20251207-01\nSuppliers: Acme Electronics, Global Motors, Nova Materials\nMonitoring period: 90 days (until 2026\u201103\u201107)\nInitial findings: Global Motors has a pending bankruptcy filing (BM-2025-9876).\nYou will receive an email alert if any new filing appears.\nReport ID: {{report_id}}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "store_report_uvw123",
+          "content": "{\"report_id\":\"SRM-20251207-002\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_email_alert_xyz789",
+          "content": "{\"status\":\"sent\",\"timestamp\":\"2025-12-07T13:10:02Z\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Your watchlist has been saved (Report ID **SRM-20251207-002**) and the confirmation email has been sent to **risk.team@example.com**. I\u2019ll monitor the filings daily and notify you immediately of any new developments.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

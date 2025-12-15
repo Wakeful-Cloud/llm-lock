@@ -1,0 +1,341 @@
+{
+  "name": "Personalized News Digest",
+  "description": "An AI\u2011driven service that curates articles from RSS feeds, learns a subscriber's reading history and interests, creates concise summaries, ranks them for relevance, and emails a daily briefing to each user.",
+  "tools": [
+    {
+      "name": "fetch_rss_feed",
+      "description": "Retrieves the latest entries from a list of RSS feed URLs and returns an array of article metadata (title, link, publish date).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "feeds": {
+            "type": "array",
+            "description": "List of RSS feed URLs to query.",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "max_items": {
+            "type": "integer",
+            "description": "Maximum number of items to return per feed (default 20).",
+            "default": 20,
+            "minimum": 1
+          }
+        },
+        "required": [
+          "feeds"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "extract_article_content",
+      "description": "Downloads the HTML page of the supplied URL and extracts the main textual body, removing navigation, ads and boilerplate.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Direct link to the article to be downloaded."
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "summarize_article",
+      "description": "Generates a concise three\u2011sentence summary of the given article text, highlighting the points most likely to match the user\u2019s interest profile.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Full article text to be summarized."
+          },
+          "max_sentences": {
+            "type": "integer",
+            "description": "Maximum number of sentences in the summary (default 3).",
+            "default": 3,
+            "minimum": 1
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "rank_articles",
+      "description": "Scores a list of article summaries against a user interest profile and returns the top N summaries sorted by relevance.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "summaries": {
+            "type": "array",
+            "description": "Array of article summary strings.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "user_profile": {
+            "type": "object",
+            "description": "Profile containing the user's topics of interest.",
+            "properties": {
+              "topics": {
+                "type": "array",
+                "description": "List of interest keywords.",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "topics"
+            ],
+            "additionalProperties": false
+          },
+          "top_n": {
+            "type": "integer",
+            "description": "Number of top articles to return (default 5).",
+            "default": 5,
+            "minimum": 1
+          }
+        },
+        "required": [
+          "summaries",
+          "user_profile"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "send_email_digest",
+      "description": "Emails the compiled list of top article summaries to the subscriber, using a subject line and a markdown\u2011formatted body.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Recipient email address."
+          },
+          "subject": {
+            "type": "string",
+            "description": "Subject line for the digest email."
+          },
+          "body": {
+            "type": "string",
+            "description": "Markdown\u2011formatted email body containing the article titles, links and summaries."
+          }
+        },
+        "required": [
+          "email",
+          "subject",
+          "body"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "update_user_profile",
+      "description": "Stores or updates a subscriber's interest profile with the supplied list of topics.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Unique identifier for the subscriber (e.g., email address)."
+          },
+          "topics": {
+            "type": "array",
+            "description": "New list of interest keywords for the user.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "user_id",
+          "topics"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User subscribes to a daily technology digest; the assistant fetches articles, summarizes, ranks and emails the brief.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are NewsDigestBot, an assistant that curates, summarizes and emails daily news digests based on a subscriber's interests. Use the provided tools to gather RSS feeds, extract content, summarize, rank and send the email."
+        },
+        {
+          "role": "user",
+          "content": "I want a daily digest of technology news sent to my email john@example.com."
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching the latest technology articles from my feed list\u2026",
+          "tool_calls": [
+            {
+              "id": "fetch_rss_feed_1a2b3c",
+              "name": "fetch_rss_feed",
+              "arguments": {
+                "feeds": [
+                  "https://techcrunch.com/feed",
+                  "https://www.theverge.com/rss/index.xml",
+                  "https://feeds.arstechnica.com/arstechnica/index"
+                ],
+                "max_items": 10
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_rss_feed_1a2b3c",
+          "content": "[{\"title\":\"AI breakthrough shakes up chip industry\",\"link\":\"https://techcrunch.com/2025/09/01/ai-chip\",\"published\":\"2025-09-01T08:00:00Z\"},{\"title\":\"Quantum computing gains commercial traction\",\"link\":\"https://www.theverge.com/2025/09/01/quantum-computing\",\"published\":\"2025-09-01T07:30:00Z\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Extracting the full text of the first article\u2026",
+          "tool_calls": [
+            {
+              "id": "extract_article_content_a1b2c3",
+              "name": "extract_article_content",
+              "arguments": {
+                "url": "https://techcrunch.com/2025/09/01/ai-chip"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_article_content_a1b2c3",
+          "content": "The AI chip market is seeing unprecedented growth as startups release new architectures that dramatically reduce inference latency. ... (full article text omitted for brevity)"
+        },
+        {
+          "role": "assistant",
+          "content": "Summarizing the article for the digest\u2026",
+          "tool_calls": [
+            {
+              "id": "summarize_article_f4e5d6",
+              "name": "summarize_article",
+              "arguments": {
+                "text": "The AI chip market is seeing unprecedented growth as startups release new architectures that dramatically reduce inference latency. ..."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_article_f4e5d6",
+          "content": "Startups are unveiling next\u2011gen AI chips that cut inference latency by half, sparking a rapid expansion in the AI hardware market."
+        },
+        {
+          "role": "assistant",
+          "content": "Ranking the collected summaries against your interests (technology, AI, hardware)\u2026",
+          "tool_calls": [
+            {
+              "id": "rank_articles_7g8h9i",
+              "name": "rank_articles",
+              "arguments": {
+                "summaries": [
+                  "Startups are unveiling next\u2011gen AI chips that cut inference latency by half, sparking a rapid expansion in the AI hardware market.",
+                  "Quantum computing gains commercial traction as major cloud providers launch new services."
+                ],
+                "user_profile": {
+                  "topics": [
+                    "technology",
+                    "AI",
+                    "hardware"
+                  ]
+                },
+                "top_n": 5
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "rank_articles_7g8h9i",
+          "content": "[{\"summary\":\"Startups are unveiling next\u2011gen AI chips that cut inference latency by half, sparking a rapid expansion in the AI hardware market.\",\"link\":\"https://techcrunch.com/2025/09/01/ai-chip\",\"title\":\"AI breakthrough shakes up chip industry\"},{\"summary\":\"Quantum computing gains commercial traction as major cloud providers launch new services.\",\"link\":\"https://www.theverge.com/2025/09/01/quantum-computing\",\"title\":\"Quantum computing gains commercial traction\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Composing the email body and sending it to john@example.com\u2026",
+          "tool_calls": [
+            {
+              "id": "send_email_digest_z9y8x7",
+              "name": "send_email_digest",
+              "arguments": {
+                "email": "john@example.com",
+                "subject": "Your Daily Tech Digest \u2013 Sep 1, 2025",
+                "body": "## Your Personalized Tech Digest\n\n**1. AI breakthrough shakes up chip industry**\n[Read article](https://techcrunch.com/2025/09/01/ai-chip)\n> Startups are unveiling next\u2011gen AI chips that cut inference latency by half, sparking a rapid expansion in the AI hardware market.\n\n**2. Quantum computing gains commercial traction**\n[Read article](https://www.theverge.com/2025/09/01/quantum-computing)\n> Quantum computing gains commercial traction as major cloud providers launch new services.\n"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_email_digest_z9y8x7",
+          "content": "Email sent successfully to john@example.com."
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 Your daily tech news digest has been sent to john@example.com. Enjoy your reading!",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User updates their interest topics; the assistant stores the new profile and confirms the change.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are NewsDigestBot, managing subscriber profiles and delivering personalized news digests."
+        },
+        {
+          "role": "user",
+          "content": "Please add AI and blockchain to my interests."
+        },
+        {
+          "role": "assistant",
+          "content": "Updating your interest profile to include AI and blockchain\u2026",
+          "tool_calls": [
+            {
+              "id": "update_user_profile_abc123",
+              "name": "update_user_profile",
+              "arguments": {
+                "user_id": "john@example.com",
+                "topics": [
+                  "technology",
+                  "AI",
+                  "hardware",
+                  "blockchain"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "update_user_profile_abc123",
+          "content": "Profile updated successfully."
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 Your interests have been updated to: technology, AI, hardware, blockchain. Future digests will reflect these topics.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

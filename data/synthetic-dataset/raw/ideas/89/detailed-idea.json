@@ -1,0 +1,398 @@
+{
+  "name": "RetireWise Planner",
+  "description": "A virtual financial planning assistant that pulls in retirement account data, runs risk\u2011tolerance questionnaires, fetches market forecasts, and generates personalized long\u2011term retirement plans with projected outcomes and downloadable reports.",
+  "tools": [
+    {
+      "name": "fetch_account_data",
+      "description": "Retrieves a user's retirement account balances, holdings, and recent transactions from linked financial institutions via a Plaid\u2011style API.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Unique identifier for the user within the platform."
+          },
+          "account_type": {
+            "type": "string",
+            "description": "Type of retirement account to fetch (e.g., 401k, IRA, Roth)."
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "calculate_risk_score",
+      "description": "Evaluates a user's risk tolerance based on questionnaire responses and returns a numeric risk score (1\u201110) together with a profile label.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Unique identifier for the user."
+          },
+          "responses": {
+            "type": "array",
+            "description": "Array of objects, each containing a question ID and the user's answer.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "question_id": {
+                  "type": "string",
+                  "description": "Identifier of the questionnaire question."
+                },
+                "answer": {
+                  "type": "string",
+                  "description": "User's answer (e.g., 'Strongly Agree', '5')."
+                }
+              },
+              "required": [
+                "question_id",
+                "answer"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "user_id",
+          "responses"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_market_forecast",
+      "description": "Provides projected average annual returns for major asset classes over a user\u2011specified horizon, using third\u2011party market data and analyst forecasts.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "horizon_years": {
+            "type": "integer",
+            "description": "Number of years into the future for which the forecast is requested."
+          },
+          "asset_classes": {
+            "type": "array",
+            "description": "List of asset class symbols (e.g., ['US_EQUITY', 'BONDS']). If omitted, a default set is used.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "horizon_years"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "run_portfolio_projection",
+      "description": "Simulates future retirement portfolio balance based on current holdings, contribution schedule, risk score, and market forecast data.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "current_balance": {
+            "type": "number",
+            "description": "Current total value of the retirement portfolio (USD)."
+          },
+          "annual_contribution": {
+            "type": "number",
+            "description": "Yearly amount the user intends to contribute (USD)."
+          },
+          "risk_score": {
+            "type": "integer",
+            "description": "User's risk tolerance score (1\u201110)."
+          },
+          "forecast": {
+            "type": "object",
+            "description": "Market forecast object returned by get_market_forecast.",
+            "additionalProperties": true
+          },
+          "years_to_retirement": {
+            "type": "integer",
+            "description": "Number of years remaining until the user reaches retirement age."
+          }
+        },
+        "required": [
+          "current_balance",
+          "annual_contribution",
+          "risk_score",
+          "forecast",
+          "years_to_retirement"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_plan_document",
+      "description": "Creates a markdown\u2011formatted retirement plan summary and returns a downloadable PDF link.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Unique identifier for the user."
+          },
+          "plan_summary": {
+            "type": "string",
+            "description": "Full textual summary of the retirement projection, recommendations, and assumptions."
+          }
+        },
+        "required": [
+          "user_id",
+          "plan_summary"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User requests a complete retirement plan; the assistant runs a risk questionnaire, pulls account data, gets market forecasts, projects the portfolio, and returns a downloadable plan document.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are RetireWise, an autonomous virtual financial planner. Use the provided tools to gather data, run calculations, and generate a personalized retirement plan for the user."
+        },
+        {
+          "role": "user",
+          "content": "I\u2019m 35 years old, have about $80,000 in my 401(k), and want to retire at 65. Can you build a retirement plan for me?"
+        },
+        {
+          "role": "assistant",
+          "content": "Sure! First, let\u2019s establish your risk tolerance. I\u2019ll ask you a short questionnaire.",
+          "tool_calls": [
+            {
+              "id": "calculate_risk_score_1a2b3c",
+              "name": "calculate_risk_score",
+              "arguments": {
+                "user_id": "user_12345",
+                "responses": [
+                  {
+                    "question_id": "q1",
+                    "answer": "Agree"
+                  },
+                  {
+                    "question_id": "q2",
+                    "answer": "Neutral"
+                  },
+                  {
+                    "question_id": "q3",
+                    "answer": "Disagree"
+                  },
+                  {
+                    "question_id": "q4",
+                    "answer": "Agree"
+                  },
+                  {
+                    "question_id": "q5",
+                    "answer": "Strongly Agree"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "calculate_risk_score_1a2b3c",
+          "content": "{\"risk_score\":6,\"profile\":\"Moderate\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Thanks! Your risk profile is *Moderate* (score 6). Next, I\u2019ll retrieve your 401(k) details.",
+          "tool_calls": [
+            {
+              "id": "fetch_account_data_4d5e6f",
+              "name": "fetch_account_data",
+              "arguments": {
+                "user_id": "user_12345",
+                "account_type": "401k"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_account_data_4d5e6f",
+          "content": "{\"balance\":80000,\"holdings\":[{\"ticker\":\"VTI\",\"percentage\":60},{\"ticker\":\"BND\",\"percentage\":40}],\"last_update\":\"2024-11-01\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Got it. I\u2019ll now fetch a market forecast for the next 30 years.",
+          "tool_calls": [
+            {
+              "id": "get_market_forecast_7g8h9i",
+              "name": "get_market_forecast",
+              "arguments": {
+                "horizon_years": 30,
+                "asset_classes": [
+                  "US_EQUITY",
+                  "INTERNATIONAL_EQUITY",
+                  "BONDS"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_market_forecast_7g8h9i",
+          "content": "{\"US_EQUITY\":0.07,\"INTERNATIONAL_EQUITY\":0.065,\"BONDS\":0.035}"
+        },
+        {
+          "role": "assistant",
+          "content": "Running the projection based on your current balance, a $6,000 annual contribution (the IRS limit for 2025), your moderate risk score, and the market forecast.",
+          "tool_calls": [
+            {
+              "id": "run_portfolio_projection_ab12cd",
+              "name": "run_portfolio_projection",
+              "arguments": {
+                "current_balance": 80000,
+                "annual_contribution": 6000,
+                "risk_score": 6,
+                "forecast": {
+                  "US_EQUITY": 0.07,
+                  "INTERNATIONAL_EQUITY": 0.065,
+                  "BONDS": 0.035
+                },
+                "years_to_retirement": 30
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "run_portfolio_projection_ab12cd",
+          "content": "{\"projected_balance\":815000,\"annualized_return\":0.062}"
+        },
+        {
+          "role": "assistant",
+          "content": "Based on the simulation, you could have roughly **$815,000** at age 65. I\u2019ll generate a detailed plan document for you.",
+          "tool_calls": [
+            {
+              "id": "generate_plan_document_ef34gh",
+              "name": "generate_plan_document",
+              "arguments": {
+                "user_id": "user_12345",
+                "plan_summary": "Age 35 \u2013 Current 401(k): $80,000\\nRisk Profile: Moderate (score 6)\\nAnnual Contribution: $6,000\\nAssumed Asset Allocation: 70% equities, 30% bonds\\n30\u2011Year Projected Balance: $815,000 (6.2% annualized return)\\nRecommendations: Increase contribution to $7,500/year, consider adding international equity exposure, re\u2011balance annually."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_plan_document_ef34gh",
+          "content": "https://cdn.retirewise.com/plans/user_12345_plan.pdf"
+        },
+        {
+          "role": "assistant",
+          "content": "Your personalized retirement plan is ready! You can download it here: https://cdn.retirewise.com/plans/user_12345_plan.pdf\nLet me know if you\u2019d like to adjust any assumptions or explore different contribution levels.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User wants to increase their annual contribution and see the impact on the projected retirement balance.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are RetireWise, an autonomous virtual financial planner. Use the provided tools to retrieve data, recalculate projections, and update the plan document."
+        },
+        {
+          "role": "user",
+          "content": "I\u2019m thinking about increasing my 401(k) contribution to $10,000 per year. How would that change my retirement outlook?"
+        },
+        {
+          "role": "assistant",
+          "content": "Let me pull your latest 401(k) balance first.",
+          "tool_calls": [
+            {
+              "id": "fetch_account_data_zz99yy",
+              "name": "fetch_account_data",
+              "arguments": {
+                "user_id": "user_12345",
+                "account_type": "401k"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_account_data_zz99yy",
+          "content": "{\"balance\":80000,\"holdings\":[{\"ticker\":\"VTI\",\"percentage\":60},{\"ticker\":\"BND\",\"percentage\":40}],\"last_update\":\"2024-11-01\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll also need the latest market forecast (30\u2011year horizon).",
+          "tool_calls": [
+            {
+              "id": "get_market_forecast_qr12st",
+              "name": "get_market_forecast",
+              "arguments": {
+                "horizon_years": 30
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_market_forecast_qr12st",
+          "content": "{\"US_EQUITY\":0.07,\"INTERNATIONAL_EQUITY\":0.065,\"BONDS\":0.035}"
+        },
+        {
+          "role": "assistant",
+          "content": "Running the projection with a $10,000 annual contribution (instead of $6,000).",
+          "tool_calls": [
+            {
+              "id": "run_portfolio_projection_uv56wx",
+              "name": "run_portfolio_projection",
+              "arguments": {
+                "current_balance": 80000,
+                "annual_contribution": 10000,
+                "risk_score": 6,
+                "forecast": {
+                  "US_EQUITY": 0.07,
+                  "INTERNATIONAL_EQUITY": 0.065,
+                  "BONDS": 0.035
+                },
+                "years_to_retirement": 30
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "run_portfolio_projection_uv56wx",
+          "content": "{\"projected_balance\":1_070_000,\"annualized_return\":0.062}"
+        },
+        {
+          "role": "assistant",
+          "content": "With a $10,000 yearly contribution, your projected balance at age 65 rises to **$1,070,000** (about $255k more than before). I\u2019ll update your plan document with this new scenario.",
+          "tool_calls": [
+            {
+              "id": "generate_plan_document_kl78mn",
+              "name": "generate_plan_document",
+              "arguments": {
+                "user_id": "user_12345",
+                "plan_summary": "Updated Projection with $10,000/yr contribution:\\nProjected Balance at 65: $1,070,000\\nIncrement over $6,000 contribution: +$255,000\\nRecommendation: If affordable, increase contribution to $10k to significantly boost retirement assets."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_plan_document_kl78mn",
+          "content": "https://cdn.retirewise.com/plans/user_12345_plan_updated.pdf"
+        },
+        {
+          "role": "assistant",
+          "content": "Here\u2019s the updated plan: https://cdn.retirewise.com/plans/user_12345_plan_updated.pdf\nLet me know if you\u2019d like to explore other contribution levels or adjust your asset allocation.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

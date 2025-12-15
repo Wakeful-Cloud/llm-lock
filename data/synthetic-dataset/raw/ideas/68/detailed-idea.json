@@ -1,0 +1,651 @@
+{
+  "name": "BrandPulse Calendar",
+  "description": "An AI\u2011powered content calendar that ingests brand guidelines, audience insights, and upcoming events to automatically generate, schedule, and store social\u2011media post copy for multiple platforms. Marketers can ask the assistant to create weekly plans, adjust tone, or pull analytics, while the LLM orchestrates specialized tools to fetch data, generate copy, schedule posts, and maintain the calendar.",
+  "tools": [
+    {
+      "name": "fetch_brand_guidelines",
+      "description": "Retrieves the stored brand guidelines document (tone, voice, style, prohibited terms, logo usage, etc.) for a given brand ID.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "brand_id": {
+            "type": "string",
+            "description": "Unique identifier of the brand whose guidelines should be returned."
+          }
+        },
+        "required": [
+          "brand_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_audience_insights",
+      "description": "Fetches audience demographic and psychographic insights (age ranges, interests, peak activity times) for a specific brand and platform.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "brand_id": {
+            "type": "string",
+            "description": "ID of the brand whose audience data is requested."
+          },
+          "platform": {
+            "type": "string",
+            "description": "Social platform name (e.g., instagram, twitter, facebook)."
+          }
+        },
+        "required": [
+          "brand_id",
+          "platform"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_upcoming_events",
+      "description": "Returns a list of relevant holidays, industry events, and custom marketing milestones occurring within a specified date range.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "ISO date string marking the start of the window."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "ISO date string marking the end of the window."
+          },
+          "region": {
+            "type": "string",
+            "description": "Geographic region code (e.g., US, EU) to filter region\u2011specific holidays."
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_post_copy",
+      "description": "Creates platform\u2011specific social\u2011media copy using brand guidelines, audience insights, an event description, and optional tone modifiers.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "brand_guidelines": {
+            "type": "object",
+            "description": "Full JSON representation of the brand guidelines fetched earlier."
+          },
+          "audience_insights": {
+            "type": "object",
+            "description": "Audience data object retrieved from fetch_audience_insights."
+          },
+          "event": {
+            "type": "object",
+            "description": "Object describing the event (name, date, description)."
+          },
+          "platform": {
+            "type": "string",
+            "description": "Target social platform (instagram, twitter, linkedin, facebook)."
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "formal",
+              "friendly",
+              "humorous",
+              "inspirational"
+            ],
+            "description": "Optional override of the default brand tone."
+          }
+        },
+        "required": [
+          "brand_guidelines",
+          "audience_insights",
+          "event",
+          "platform"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "schedule_post",
+      "description": "Creates a scheduled post entry in the calendar service for a given platform, date\u2011time, and copy, returning a confirmation ID.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "brand_id": {
+            "type": "string",
+            "description": "Identifier of the brand that owns the post."
+          },
+          "platform": {
+            "type": "string",
+            "description": "Social platform where the post will be published."
+          },
+          "publish_datetime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp for when the post should go live."
+          },
+          "copy": {
+            "type": "string",
+            "description": "The final post text generated by generate_post_copy."
+          },
+          "media_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Optional URL for an image/video asset."
+          }
+        },
+        "required": [
+          "brand_id",
+          "platform",
+          "publish_datetime",
+          "copy"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "retrieve_calendar_entries",
+      "description": "Returns all scheduled posts for a given brand, platform, and optional date range. The result is a JSON array of entries containing entry_id, event_name, publish_datetime, copy, and media_url (if any).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "brand_id": {
+            "type": "string",
+            "description": "Brand identifier."
+          },
+          "platform": {
+            "type": "string",
+            "description": "Social platform to filter on (e.g., instagram)."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "ISO date string for the start of the query window (optional)."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "ISO date string for the end of the query window (optional)."
+          }
+        },
+        "required": [
+          "brand_id",
+          "platform"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "store_calendar_entry",
+      "description": "Persists a calendar entry record (event, copy, schedule info) in the brand's content\u2011calendar database.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "entry_id": {
+            "type": "string",
+            "description": "Unique ID returned from schedule_post."
+          },
+          "brand_id": {
+            "type": "string",
+            "description": "Brand identifier."
+          },
+          "event_name": {
+            "type": "string",
+            "description": "Human\u2011readable name of the event (e.g., \"Earth Day\")."
+          },
+          "platform": {
+            "type": "string",
+            "description": "Social platform."
+          },
+          "publish_datetime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the post is scheduled."
+          },
+          "copy": {
+            "type": "string",
+            "description": "The post copy."
+          },
+          "media_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Optional media URL associated with the post."
+          }
+        },
+        "required": [
+          "entry_id",
+          "brand_id",
+          "event_name",
+          "platform",
+          "publish_datetime",
+          "copy"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks to create a 7\u2011day posting schedule for Instagram and Twitter around Earth Day. The assistant gathers brand guidelines, audience data, relevant events, generates copy, schedules posts, and stores them in the calendar.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are BrandPulse, an AI assistant that builds social\u2011media calendars by calling specialized tools. Always cite tool results when responding."
+        },
+        {
+          "role": "user",
+          "content": "Create a 7\u2011day posting schedule for our EcoBrand on Instagram and Twitter for the week of April 20\u201126, focusing on Earth Day (April 22)."
+        },
+        {
+          "role": "assistant",
+          "content": "Sure, I\u2019ll collect the required data and then craft the schedule.",
+          "tool_calls": [
+            {
+              "id": "fetch_brand_guidelines_01",
+              "name": "fetch_brand_guidelines",
+              "arguments": {
+                "brand_id": "eco_brand_001"
+              }
+            },
+            {
+              "id": "fetch_audience_insights_02",
+              "name": "fetch_audience_insights",
+              "arguments": {
+                "brand_id": "eco_brand_001",
+                "platform": "instagram"
+              }
+            },
+            {
+              "id": "fetch_upcoming_events_03",
+              "name": "fetch_upcoming_events",
+              "arguments": {
+                "start_date": "2025-04-20",
+                "end_date": "2025-04-26",
+                "region": "US"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_brand_guidelines_01",
+          "content": "{\"tone\":\"friendly\",\"voice\":\"inclusive\",\"style\":\"short sentences\",\"prohibited_terms\":[]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_audience_insights_02",
+          "content": "{\"age_range\":\"18-35\",\"top_interests\":[\"sustainability\",\"outdoor activities\",\"DIY projects\"],\"peak_hours\":[\"08:00-10:00\",\"18:00-20:00\"]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_upcoming_events_03",
+          "content": "[{\"name\":\"Earth Day\",\"date\":\"2025-04-22\",\"description\":\"Global environmental awareness day\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "I have the brand guidelines, audience insights for Instagram, and the Earth Day event. I\u2019ll now generate copy for each day and each platform.",
+          "tool_calls": [
+            {
+              "id": "gen_copy_04",
+              "name": "generate_post_copy",
+              "arguments": {
+                "brand_guidelines": {
+                  "tone": "friendly",
+                  "voice": "inclusive",
+                  "style": "short sentences",
+                  "prohibited_terms": []
+                },
+                "audience_insights": {
+                  "age_range": "18-35",
+                  "top_interests": [
+                    "sustainability",
+                    "outdoor activities",
+                    "DIY projects"
+                  ],
+                  "peak_hours": [
+                    "08:00-10:00",
+                    "18:00-20:00"
+                  ]
+                },
+                "event": {
+                  "name": "Earth Day Prep",
+                  "date": "2025-04-20",
+                  "description": "Kick\u2011off the week with a sustainability tip."
+                },
+                "platform": "instagram"
+              }
+            },
+            {
+              "id": "gen_copy_05",
+              "name": "generate_post_copy",
+              "arguments": {
+                "brand_guidelines": {
+                  "tone": "friendly",
+                  "voice": "inclusive",
+                  "style": "short sentences",
+                  "prohibited_terms": []
+                },
+                "audience_insights": {
+                  "age_range": "18-35",
+                  "top_interests": [
+                    "sustainability",
+                    "outdoor activities",
+                    "DIY projects"
+                  ],
+                  "peak_hours": [
+                    "08:00-10:00",
+                    "18:00-20:00"
+                  ]
+                },
+                "event": {
+                  "name": "Earth Day Prep",
+                  "date": "2025-04-20",
+                  "description": "Kick\u2011off the week with a sustainability tip."
+                },
+                "platform": "twitter"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "gen_copy_04",
+          "content": "\ud83c\udf31 Tip #1: Carry a reusable water bottle today! Small actions add up. #EcoBrand #EarthDayPrep"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "gen_copy_05",
+          "content": "\ud83d\udeb0 Reusable bottle = less plastic waste. Start the Earth Day week right! #EcoBrand #Sustainability"
+        },
+        {
+          "role": "assistant",
+          "content": "Here\u2019s the Instagram copy for April\u202f20:\n\n\ud83c\udf31 Tip #1: Carry a reusable water bottle today! Small actions add up. #EcoBrand #EarthDayPrep\n\nAnd the Twitter version:\n\n\ud83d\udeb0 Reusable bottle = less plastic waste. Start the Earth Day week right! #EcoBrand #Sustainability\n\nI\u2019ll now schedule these posts.",
+          "tool_calls": [
+            {
+              "id": "schedule_06",
+              "name": "schedule_post",
+              "arguments": {
+                "brand_id": "eco_brand_001",
+                "platform": "instagram",
+                "publish_datetime": "2025-04-20T09:00:00Z",
+                "copy": "\ud83c\udf31 Tip #1: Carry a reusable water bottle today! Small actions add up. #EcoBrand #EarthDayPrep",
+                "media_url": "https://cdn.ecobrand.com/assets/water-bottle.jpg"
+              }
+            },
+            {
+              "id": "schedule_07",
+              "name": "schedule_post",
+              "arguments": {
+                "brand_id": "eco_brand_001",
+                "platform": "twitter",
+                "publish_datetime": "2025-04-20T09:30:00Z",
+                "copy": "\ud83d\udeb0 Reusable bottle = less plastic waste. Start the Earth Day week right! #EcoBrand #Sustainability",
+                "media_url": "https://cdn.ecobrand.com/assets/water-bottle.jpg"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "schedule_06",
+          "content": "{\"schedule_id\":\"sched_inst_20250420_0900\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "schedule_07",
+          "content": "{\"schedule_id\":\"sched_tw_20250420_0930\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Both posts are scheduled. I\u2019ll now persist them in your content calendar.",
+          "tool_calls": [
+            {
+              "id": "store_08",
+              "name": "store_calendar_entry",
+              "arguments": {
+                "entry_id": "sched_inst_20250420_0900",
+                "brand_id": "eco_brand_001",
+                "event_name": "Earth Day Prep",
+                "platform": "instagram",
+                "publish_datetime": "2025-04-20T09:00:00Z",
+                "copy": "\ud83c\udf31 Tip #1: Carry a reusable water bottle today! Small actions add up. #EcoBrand #EarthDayPrep",
+                "media_url": "https://cdn.ecobrand.com/assets/water-bottle.jpg"
+              }
+            },
+            {
+              "id": "store_09",
+              "name": "store_calendar_entry",
+              "arguments": {
+                "entry_id": "sched_tw_20250420_0930",
+                "brand_id": "eco_brand_001",
+                "event_name": "Earth Day Prep",
+                "platform": "twitter",
+                "publish_datetime": "2025-04-20T09:30:00Z",
+                "copy": "\ud83d\udeb0 Reusable bottle = less plastic waste. Start the Earth Day week right! #EcoBrand #Sustainability",
+                "media_url": "https://cdn.ecobrand.com/assets/water-bottle.jpg"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "store_08",
+          "content": "{\"status\":\"saved\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "store_09",
+          "content": "{\"status\":\"saved\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 Day\u202f1 posts are scheduled and saved. I will repeat the same process for the remaining days (April\u202f21\u201126). Would you like me to continue automatically, or adjust any parameters first?",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User reviews the existing Instagram calendar for Earth Day week and requests the tone be changed to inspirational. The assistant retrieves the entries, regenerates copy with the new tone, updates the schedule, and stores the updated entries.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are BrandPulse, an AI assistant that can read, edit, and reschedule social\u2011media content using the provided tools."
+        },
+        {
+          "role": "user",
+          "content": "Show me the Instagram posts scheduled for Earth Day week and change their tone to inspirational."
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching the Instagram calendar entries for the requested week.",
+          "tool_calls": [
+            {
+              "id": "retrieve_10",
+              "name": "retrieve_calendar_entries",
+              "arguments": {
+                "brand_id": "eco_brand_001",
+                "platform": "instagram",
+                "start_date": "2025-04-20",
+                "end_date": "2025-04-26"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "retrieve_10",
+          "content": "[{\"entry_id\":\"sched_inst_20250420_0900\",\"event_name\":\"Earth Day Prep\",\"publish_datetime\":\"2025-04-20T09:00:00Z\",\"copy\":\"\ud83c\udf31 Tip #1: Carry a reusable water bottle today! Small actions add up. #EcoBrand #EarthDayPrep\",\"media_url\":\"https://cdn.ecobrand.com/assets/water-bottle.jpg\"},{\"entry_id\":\"sched_inst_20250422_1200\",\"event_name\":\"Earth Day Celebration\",\"publish_datetime\":\"2025-04-22T12:00:00Z\",\"copy\":\"\ud83c\udf0d Happy Earth Day! Together we can make a difference. #EcoBrand #EarthDay\",\"media_url\":\"https://cdn.ecobrand.com/assets/earth-day.jpg\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "I have two Instagram entries. I\u2019ll regenerate their copy with an inspirational tone.",
+          "tool_calls": [
+            {
+              "id": "regen_11",
+              "name": "generate_post_copy",
+              "arguments": {
+                "brand_guidelines": {
+                  "tone": "friendly",
+                  "voice": "inclusive",
+                  "style": "short sentences",
+                  "prohibited_terms": []
+                },
+                "audience_insights": {
+                  "age_range": "18-35",
+                  "top_interests": [
+                    "sustainability",
+                    "outdoor activities",
+                    "DIY projects"
+                  ],
+                  "peak_hours": [
+                    "08:00-10:00",
+                    "18:00-20:00"
+                  ]
+                },
+                "event": {
+                  "name": "Earth Day Prep",
+                  "date": "2025-04-20",
+                  "description": "Kick\u2011off the week with a sustainability tip."
+                },
+                "platform": "instagram",
+                "tone": "inspirational"
+              }
+            },
+            {
+              "id": "regen_12",
+              "name": "generate_post_copy",
+              "arguments": {
+                "brand_guidelines": {
+                  "tone": "friendly",
+                  "voice": "inclusive",
+                  "style": "short sentences",
+                  "prohibited_terms": []
+                },
+                "audience_insights": {
+                  "age_range": "18-35",
+                  "top_interests": [
+                    "sustainability",
+                    "outdoor activities",
+                    "DIY projects"
+                  ],
+                  "peak_hours": [
+                    "08:00-10:00",
+                    "18:00-20:00"
+                  ]
+                },
+                "event": {
+                  "name": "Earth Day Celebration",
+                  "date": "2025-04-22",
+                  "description": "Official Earth Day celebration post."
+                },
+                "platform": "instagram",
+                "tone": "inspirational"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "regen_11",
+          "content": "\ud83c\udf1f Rise & shine! Today, bring your reusable bottle and let every sip echo your commitment to a greener planet. #EcoBrand #InspireChange"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "regen_12",
+          "content": "\ud83c\udf0d Earth Day is here! Let\u2019s unite our voices, plant hope, and celebrate the planet we call home. #EcoBrand #InspireTheFuture"
+        },
+        {
+          "role": "assistant",
+          "content": "New inspirational copy generated. Updating the scheduled posts with the new text.",
+          "tool_calls": [
+            {
+              "id": "update_13",
+              "name": "schedule_post",
+              "arguments": {
+                "brand_id": "eco_brand_001",
+                "platform": "instagram",
+                "publish_datetime": "2025-04-20T09:00:00Z",
+                "copy": "\ud83c\udf1f Rise & shine! Today, bring your reusable bottle and let every sip echo your commitment to a greener planet. #EcoBrand #InspireChange",
+                "media_url": "https://cdn.ecobrand.com/assets/water-bottle.jpg"
+              }
+            },
+            {
+              "id": "update_14",
+              "name": "schedule_post",
+              "arguments": {
+                "brand_id": "eco_brand_001",
+                "platform": "instagram",
+                "publish_datetime": "2025-04-22T12:00:00Z",
+                "copy": "\ud83c\udf0d Earth Day is here! Let\u2019s unite our voices, plant hope, and celebrate the planet we call home. #EcoBrand #InspireTheFuture",
+                "media_url": "https://cdn.ecobrand.com/assets/earth-day.jpg"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "update_13",
+          "content": "{\"schedule_id\":\"sched_inst_20250420_0900_updated\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "update_14",
+          "content": "{\"schedule_id\":\"sched_inst_20250422_1200_updated\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 The Instagram posts have been re\u2011scheduled with the inspirational tone. I\u2019ll now update the persistent calendar entries.",
+          "tool_calls": [
+            {
+              "id": "store_15",
+              "name": "store_calendar_entry",
+              "arguments": {
+                "entry_id": "sched_inst_20250420_0900_updated",
+                "brand_id": "eco_brand_001",
+                "event_name": "Earth Day Prep",
+                "platform": "instagram",
+                "publish_datetime": "2025-04-20T09:00:00Z",
+                "copy": "\ud83c\udf1f Rise & shine! Today, bring your reusable bottle and let every sip echo your commitment to a greener planet. #EcoBrand #InspireChange",
+                "media_url": "https://cdn.ecobrand.com/assets/water-bottle.jpg"
+              }
+            },
+            {
+              "id": "store_16",
+              "name": "store_calendar_entry",
+              "arguments": {
+                "entry_id": "sched_inst_20250422_1200_updated",
+                "brand_id": "eco_brand_001",
+                "event_name": "Earth Day Celebration",
+                "platform": "instagram",
+                "publish_datetime": "2025-04-22T12:00:00Z",
+                "copy": "\ud83c\udf0d Earth Day is here! Let\u2019s unite our voices, plant hope, and celebrate the planet we call home. #EcoBrand #InspireTheFuture",
+                "media_url": "https://cdn.ecobrand.com/assets/earth-day.jpg"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "store_15",
+          "content": "{\"status\":\"saved\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "store_16",
+          "content": "{\"status\":\"saved\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "All changes have been persisted. Anything else you\u2019d like to tweak?",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

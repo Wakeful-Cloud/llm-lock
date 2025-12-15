@@ -1,0 +1,322 @@
+{
+  "name": "ClaimMate",
+  "description": "An AI\u2011driven Insurance Claim Assistant that automatically pulls the customer's policy, extracts incident details from photos, fills claim forms, predicts the likelihood of approval, and submits the claim on the user's behalf.",
+  "tools": [
+    {
+      "name": "retrieve_policy",
+      "description": "Fetches the insured's policy document from the insurer's back\u2011end given a policy number. Returns the policy as a structured JSON object.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "policy_number": {
+            "type": "string",
+            "description": "The unique identifier of the insurance policy."
+          }
+        },
+        "required": [
+          "policy_number"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "ocr_image",
+      "description": "Runs OCR on an image URL (e.g., photos of damage or police reports) and returns extracted text and any detected key\u2011value pairs.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "image_url": {
+            "type": "string",
+            "description": "HTTPS URL pointing to the image to be processed."
+          }
+        },
+        "required": [
+          "image_url"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "populate_claim_form",
+      "description": "Combines policy data and incident details into a claim form JSON ready for submission.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "policy_data": {
+            "type": "object",
+            "description": "The JSON object returned by retrieve_policy."
+          },
+          "incident_details": {
+            "type": "object",
+            "description": "Structured data describing the incident (date, location, description, damage estimate)."
+          }
+        },
+        "required": [
+          "policy_data",
+          "incident_details"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "predict_approval",
+      "description": "Runs a light ML model on the completed claim form and returns a probability of approval plus major risk factors.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "claim_form": {
+            "type": "object",
+            "description": "The JSON claim form produced by populate_claim_form."
+          }
+        },
+        "required": [
+          "claim_form"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "submit_claim",
+      "description": "Sends the populated claim form to the insurer's claims API and returns a claim reference ID and initial status.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "claim_form": {
+            "type": "object",
+            "description": "The completed claim form JSON."
+          }
+        },
+        "required": [
+          "claim_form"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_claim_status",
+      "description": "Queries the insurer's claims system for the current status of a previously submitted claim.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "claim_id": {
+            "type": "string",
+            "description": "The unique identifier returned by submit_claim."
+          }
+        },
+        "required": [
+          "claim_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_claim_history",
+      "description": "Retrieves a list of past claims for the given policy number, useful for context or pattern analysis.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "policy_number": {
+            "type": "string",
+            "description": "The insured's policy number."
+          }
+        },
+        "required": [
+          "policy_number"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User files a new auto accident claim; the assistant pulls policy, extracts damage from photos, fills the form, predicts approval chance, and submits the claim.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are ClaimMate, an AI assistant that helps customers file insurance claims. Use the available tools to retrieve policies, extract information from images, populate claim forms, predict approval likelihood, and submit claims."
+        },
+        {
+          "role": "user",
+          "content": "I was in a fender\u2011bender yesterday. My policy number is 12345ABC. Here are two photos of the damage: https://example.com/img1.jpg and https://example.com/img2.jpg. Please file the claim for me."
+        },
+        {
+          "role": "assistant",
+          "content": "Let me pull your policy and extract the damage details from the photos.",
+          "tool_calls": [
+            {
+              "id": "retrieve_policy_01a2b3c",
+              "name": "retrieve_policy",
+              "arguments": {
+                "policy_number": "12345ABC"
+              }
+            },
+            {
+              "id": "ocr_image_01a2b3c_1",
+              "name": "ocr_image",
+              "arguments": {
+                "image_url": "https://example.com/img1.jpg"
+              }
+            },
+            {
+              "id": "ocr_image_01a2b3c_2",
+              "name": "ocr_image",
+              "arguments": {
+                "image_url": "https://example.com/img2.jpg"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "retrieve_policy_01a2b3c",
+          "content": "{\"policy_number\":\"12345ABC\",\"type\":\"Auto\",\"coverage\":{\"collision\":true,\"comprehensive\":true,\"deductible\":500},\"holder_name\":\"John Doe\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "ocr_image_01a2b3c_1",
+          "content": "{\"text\":\"Rear bumper cracked, left tail light broken\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "ocr_image_01a2b3c_2",
+          "content": "{\"text\":\"Front left door dented, paint scuffed\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "I have your policy and extracted damage details. I will now build the claim form.",
+          "tool_calls": [
+            {
+              "id": "populate_claim_form_01d4e5f",
+              "name": "populate_claim_form",
+              "arguments": {
+                "policy_data": {
+                  "policy_number": "12345ABC",
+                  "type": "Auto",
+                  "coverage": {
+                    "collision": true,
+                    "comprehensive": true,
+                    "deductible": 500
+                  },
+                  "holder_name": "John Doe"
+                },
+                "incident_details": {
+                  "date": "2025-12-06",
+                  "location": "Downtown Intersection",
+                  "description": "Rear bumper cracked, left tail light broken; front left door dented, paint scuffed",
+                  "damage_estimate_usd": 1500
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "populate_claim_form_01d4e5f",
+          "content": "{\"claim_form_id\":\"CF-987654\",\"policy_number\":\"12345ABC\",\"incident_date\":\"2025-12-06\",\"incident_location\":\"Downtown Intersection\",\"damage_description\":\"Rear bumper cracked, left tail light broken; front left door dented, paint scuffed\",\"estimated_loss\":1500,\"coverage_type\":\"Collision\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "The claim form is ready. Let me predict how likely it is to be approved.",
+          "tool_calls": [
+            {
+              "id": "predict_approval_02f6g7h",
+              "name": "predict_approval",
+              "arguments": {
+                "claim_form": {
+                  "claim_form_id": "CF-987654",
+                  "policy_number": "12345ABC",
+                  "incident_date": "2025-12-06",
+                  "incident_location": "Downtown Intersection",
+                  "damage_description": "Rear bumper cracked, left tail light broken; front left door dented, paint scuffed",
+                  "estimated_loss": 1500,
+                  "coverage_type": "Collision"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "predict_approval_02f6g7h",
+          "content": "{\"approval_probability\":0.92,\"risk_factors\":[\"low_deductible\",\"collision_coverage\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Based on the information, there is a 92\u202f% chance that the claim will be approved. Shall I go ahead and submit it?",
+          "tool_calls": []
+        },
+        {
+          "role": "user",
+          "content": "Yes, please submit."
+        },
+        {
+          "role": "assistant",
+          "content": "Submitting the claim now.",
+          "tool_calls": [
+            {
+              "id": "submit_claim_03j8k9l",
+              "name": "submit_claim",
+              "arguments": {
+                "claim_form": {
+                  "claim_form_id": "CF-987654",
+                  "policy_number": "12345ABC",
+                  "incident_date": "2025-12-06",
+                  "incident_location": "Downtown Intersection",
+                  "damage_description": "Rear bumper cracked, left tail light broken; front left door dented, paint scuffed",
+                  "estimated_loss": 1500,
+                  "coverage_type": "Collision"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "submit_claim_03j8k9l",
+          "content": "{\"claim_id\":\"CLM-112233\",\"status\":\"Received\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Your claim has been filed successfully! The claim reference number is **CLM-112233** and its current status is **Received**. You will receive updates via email.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User checks the status of an existing claim; the assistant retrieves the current status and gives a brief summary.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are ClaimMate, an assistant that can look up claim status for customers using the get_claim_status tool."
+        },
+        {
+          "role": "user",
+          "content": "What's the status of my claim CLM-112233?"
+        },
+        {
+          "role": "assistant",
+          "content": "Give me a moment while I fetch the latest status of claim CLM-112233.",
+          "tool_calls": [
+            {
+              "id": "get_claim_status_04m5n6o",
+              "name": "get_claim_status",
+              "arguments": {
+                "claim_id": "CLM-112233"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_claim_status_04m5n6o",
+          "content": "{\"claim_id\":\"CLM-112233\",\"status\":\"Under Review\",\"last_updated\":\"2025-12-07T09:42:00Z\",\"notes\":\"Adjuster assigned, awaiting inspection report.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Your claim **CLM-112233** is currently **Under Review** (last updated on 2025\u201112\u201107). An adjuster has been assigned and we are waiting for the inspection report. I\u2019ll let you know as soon as there\u2019s a decision.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

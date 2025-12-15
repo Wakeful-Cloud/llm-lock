@@ -1,0 +1,243 @@
+{
+  "description": "The user uploads a health\u2011claim PDF with a total charge of $15,500. The assistant extracts the text, parses the claim, looks up each medical code, checks the insurer's coverage rules, and then generates concrete correction suggestions that flag overbilling and missing prior\u2011authorizations.",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are MedClaim AI Analyzer, an expert assistant that extracts data from health\u2011claim PDFs, validates CPT/HCPCS/ICD\u201110 codes against insurer policies, flags billing errors, and provides precise correction suggestions to reduce claim denials."
+    },
+    {
+      "role": "user",
+      "content": "I just uploaded a claim PDF for patient John Doe (base64 below). The total charge is $15,500, which seems unusually high for the services listed. Can you review and tell me if there\u2019s any overbilling?\n\nJVBERi0xLjQKJcTl8uXrp/Og0MTGCjEgMCBvYmoK..."
+    },
+    {
+      "role": "assistant",
+      "content": "Sure, I\u2019ll extract the text from the PDF and then analyze the claim details.",
+      "tool_calls": [
+        {
+          "id": "extract_text_from_pdf_a1b2c3",
+          "name": "extract_text_from_pdf",
+          "arguments": {
+            "pdf_base64": "JVBERi0xLjQKJcTl8uXrp/Og0MTGCjEgMCBvYmoK..."
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "extract_text_from_pdf_a1b2c3",
+      "content": "Patient Name: John Doe\nPatient ID: 789012\nProvider: Sunrise Medical Center\nProvider NPI: 1234567890\nInsurer: AETNA\nPolicy ID: P12345\nDate of Service: 2024-11-15\n\nLine Items:\n1. CPT 99213 - Office Visit - $200\n2. CPT 99285 - Emergency Dept, high severity - $12,000\n3. CPT 83036 - Hemoglobin A1c - $1,300\n\nTotal Charge: $15,500"
+    },
+    {
+      "role": "assistant",
+      "content": "Got the claim text. I\u2019ll now convert it into a structured format.",
+      "tool_calls": [
+        {
+          "id": "parse_claim_form_d4e5f6",
+          "name": "parse_claim_form",
+          "arguments": {
+            "raw_text": "Patient Name: John Doe\nPatient ID: 789012\nProvider: Sunrise Medical Center\nProvider NPI: 1234567890\nInsurer: AETNA\nPolicy ID: P12345\nDate of Service: 2024-11-15\n\nLine Items:\n1. CPT 99213 - Office Visit - $200\n2. CPT 99285 - Emergency Dept, high severity - $12,000\n3. CPT 83036 - Hemoglobin A1c - $1,300\n\nTotal Charge: $15,500"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "parse_claim_form_d4e5f6",
+      "content": "{\"patient\":{\"name\":\"John Doe\",\"id\":\"789012\"},\"provider\":{\"name\":\"Sunrise Medical Center\",\"npi\":\"1234567890\"},\"insurer\":{\"id\":\"AETNA\",\"policy_id\":\"P12345\"},\"date_of_service\":\"2024-11-15\",\"line_items\":[{\"line\":1,\"code\":\"99213\",\"description\":\"Office Visit\",\"charge\":200},{\"line\":2,\"code\":\"99285\",\"description\":\"Emergency Dept, high severity\",\"charge\":12000},{\"line\":3,\"code\":\"83036\",\"description\":\"Hemoglobin A1c\",\"charge\":1300}],\"total_charge\":15500}"
+    },
+    {
+      "role": "assistant",
+      "content": "I\u2019ll look up each CPT code to get the official descriptions, required modifiers, and typical reimbursement ranges.",
+      "tool_calls": [
+        {
+          "id": "lookup_medical_code_001",
+          "name": "lookup_medical_code",
+          "arguments": {
+            "code": "99213"
+          }
+        },
+        {
+          "id": "lookup_medical_code_002",
+          "name": "lookup_medical_code",
+          "arguments": {
+            "code": "99285"
+          }
+        },
+        {
+          "id": "lookup_medical_code_003",
+          "name": "lookup_medical_code",
+          "arguments": {
+            "code": "83036"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "lookup_medical_code_001",
+      "content": "{\"code\":\"99213\",\"description\":\"Office or other outpatient visit for the evaluation and management of an established patient, typically 15 minutes\",\"category\":\"Evaluation & Management\",\"required_modifiers\":[]}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "lookup_medical_code_002",
+      "content": "{\"code\":\"99285\",\"description\":\"Emergency department visit for the evaluation and management of a patient, high severity, requiring complex decision making\",\"category\":\"Emergency\",\"required_modifiers\":[]}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "lookup_medical_code_003",
+      "content": "{\"code\":\"83036\",\"description\":\"Hemoglobin; glycosylated (A1c) test\",\"category\":\"Laboratory\",\"required_modifiers\":[]}"
+    },
+    {
+      "role": "assistant",
+      "content": "Now I\u2019ll check AETNA\u2019s policy P12345 for coverage details on each code.",
+      "tool_calls": [
+        {
+          "id": "query_policy_coverage_1",
+          "name": "query_policy_coverage",
+          "arguments": {
+            "insurer_id": "AETNA",
+            "policy_id": "P12345",
+            "code": "99213"
+          }
+        },
+        {
+          "id": "query_policy_coverage_2",
+          "name": "query_policy_coverage",
+          "arguments": {
+            "insurer_id": "AETNA",
+            "policy_id": "P12345",
+            "code": "99285"
+          }
+        },
+        {
+          "id": "query_policy_coverage_3",
+          "name": "query_policy_coverage",
+          "arguments": {
+            "insurer_id": "AETNA",
+            "policy_id": "P12345",
+            "code": "83036"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "query_policy_coverage_1",
+      "content": "{\"insurer_id\":\"AETNA\",\"policy_id\":\"P12345\",\"code\":\"99213\",\"covered\":true,\"max_reimbursable\":150,\"prior_auth_required\":false}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "query_policy_coverage_2",
+      "content": "{\"insurer_id\":\"AETNA\",\"policy_id\":\"P12345\",\"code\":\"99285\",\"covered\":true,\"max_reimbursable\":2500,\"prior_auth_required\":true}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "query_policy_coverage_3",
+      "content": "{\"insurer_id\":\"AETNA\",\"policy_id\":\"P12345\",\"code\":\"83036\",\"covered\":true,\"max_reimbursable\":500,\"prior_auth_required\":false}"
+    },
+    {
+      "role": "assistant",
+      "content": "I\u2019m ready to generate correction suggestions based on the claim data, code details, and policy coverage.",
+      "tool_calls": [
+        {
+          "id": "generate_correction_suggestion_aa1bb2",
+          "name": "generate_correction_suggestion",
+          "arguments": {
+            "claim_struct": {
+              "patient": {
+                "name": "John Doe",
+                "id": "789012"
+              },
+              "provider": {
+                "name": "Sunrise Medical Center",
+                "npi": "1234567890"
+              },
+              "insurer": {
+                "id": "AETNA",
+                "policy_id": "P12345"
+              },
+              "date_of_service": "2024-11-15",
+              "line_items": [
+                {
+                  "line": 1,
+                  "code": "99213",
+                  "description": "Office Visit",
+                  "charge": 200
+                },
+                {
+                  "line": 2,
+                  "code": "99285",
+                  "description": "Emergency Dept, high severity",
+                  "charge": 12000
+                },
+                {
+                  "line": 3,
+                  "code": "83036",
+                  "description": "Hemoglobin A1c",
+                  "charge": 1300
+                }
+              ],
+              "total_charge": 15500
+            },
+            "code_details": [
+              {
+                "code": "99213",
+                "description": "Office or other outpatient visit for the evaluation and management of an established patient, typically 15 minutes",
+                "category": "Evaluation & Management",
+                "required_modifiers": []
+              },
+              {
+                "code": "99285",
+                "description": "Emergency department visit for the evaluation and management of a patient, high severity, requiring complex decision making",
+                "category": "Emergency",
+                "required_modifiers": []
+              },
+              {
+                "code": "83036",
+                "description": "Hemoglobin; glycosylated (A1c) test",
+                "category": "Laboratory",
+                "required_modifiers": []
+              }
+            ],
+            "coverage_info": [
+              {
+                "insurer_id": "AETNA",
+                "policy_id": "P12345",
+                "code": "99213",
+                "covered": true,
+                "max_reimbursable": 150,
+                "prior_auth_required": false
+              },
+              {
+                "insurer_id": "AETNA",
+                "policy_id": "P12345",
+                "code": "99285",
+                "covered": true,
+                "max_reimbursable": 2500,
+                "prior_auth_required": true
+              },
+              {
+                "insurer_id": "AETNA",
+                "policy_id": "P12345",
+                "code": "83036",
+                "covered": true,
+                "max_reimbursable": 500,
+                "prior_auth_required": false
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "generate_correction_suggestion_aa1bb2",
+      "content": "{\"errors\":[{\"line\":1,\"code\":\"99213\",\"issue\":\"Charge exceeds maximum allowed\",\"allowed\":150,\"suggested_charge\":150,\"comment\":\"Reduce charge to $150, which aligns with AETNA\u2019s fee schedule for this code.\"},{\"line\":2,\"code\":\"99285\",\"issue\":\"Charge far exceeds maximum and prior authorization missing\",\"allowed\":2500,\"suggested_charge\":2500,\"comment\":\"Submit prior\u2011auth request and adjust charge to $2,500 (maximum reimbursable).\"},{\"line\":3,\"code\":\"83036\",\"issue\":\"Charge exceeds policy limit\",\"allowed\":500,\"suggested_charge\":500,\"comment\":\"Adjust charge to $500 to match coverage limit.\"}],\"total_suggested_charge\":3150,\"potential_savings\":12350,\"summary\":\"All line\u2011item amounts are above AETNA\u2019s reimbursable limits. Adjusting them as suggested would reduce the claim total to $3,150, bringing it in line with policy terms and avoiding a likely denial.\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "### Findings & Correction Suggestions\n\n**1\ufe0f\u20e3 Line Item 1 \u2013 CPT 99213 (Office Visit)**\n- **Issue:** Charged $200, but AETNA\u2019s fee schedule caps reimbursement at **$150**.\n- **Suggestion:** Reduce the charge to **$150**.\n- **Why:** Aligns with the insurer\u2019s maximum reimbursable amount; prevents an automatic denial for overbilling.\n\n**2\ufe0f\u20e3 Line Item 2 \u2013 CPT 99285 (Emergency Dept, high severity)**\n- **Issue:** Charged $12,000, far above the **$2,500** limit and a prior\u2011auth is required.\n- **Suggestion:** Submit a prior\u2011authorization request **and** adjust the charge to **$2,500**.\n- **Why:** The policy caps this high\u2011severity ED visit at $2,500; without prior\u2011auth the claim will be rejected.\n\n**3\ufe0f\u20e3 Line Item 3 \u2013 CPT 83036 (Hemoglobin A1c)**\n- **Issue:** Charged $1,300, exceeding the **$500** allowable amount.\n- **Suggestion:** Reduce the charge to **$500**.\n- **Why:** Matches the coverage limit for this lab test.\n\n---\n**Current Total Charge:** $15,500\n**Suggested Total After Adjustments:** **$3,150**\n**Potential Savings / Denial Avoidance:** **$12,350**\n\nBy updating the line\u2011item amounts as recommended and providing the required prior\u2011auth for the emergency department visit, this claim should clear AETNA\u2019s policy checks and be reimbursed at the adjusted total of $3,150.\n\nLet me know if you\u2019d like help drafting the prior\u2011authorization request or resubmitting the corrected claim.",
+      "tool_calls": []
+    }
+  ]
+}

@@ -1,0 +1,403 @@
+{
+  "name": "VitalFit Coach",
+  "description": "An agentic LLM that acts as a personal health coach, continuously syncing with fitness trackers, diet logs, and medical guidelines to generate customized workout and meal plans, monitor progress, and send actionable reports.",
+  "tools": [
+    {
+      "name": "fetch_fitness_data",
+      "description": "Retrieves recent fitness\u2011tracker metrics such as step count, heart\u2011rate, sleep duration, and activity types for a specified user and time window.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Unique identifier of the user in the system."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "ISO\u20118601 start date (inclusive) for the data query."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "ISO\u20118601 end date (inclusive) for the data query."
+          }
+        },
+        "required": [
+          "user_id",
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "log_meal",
+      "description": "Adds a new meal entry with detailed nutrition information into the user's diet log for a given date.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "User's unique identifier."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Date of the meal."
+          },
+          "meal_type": {
+            "type": "string",
+            "enum": [
+              "breakfast",
+              "lunch",
+              "dinner",
+              "snack"
+            ],
+            "description": "Typical meal category."
+          },
+          "foods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of food items consumed."
+          },
+          "calories": {
+            "type": "number",
+            "description": "Total calories of the meal (optional if foods are looked up later)."
+          }
+        },
+        "required": [
+          "user_id",
+          "date",
+          "meal_type",
+          "foods"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_nutrition_info",
+      "description": "Queries a public nutrition database and returns macro\u2011 and micronutrient values for a specified food item.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "food_name": {
+            "type": "string",
+            "description": "Exact name of the food or ingredient."
+          }
+        },
+        "required": [
+          "food_name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_workout_plan",
+      "description": "Creates a personalized multi\u2011day workout schedule based on the user's fitness data, goals, and any medical constraints.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "The user for whom the plan is generated."
+          },
+          "goals": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "User\u2011declared fitness objectives (e.g., weight loss, strength)."
+          },
+          "fitness_data": {
+            "type": "object",
+            "description": "Aggregated metrics from the tracker (steps, avg HR, sleep, etc.)."
+          },
+          "constraints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Medical or physical constraints (e.g., knee pain, hypertension)."
+          }
+        },
+        "required": [
+          "user_id",
+          "goals",
+          "fitness_data"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_meal_plan",
+      "description": "Produces a weekly meal plan that respects calorie targets, dietary preferences, and any medical conditions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "The user receiving the plan."
+          },
+          "calorie_target": {
+            "type": "number",
+            "description": "Daily target calories."
+          },
+          "dietary_preferences": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Preferences such as vegetarian, low\u2011carb, gluten\u2011free."
+          },
+          "medical_conditions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Conditions that affect nutrition (e.g., diabetes)."
+          }
+        },
+        "required": [
+          "user_id",
+          "calorie_target",
+          "dietary_preferences"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "check_medical_guidelines",
+      "description": "Retrieves up\u2011to\u2011date medical or nutritional guidelines for a set of conditions to ensure recommendations are safe.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "conditions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of medical or dietary conditions (e.g., hypertension, gluten intolerance)."
+          }
+        },
+        "required": [
+          "conditions"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_progress_report",
+      "description": "Compiles a concise report of the user's activity, nutrition, and goal progression over a chosen period.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Identifier of the user."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Start of the reporting window."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "End of the reporting window."
+          }
+        },
+        "required": [
+          "user_id",
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User requests a 4\u2011day workout and meal plan to lose ~2\u202fkg in a month; the assistant pulls recent activity, creates plans, and returns them.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are VitalFit Coach, an agentic LLM that helps users improve health by integrating fitness\u2011tracker data, diet logs, and medical guidelines."
+        },
+        {
+          "role": "user",
+          "content": "I want a 4\u2011day workout plan and meal suggestions to lose 2\u202fkg in the next month. My recent activity shows about 6,000 steps per day and an average resting heart rate of 68\u202fbpm."
+        },
+        {
+          "role": "assistant",
+          "content": "Let me fetch your latest fitness data so I can tailor the plan to your current baseline.",
+          "tool_calls": [
+            {
+              "id": "fetch_fitness_data_a1b2c3",
+              "name": "fetch_fitness_data",
+              "arguments": {
+                "user_id": "user_12345",
+                "start_date": "2025-11-30",
+                "end_date": "2025-12-06"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_fitness_data_a1b2c3",
+          "content": "{\"average_steps\":6000,\"average_resting_hr\":68,\"sleep_hours\":7.2}"
+        },
+        {
+          "role": "assistant",
+          "content": "Great, I have your baseline. I\u2019m now generating a workout schedule and a meal plan that fit your goal of losing 2\u202fkg while respecting your current activity level.",
+          "tool_calls": [
+            {
+              "id": "generate_workout_plan_d4e5f6",
+              "name": "generate_workout_plan",
+              "arguments": {
+                "user_id": "user_12345",
+                "goals": [
+                  "weight_loss"
+                ],
+                "fitness_data": {
+                  "average_steps": 6000,
+                  "average_resting_hr": 68,
+                  "sleep_hours": 7.2
+                },
+                "constraints": []
+              }
+            },
+            {
+              "id": "generate_meal_plan_d4e5f6",
+              "name": "generate_meal_plan",
+              "arguments": {
+                "user_id": "user_12345",
+                "calorie_target": 1800,
+                "dietary_preferences": [
+                  "balanced"
+                ],
+                "medical_conditions": []
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_workout_plan_d4e5f6",
+          "content": "{\"plan\": [{\"day\":\"Monday\",\"session\":\"Full\u2011body circuit 45min (bodyweight, kettlebell)\"},{\"day\":\"Wednesday\",\"session\":\"HIIT run 30min + core\"},{\"day\":\"Friday\",\"session\":\"Strength training (upper body) 40min\"},{\"day\":\"Saturday\",\"session\":\"Yoga & mobility 45min\"}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_meal_plan_d4e5f6",
+          "content": "{\"plan\": [{\"day\":\"Monday\",\"breakfast\":\"Greek yogurt + berries\",\"lunch\":\"Grilled chicken salad\",\"dinner\":\"Baked salmon with quinoa\",\"snacks\":\"Almonds (20g)\"},{\"day\":\"Tuesday\",\"breakfast\":\"Oatmeal with banana\",\"lunch\":\"Turkey wrap\",\"dinner\":\"Stir\u2011fry tofu & veggies\",\"snacks\":\"Apple\"}, ... ]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Here\u2019s your 4\u2011day workout schedule:\n- Monday: Full\u2011body circuit 45\u202fmin (bodyweight, kettlebell)\n- Wednesday: HIIT run 30\u202fmin + core work\n- Friday: Strength training \u2013 upper body 40\u202fmin\n- Saturday: Yoga & mobility 45\u202fmin\n\nAnd a sample weekly meal plan (\u22481800\u202fkcal/day) that aligns with your weight\u2011loss goal. Feel free to swap meals between days or let me know any preferences you\u2019d like to adjust.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User asks for a monthly progress report; the assistant gathers activity, diet logs, checks medical guidelines, and delivers a concise summary.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are VitalFit Coach, an agentic LLM that helps users improve health by integrating fitness\u2011tracker data, diet logs, and medical guidelines."
+        },
+        {
+          "role": "user",
+          "content": "Can you give me a progress report for the last 30 days? I\u2019m especially concerned about my cholesterol and whether my activity level has improved."
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll pull your fitness data, diet logs, and the latest cholesterol\u2011related medical guidelines to build the report.",
+          "tool_calls": [
+            {
+              "id": "fetch_fitness_data_7g8h9i",
+              "name": "fetch_fitness_data",
+              "arguments": {
+                "user_id": "user_12345",
+                "start_date": "2025-11-07",
+                "end_date": "2025-12-06"
+              }
+            },
+            {
+              "id": "log_meal_7g8h9i",
+              "name": "log_meal",
+              "arguments": {
+                "user_id": "user_12345",
+                "date": "2025-11-07",
+                "meal_type": "breakfast",
+                "foods": [
+                  "scrambled eggs",
+                  "whole wheat toast",
+                  "orange juice"
+                ],
+                "calories": 420
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_fitness_data_7g8h9i",
+          "content": "{\"average_steps\":6800,\"average_resting_hr\":65,\"active_minutes\":45,\"sleep_hours\":7.5}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "log_meal_7g8h9i",
+          "content": "{\"status\":\"recorded\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "I also need the list of your medical conditions to retrieve the most relevant cholesterol guidelines.",
+          "tool_calls": [
+            {
+              "id": "check_medical_guidelines_j1k2l3",
+              "name": "check_medical_guidelines",
+              "arguments": {
+                "conditions": [
+                  "hyperlipidemia"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "check_medical_guidelines_j1k2l3",
+          "content": "{\"LDL_target\":\"<100 mg/dL\",\"recommended_fat_intake\":\"<30% of total calories\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I\u2019ll compile everything into a concise report.",
+          "tool_calls": [
+            {
+              "id": "generate_progress_report_m4n5o6",
+              "name": "generate_progress_report",
+              "arguments": {
+                "user_id": "user_12345",
+                "start_date": "2025-11-07",
+                "end_date": "2025-12-06"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_progress_report_m4n5o6",
+          "content": "{\"summary\":\"Over the past 30 days your average daily steps increased from 5,200 to 6,800 (+30%). Resting heart rate dropped from 68\u202fbpm to 65\u202fbpm, indicating improved cardiovascular fitness. You logged 1,750\u202fkcal/day on average and kept saturated fat under 8% of total calories. According to the latest LDL target (<100\u202fmg/dL) and your recent lab result of 115\u202fmg/dL, you are slightly above the ideal range. Consider adding more omega\u20113 rich foods and a couple of extra cardio sessions each week.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "**Your 30\u2011day Progress Report**\n- **Activity:** Avg. steps \u2191 30% (5,200 \u2192 6,800); resting HR \u2193 3\u202fbpm (68 \u2192 65).\n- **Nutrition:** Avg. 1,750\u202fkcal/day; saturated fat <8% of calories.\n- **Cholesterol:** Current LDL 115\u202fmg/dL (target <100\u202fmg/dL). You\u2019re close but could improve.\n\n**Recommendations**:\n1. Add 2\u202f\u00d7\u202f30\u2011min cardio sessions per week (e.g., brisk walking or cycling).\n2. Include omega\u20113 sources (salmon, walnuts, flaxseed) 3\u20114 times weekly.\n3. Keep saturated fat below 8% and increase fiber intake.\n\nLet me know if you\u2019d like a revised meal plan or specific workout suggestions to address the cholesterol goal.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

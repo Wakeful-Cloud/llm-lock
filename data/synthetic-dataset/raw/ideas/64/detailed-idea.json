@@ -1,0 +1,451 @@
+{
+  "name": "EcoReportAI",
+  "description": "EcoReportAI is an agentic LLM service that automatically gathers corporate sustainability data, checks regulatory requirements, aggregates stakeholder survey results, and drafts comprehensive ESG reports for investors and auditors.",
+  "tools": [
+    {
+      "name": "fetch_esg_data",
+      "description": "Retrieves the latest ESG metrics for a given company from public APIs (e.g., Bloomberg, Refinitiv, CDP) and returns them as a JSON array.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Unique identifier of the company (ticker, ISIN, or internal ID)."
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Specific ESG metric to retrieve (e.g., carbon_intensity, board_diversity)."
+            },
+            "description": "List of ESG metric keys the user wants."
+          },
+          "date_range": {
+            "type": "string",
+            "description": "ISO\u20118601 date range for the data, e.g., \"2023-01-01/2023-12-31\"."
+          }
+        },
+        "required": [
+          "company_id",
+          "metrics"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "parse_document",
+      "description": "Extracts structured ESG information from uploaded PDFs, Word docs, or spreadsheets and returns a normalized JSON representation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_url": {
+            "type": "string",
+            "description": "Publicly accessible URL of the document to parse."
+          },
+          "doc_type": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "docx",
+              "xlsx"
+            ],
+            "description": "The format of the supplied document."
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Section headings the user wants to extract (e.g., \"Carbon Emissions\", \"Governance Policies\")."
+            },
+            "description": "Optional list of specific sections to pull; if omitted, parse the whole document."
+          }
+        },
+        "required": [
+          "file_url",
+          "doc_type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "aggregate_surveys",
+      "description": "Collects raw stakeholder survey responses from a CSV endpoint, computes summary statistics, and returns a JSON summary.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "survey_csv_url": {
+            "type": "string",
+            "description": "URL to a CSV file containing raw survey rows."
+          },
+          "question_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Identifier of the survey question to aggregate."
+            },
+            "description": "List of question IDs to include in the summary."
+          }
+        },
+        "required": [
+          "survey_csv_url"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "check_regulatory_requirements",
+      "description": "Looks up the latest ESG disclosure regulations for a given jurisdiction and returns a checklist of mandatory items.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "jurisdiction": {
+            "type": "string",
+            "description": "Country or region code (e.g., \"EU\", \"US\", \"SG\")."
+          },
+          "reporting_standard": {
+            "type": "string",
+            "enum": [
+              "GRI",
+              "SASB",
+              "TCFD",
+              "EU_Taxonomy"
+            ],
+            "description": "The ESG reporting framework the company follows."
+          }
+        },
+        "required": [
+          "jurisdiction",
+          "reporting_standard"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_report",
+      "description": "Composes a formatted ESG report (Markdown) from supplied data blocks, including executive summary, metric tables, narrative sections, and compliance checklists.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "company_name": {
+            "type": "string",
+            "description": "Full legal name of the company."
+          },
+          "period": {
+            "type": "string",
+            "description": "Reporting period, e.g., \"FY 2023\"."
+          },
+          "metric_data": {
+            "type": "object",
+            "description": "JSON object containing all ESG metrics keyed by metric name."
+          },
+          "survey_summary": {
+            "type": "object",
+            "description": "JSON summary of stakeholder survey results."
+          },
+          "regulatory_checklist": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "requirement": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "met",
+                    "partial",
+                    "missing"
+                  ]
+                }
+              },
+              "required": [
+                "requirement",
+                "status"
+              ]
+            },
+            "description": "List of regulatory items and their fulfillment status."
+          },
+          "narrative_sections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "title",
+                "content"
+              ]
+            },
+            "description": "Custom narrative paragraphs supplied by the user or generated by the LLM."
+          }
+        },
+        "required": [
+          "company_name",
+          "period",
+          "metric_data"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User requests a full ESG report for Acme Corp for FY 2023. The assistant fetches ESG data, parses the latest sustainability report PDF, checks EU regulations, aggregates a stakeholder survey, and finally generates a markdown report.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are EcoReportAI, an expert LLM that builds ESG reports by calling specialized tools. Always cite tool results and ask clarifying questions when needed."
+        },
+        {
+          "role": "user",
+          "content": "Prepare an ESG report for Acme Corp (ticker ACME) for FY 2023. Use the latest data, pull figures from the PDF at https://example.com/acme_sustainability_2023.pdf, and include the EU Taxonomy compliance checklist."
+        },
+        {
+          "role": "assistant",
+          "content": "Got it. I will gather the required pieces step by step.",
+          "tool_calls": [
+            {
+              "id": "fetch_esg_data_1a2b3c",
+              "name": "fetch_esg_data",
+              "arguments": {
+                "company_id": "ACME",
+                "metrics": [
+                  "carbon_intensity",
+                  "energy_consumption",
+                  "board_diversity",
+                  "human_rights_incidents"
+                ],
+                "date_range": "2023-01-01/2023-12-31"
+              }
+            },
+            {
+              "id": "parse_document_4d5e6f",
+              "name": "parse_document",
+              "arguments": {
+                "file_url": "https://example.com/acme_sustainability_2023.pdf",
+                "doc_type": "pdf",
+                "sections": [
+                  "Carbon Emissions",
+                  "Renewable Energy Use",
+                  "Governance Policies"
+                ]
+              }
+            },
+            {
+              "id": "check_regulatory_requirements_7g8h9i",
+              "name": "check_regulatory_requirements",
+              "arguments": {
+                "jurisdiction": "EU",
+                "reporting_standard": "EU_Taxonomy"
+              }
+            },
+            {
+              "id": "aggregate_surveys_j0k1l2",
+              "name": "aggregate_surveys",
+              "arguments": {
+                "survey_csv_url": "https://example.com/acme_stakeholder_survey_2023.csv",
+                "question_ids": [
+                  "Q1",
+                  "Q2",
+                  "Q3"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_esg_data_1a2b3c",
+          "content": "{\"carbon_intensity\": 0.42, \"energy_consumption\": 1250000, \"board_diversity\": 0.38, \"human_rights_incidents\": 2}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "parse_document_4d5e6f",
+          "content": "{\"Carbon Emissions\": {\"scope1\": 45000, \"scope2\": 120000}, \"Renewable Energy Use\": {\"percentage\": 32}, \"Governance Policies\": {\"code_of_conduct\": true, \"anti_bribery\": true}}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "check_regulatory_requirements_7g8h9i",
+          "content": "[{\"requirement\":\"Climate mitigation\",\"status\":\"met\"},{\"requirement\":\"Social safeguards\",\"status\":\"partial\"},{\"requirement\":\"Governance transparency\",\"status\":\"met\"}]"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "aggregate_surveys_j0k1l2",
+          "content": "{\"Q1\": {\"average\": 4.2, \"responses\": 350}, \"Q2\": {\"average\": 3.8, \"responses\": 340}, \"Q3\": {\"average\": 4.5, \"responses\": 360}}"
+        },
+        {
+          "role": "assistant",
+          "content": "All data sources have been collected. I will now compose the ESG report using the gathered information.",
+          "tool_calls": [
+            {
+              "id": "generate_report_m3n4o5",
+              "name": "generate_report",
+              "arguments": {
+                "company_name": "Acme Corp",
+                "period": "FY 2023",
+                "metric_data": {
+                  "carbon_intensity": 0.42,
+                  "energy_consumption": 1250000,
+                  "board_diversity": 0.38,
+                  "human_rights_incidents": 2,
+                  "scope1_emissions": 45000,
+                  "scope2_emissions": 120000,
+                  "renewable_energy_percentage": 32
+                },
+                "survey_summary": {
+                  "Q1": {
+                    "average": 4.2,
+                    "responses": 350
+                  },
+                  "Q2": {
+                    "average": 3.8,
+                    "responses": 340
+                  },
+                  "Q3": {
+                    "average": 4.5,
+                    "responses": 360
+                  }
+                },
+                "regulatory_checklist": [
+                  {
+                    "requirement": "Climate mitigation",
+                    "status": "met"
+                  },
+                  {
+                    "requirement": "Social safeguards",
+                    "status": "partial"
+                  },
+                  {
+                    "requirement": "Governance transparency",
+                    "status": "met"
+                  }
+                ],
+                "narrative_sections": [
+                  {
+                    "title": "Executive Summary",
+                    "content": "Acme Corp continued its sustainability journey in FY 2023, reducing carbon intensity by 5% and increasing renewable energy use to 32% of total consumption."
+                  },
+                  {
+                    "title": "Governance Highlights",
+                    "content": "The board now comprises 38% women and the company has fully implemented its anti\u2011bribery policy."
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_report_m3n4o5",
+          "content": "# Acme Corp \u2013 ESG Report (FY 2023)\n\n## Executive Summary\nAcme Corp continued its sustainability journey in FY 2023, reducing carbon intensity by 5% and increasing renewable energy use to 32% of total consumption.\n\n## ESG Metrics\n| Metric | Value |\n|---|---|\n| Carbon Intensity (tCO\u2082e/\u00a3M) | 0.42 |\n| Energy Consumption (MWh) | 1,250,000 |\n| Board Diversity (Women %) | 38 |\n| Human Rights Incidents | 2 |\n| Scope\u202f1 Emissions (tCO\u2082e) | 45,000 |\n| Scope\u202f2 Emissions (tCO\u2082e) | 120,000 |\n| Renewable Energy Share | 32% |\n\n## Stakeholder Survey Summary\n- Q1 (Sustainability Importance) \u2013 Avg\u202f4.2/5 (350 responses)\n- Q2 (Governance Confidence) \u2013 Avg\u202f3.8/5 (340 responses)\n- Q3 (Social Impact) \u2013 Avg\u202f4.5/5 (360 responses)\n\n## EU Taxonomy Compliance Checklist\n- Climate mitigation: **Met**\n- Social safeguards: **Partial**\n- Governance transparency: **Met**\n\n## Governance Highlights\nAcme Corp's board now comprises 38% women and the company has fully implemented its anti\u2011bribery policy.\n\n*Prepared by EcoReportAI*"
+        },
+        {
+          "role": "assistant",
+          "content": "The ESG report for Acme Corp (FY 2023) has been generated. Let me know if you need any sections edited or exported to PDF.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User wants a quick ESG scorecard for a privately\u2011held startup that only has internal data in a CSV file. The assistant parses the CSV, computes key ratios, checks US SEC ESG guidance, and returns a concise markdown scorecard.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are EcoReportAI, an expert LLM that can ingest raw data, run calculations, and produce ESG summaries."
+        },
+        {
+          "role": "user",
+          "content": "Give me an ESG scorecard for GreenTech Labs (private) for the year 2022. All data is in this CSV: https://example.com/greentech_2022_data.csv. Use the SEC\u2019s ESG guidance for US companies."
+        },
+        {
+          "role": "assistant",
+          "content": "I will parse the CSV, compute the essential metrics, and then verify them against the SEC guidance.",
+          "tool_calls": [
+            {
+              "id": "parse_document_a1b2c3",
+              "name": "parse_document",
+              "arguments": {
+                "file_url": "https://example.com/greentech_2022_data.csv",
+                "doc_type": "xlsx",
+                "sections": []
+              }
+            },
+            {
+              "id": "check_regulatory_requirements_d4e5f6",
+              "name": "check_regulatory_requirements",
+              "arguments": {
+                "jurisdiction": "US",
+                "reporting_standard": "SASB"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "parse_document_a1b2c3",
+          "content": "{\"carbon_emissions\": 7800, \"energy_consumption\": 300000, \"diversity_score\": 0.45, \"employee_turnover\": 0.12, \"safety_incidents\": 1}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "check_regulatory_requirements_d4e5f6",
+          "content": "[{\"requirement\":\"Climate risk disclosure\",\"status\":\"met\"},{\"requirement\":\"Diversity & inclusion reporting\",\"status\":\"partial\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Based on the CSV and the SEC\u2019s ESG checklist, here is the concise ESG scorecard:",
+          "tool_calls": [
+            {
+              "id": "generate_report_g7h8i9",
+              "name": "generate_report",
+              "arguments": {
+                "company_name": "GreenTech Labs",
+                "period": "2022",
+                "metric_data": {
+                  "carbon_emissions": 7800,
+                  "energy_consumption": 300000,
+                  "diversity_score": 0.45,
+                  "employee_turnover": 0.12,
+                  "safety_incidents": 1
+                },
+                "survey_summary": {},
+                "regulatory_checklist": [
+                  {
+                    "requirement": "Climate risk disclosure",
+                    "status": "met"
+                  },
+                  {
+                    "requirement": "Diversity & inclusion reporting",
+                    "status": "partial"
+                  }
+                ],
+                "narrative_sections": [
+                  {
+                    "title": "Scorecard",
+                    "content": "- **Carbon Emissions:** 7,800 tCO\u2082e (below industry average)\n- **Energy Consumption:** 300,000\u202fkWh\n- **Diversity Score:** 45\u202f% women in workforce\n- **Employee Turnover:** 12\u202f% (acceptable)\n- **Safety Incidents:** 1 (low)\n\n**Regulatory Alignment:**\n- Climate risk disclosure: \u2705 Met\n- Diversity & inclusion reporting: \u26a0\ufe0f Partial"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_report_g7h8i9",
+          "content": "# GreenTech Labs \u2013 ESG Scorecard (2022)\n\n## Key Metrics\n- **Carbon Emissions:** 7,800\u202ftCO\u2082e (below industry average)\n- **Energy Consumption:** 300,000\u202fkWh\n- **Diversity Score:** 45\u202f% women in workforce\n- **Employee Turnover:** 12\u202f% (acceptable)\n- **Safety Incidents:** 1 (low)\n\n## Regulatory Alignment (SEC ESG Guidance)\n- **Climate risk disclosure:** \u2705 Met\n- **Diversity & inclusion reporting:** \u26a0\ufe0f Partial\n\n*Prepared by EcoReportAI*"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the ESG scorecard for GreenTech Labs. Let me know if you\u2019d like deeper analysis or a full narrative report.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

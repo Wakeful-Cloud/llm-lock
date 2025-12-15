@@ -1,0 +1,68 @@
+{
+  "description": "The assistant parses trial eligibility, queries the EMR, receives a list of potential participants, and flags a patient with borderline creatinine levels for manual review before any outreach is made.",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are TrialMatchAI, an AI\u2011enhanced clinical trial recruiter. Your job is to translate free\u2011text eligibility criteria into a structured format, query the EMR for matching patients, and communicate with patients securely while respecting consent and audit requirements."
+    },
+    {
+      "role": "user",
+      "content": "We have a Phase II trial for metastatic colorectal cancer. Inclusion criteria: age 18\u201175, diagnosis of metastatic colorectal adenocarcinoma, KRAS wild\u2011type, ECOG \u22641, adequate organ function (creatinine \u22641.5\u202fmg/dL, AST/ALT \u22642.5\u00d7 ULN, platelets \u2265100\u202fk). Exclusion criteria: prior anti\u2011PD\u20111 therapy, active CNS metastases. Please identify matching patients."
+    },
+    {
+      "role": "assistant",
+      "content": "I will first convert the free\u2011text eligibility criteria into a structured JSON schema.",
+      "tool_calls": [
+        {
+          "id": "eligibility_parser_1a2b3c",
+          "name": "eligibility_parser",
+          "arguments": {
+            "eligibility_text": "Inclusion criteria: age 18\u201175, diagnosis of metastatic colorectal adenocarcinoma, KRAS wild\u2011type, ECOG \u22641, adequate organ function (creatinine \u22641.5\u202fmg/dL, AST/ALT \u22642.5\u00d7 ULN, platelets \u2265100\u202fk). Exclusion criteria: prior anti\u2011PD\u20111 therapy, active CNS metastases."
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "eligibility_parser_1a2b3c",
+      "content": "{\"age_min\":18,\"age_max\":75,\"diagnosis\":\"metastatic colorectal adenocarcinoma\",\"krass_status\":\"wild-type\",\"ecog_max\":1,\"creatinine_max_mgdl\":1.5,\"ast_alt_max_uln\":2.5,\"platelets_min\":100000,\"exclusions\":[\"prior anti-PD-1 therapy\",\"active CNS metastases\"]}"
+    },
+    {
+      "role": "assistant",
+      "content": "Eligibility criteria parsed. I will now search the EMR for patients who meet these structured requirements (up to 10 records).",
+      "tool_calls": [
+        {
+          "id": "emr_query_4d5e6f",
+          "name": "emr_query",
+          "arguments": {
+            "criteria": {
+              "age_min": 18,
+              "age_max": 75,
+              "diagnosis": "metastatic colorectal adenocarcinoma",
+              "krass_status": "wild-type",
+              "ecog_max": 1,
+              "creatinine_max_mgdl": 1.5,
+              "ast_alt_max_uln": 2.5,
+              "platelets_min": 100000,
+              "exclusions": [
+                "prior anti-PD-1 therapy",
+                "active CNS metastases"
+              ]
+            },
+            "limit": 10
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "emr_query_4d5e6f",
+      "content": "{\"patients\":[{\"patient_id\":\"P001\",\"age\":62,\"gender\":\"F\",\"creatinine_mgdl\":1.3,\"ast_alt_uln\":1.8,\"platelets\":150000,\"ecog\":0},{\"patient_id\":\"P002\",\"age\":68,\"gender\":\"M\",\"creatinine_mgdl\":1.48,\"ast_alt_uln\":2.0,\"platelets\":120000,\"ecog\":1},{\"patient_id\":\"P003\",\"age\":55,\"gender\":\"F\",\"creatinine_mgdl\":1.6,\"ast_alt_uln\":1.5,\"platelets\":130000,\"ecog\":0}]}"
+    },
+    {
+      "role": "assistant",
+      "content": "I have identified three potential participants:\n\n- **P001** \u2013 Age 62, creatinine 1.3\u202fmg/dL (within limits).\n- **P002** \u2013 Age 68, creatinine 1.48\u202fmg/dL (borderline; very close to the 1.5\u202fmg/dL threshold).\n- **P003** \u2013 Age 55, creatinine 1.6\u202fmg/dL (exceeds the limit and should be excluded).\n\n**Recommendation:**\n- Exclude P003 automatically.\n- P001 is a clear match and can be contacted pending consent.\n- P002 has borderline renal function. I suggest a manual review of the most recent renal labs and possibly a confirmatory test before reaching out to ensure safety.\n\nWould you like to proceed with the manual review of P002's labs, or adjust the creatinine threshold?",
+      "tool_calls": []
+    }
+  ]
+}

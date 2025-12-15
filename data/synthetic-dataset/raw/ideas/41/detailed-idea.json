@@ -1,0 +1,708 @@
+{
+  "name": "EduScormBuilder",
+  "description": "A SaaS platform that lets educators upload textbook chapters, PDFs, video transcripts, or existing quiz banks and automatically creates SCORM\u2011compatible interactive e\u2011learning modules with auto\u2011generated assessments, ready for any LMS.",
+  "tools": [
+    {
+      "name": "upload_file",
+      "description": "Stores a user\u2011provided file (PDF, DOCX, TXT, MP4, etc.) in temporary storage and returns a unique file_id for later processing.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "description": "Original name of the file, including its extension."
+          },
+          "content_base64": {
+            "type": "string",
+            "description": "Base64\u2011encoded binary content of the file."
+          }
+        },
+        "required": [
+          "filename",
+          "content_base64"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "extract_text_from_file",
+      "description": "Parses a stored PDF/DOCX/TXT file and returns plain\u2011text content together with basic metadata such as page count.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "Identifier returned by upload_file."
+          }
+        },
+        "required": [
+          "file_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "transcribe_video",
+      "description": "Performs speech\u2011to\u2011text on a stored MP4 video and returns a timestamped transcript.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "Identifier of the uploaded video."
+          },
+          "language": {
+            "type": "string",
+            "description": "ISO\u2011639\u20111 language code (e.g., \"en\").",
+            "default": "en"
+          }
+        },
+        "required": [
+          "file_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "extract_key_concepts",
+      "description": "Analyzes a body of text and returns a ranked list of core concepts, learning objectives, and suggested slide titles.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Plain\u2011text to analyse."
+          },
+          "max_concepts": {
+            "type": "integer",
+            "description": "Maximum number of concepts to return.",
+            "minimum": 1,
+            "default": 10
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_assessment",
+      "description": "Creates SCORM\u2011compatible quiz items (multiple\u2011choice, true/false, short answer) based on supplied concepts and optional question\u2011bank reference.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "concepts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of key concepts to base questions on."
+          },
+          "question_bank_id": {
+            "type": "string",
+            "description": "Optional ID of a pre\u2011uploaded question bank."
+          },
+          "num_questions": {
+            "type": "integer",
+            "description": "Desired total number of quiz items.",
+            "minimum": 1,
+            "default": 5
+          }
+        },
+        "required": [
+          "concepts"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_scorm_template",
+      "description": "Retrieves a base SCORM package template (linear, branched, or interactive_video) and returns a template_id for further customization.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "template_type": {
+            "type": "string",
+            "enum": [
+              "linear",
+              "branched",
+              "interactive_video"
+            ],
+            "description": "Desired SCORM layout."
+          }
+        },
+        "required": [
+          "template_type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "populate_scorm_module",
+      "description": "Injects slide HTML, media references, and assessment JSON into a SCORM template, returning a zip_file_id for the completed package.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "template_id": {
+            "type": "string",
+            "description": "ID obtained from fetch_scorm_template."
+          },
+          "slides": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "html_body": {
+                  "type": "string"
+                },
+                "media_refs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "IDs of uploaded assets to embed."
+                }
+              },
+              "required": [
+                "title",
+                "html_body"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Ordered list of slide definitions."
+          },
+          "assessment": {
+            "type": "object",
+            "description": "Assessment JSON generated by generate_assessment (or custom checkpoint objects).",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "template_id",
+          "slides",
+          "assessment"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "validate_scorm_package",
+      "description": "Runs SCORM 1.2/2004 compliance checks on a zip package and returns pass/fail status with any error messages.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "zip_file_id": {
+            "type": "string",
+            "description": "Identifier of the generated SCORM zip."
+          }
+        },
+        "required": [
+          "zip_file_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "store_scorm_package",
+      "description": "Persists a validated SCORM zip to long\u2011term cloud storage and returns a public download URL.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "zip_file_id": {
+            "type": "string",
+            "description": "ID of the zip to store."
+          },
+          "module_name": {
+            "type": "string",
+            "description": "Friendly name for the e\u2011learning module."
+          }
+        },
+        "required": [
+          "zip_file_id",
+          "module_name"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User uploads a PDF chapter on Photosynthesis and requests a linear SCORM module with a 5\u2011question quiz.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are EduScormBuilder, an assistant that creates SCORM\u2011compatible e\u2011learning modules from raw content."
+        },
+        {
+          "role": "user",
+          "content": "I have a PDF of Chapter\u202f3 on Photosynthesis. Please turn it into a linear SCORM module with a 5\u2011question quiz."
+        },
+        {
+          "role": "assistant",
+          "content": "Uploading the PDF now.",
+          "tool_calls": [
+            {
+              "id": "upload_file_001",
+              "name": "upload_file",
+              "arguments": {
+                "filename": "photosynthesis_ch3.pdf",
+                "content_base64": "<base64\u2011data>"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "upload_file_001",
+          "content": "{\"file_id\": \"file_abc123\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Extracting plain text from the PDF.",
+          "tool_calls": [
+            {
+              "id": "extract_text_002",
+              "name": "extract_text_from_file",
+              "arguments": {
+                "file_id": "file_abc123"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_text_002",
+          "content": "{\"text\": \"<plain\u2011text of chapter>\", \"page_count\": 24}"
+        },
+        {
+          "role": "assistant",
+          "content": "Identifying the main concepts.",
+          "tool_calls": [
+            {
+              "id": "extract_concepts_003",
+              "name": "extract_key_concepts",
+              "arguments": {
+                "text": "<plain\u2011text of chapter>",
+                "max_concepts": 8
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_concepts_003",
+          "content": "{\"concepts\": [\"Light\u2011dependent reactions\", \"Calvin cycle\", \"Chlorophyll structure\", \"Carbon fixation\", \"Oxygen evolution\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating a 5\u2011question assessment.",
+          "tool_calls": [
+            {
+              "id": "gen_quiz_004",
+              "name": "generate_assessment",
+              "arguments": {
+                "concepts": [
+                  "Light\u2011dependent reactions",
+                  "Calvin cycle",
+                  "Chlorophyll structure",
+                  "Carbon fixation",
+                  "Oxygen evolution"
+                ],
+                "num_questions": 5
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "gen_quiz_004",
+          "content": "{\"questions\": [{\"type\":\"mcq\",\"prompt\":\"Which pigment absorbs light most efficiently?\",\"options\":[\"Chlorophyll a\",\"Chlorophyll b\",\"Carotene\",\"Xanthophyll\"],\"answer\":0},{\"type\":\"tf\",\"prompt\":\"The Calvin cycle occurs in the thylakoid membrane.\",\"answer\":false},{\"type\":\"mcq\",\"prompt\":\"What is the primary product of the light\u2011dependent reactions?\",\"options\":[\"O\u2082\",\"ATP\",\"NADPH\",\"Glucose\"],\"answer\":2},{\"type\":\"short\",\"prompt\":\"Write the overall equation for photosynthesis.\",\"answer\":\"6CO\u2082 + 6H\u2082O \u2192 C\u2086H\u2081\u2082O\u2086 + 6O\u2082\"},{\"type\":\"mcq\",\"prompt\":\"Which stage fixes carbon?\",\"options\":[\"Light\u2011dependent\",\"Calvin cycle\",\"Photorespiration\",\"Cyclic photophosphorylation\"],\"answer\":1}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching a linear SCORM template.",
+          "tool_calls": [
+            {
+              "id": "fetch_template_005",
+              "name": "fetch_scorm_template",
+              "arguments": {
+                "template_type": "linear"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_template_005",
+          "content": "{\"template_id\": \"tmpl_linear_001\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Populating the module with slides and the quiz.",
+          "tool_calls": [
+            {
+              "id": "populate_006",
+              "name": "populate_scorm_module",
+              "arguments": {
+                "template_id": "tmpl_linear_001",
+                "slides": [
+                  {
+                    "title": "Light\u2011dependent reactions",
+                    "html_body": "<p>Explanation of light\u2011dependent reactions\u2026</p>",
+                    "media_refs": []
+                  },
+                  {
+                    "title": "Calvin cycle",
+                    "html_body": "<p>Explanation of the Calvin cycle\u2026</p>",
+                    "media_refs": []
+                  }
+                ],
+                "assessment": {
+                  "questions": [
+                    {
+                      "type": "mcq",
+                      "prompt": "Which pigment absorbs light most efficiently?",
+                      "options": [
+                        "Chlorophyll a",
+                        "Chlorophyll b",
+                        "Carotene",
+                        "Xanthophyll"
+                      ],
+                      "answer": 0
+                    },
+                    {
+                      "type": "tf",
+                      "prompt": "The Calvin cycle occurs in the thylakoid membrane.",
+                      "answer": false
+                    },
+                    {
+                      "type": "mcq",
+                      "prompt": "What is the primary product of the light\u2011dependent reactions?",
+                      "options": [
+                        "O\u2082",
+                        "ATP",
+                        "NADPH",
+                        "Glucose"
+                      ],
+                      "answer": 2
+                    },
+                    {
+                      "type": "short",
+                      "prompt": "Write the overall equation for photosynthesis.",
+                      "answer": "6CO\u2082 + 6H\u2082O \u2192 C\u2086H\u2081\u2082O\u2086 + 6O\u2082"
+                    },
+                    {
+                      "type": "mcq",
+                      "prompt": "Which stage fixes carbon?",
+                      "options": [
+                        "Light\u2011dependent",
+                        "Calvin cycle",
+                        "Photorespiration",
+                        "Cyclic photophosphorylation"
+                      ],
+                      "answer": 1
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "populate_006",
+          "content": "{\"zip_file_id\": \"zip_mod_001\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Validating the SCORM package.",
+          "tool_calls": [
+            {
+              "id": "validate_007",
+              "name": "validate_scorm_package",
+              "arguments": {
+                "zip_file_id": "zip_mod_001"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "validate_007",
+          "content": "{\"status\": \"pass\", \"messages\": []}"
+        },
+        {
+          "role": "assistant",
+          "content": "Storing the final module.",
+          "tool_calls": [
+            {
+              "id": "store_008",
+              "name": "store_scorm_package",
+              "arguments": {
+                "zip_file_id": "zip_mod_001",
+                "module_name": "Photosynthesis \u2013 Chapter\u202f3"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "store_008",
+          "content": "{\"download_url\": \"https://cdn.example.com/scorm/photosynthesis_ch3.zip\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Your SCORM module is ready! Download it here: https://cdn.example.com/scorm/photosynthesis_ch3.zip",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User uploads a 10\u2011minute titration video and requests an interactive video SCORM module with a checkpoint after the acid is added and a short quiz.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are EduScormBuilder, an assistant that creates SCORM\u2011compatible e\u2011learning modules from raw content."
+        },
+        {
+          "role": "user",
+          "content": "Here is a 10\u2011minute video of a chemistry titration lab. Please turn it into an interactive SCORM module with a checkpoint after the acid is added and a 3\u2011question quiz."
+        },
+        {
+          "role": "assistant",
+          "content": "Uploading the video file.",
+          "tool_calls": [
+            {
+              "id": "upload_file_101",
+              "name": "upload_file",
+              "arguments": {
+                "filename": "titration_lab.mp4",
+                "content_base64": "<base64\u2011video>"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "upload_file_101",
+          "content": "{\"file_id\": \"file_vid_456\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Transcribing the video.",
+          "tool_calls": [
+            {
+              "id": "transcribe_102",
+              "name": "transcribe_video",
+              "arguments": {
+                "file_id": "file_vid_456",
+                "language": "en"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "transcribe_102",
+          "content": "{\"transcript\": \"[00:00] Intro... [01:23] Acid added... [04:56] Endpoint reached...\", \"duration_seconds\": 600}"
+        },
+        {
+          "role": "assistant",
+          "content": "Extracting key steps for checkpoints.",
+          "tool_calls": [
+            {
+              "id": "extract_concepts_103",
+              "name": "extract_key_concepts",
+              "arguments": {
+                "text": "[00:00] Intro... [01:23] Acid added... [04:56] Endpoint reached...",
+                "max_concepts": 5
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_concepts_103",
+          "content": "{\"concepts\": [\"Setup of titration apparatus\", \"Addition of acid\", \"Observation of colour change\", \"Calculation of concentration\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating a checkpoint question for the moment the acid is added.",
+          "tool_calls": [
+            {
+              "id": "gen_checkpoint_104",
+              "name": "generate_assessment",
+              "arguments": {
+                "concepts": [
+                  "Addition of acid"
+                ],
+                "num_questions": 1
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "gen_checkpoint_104",
+          "content": "{\"questions\": [{\"type\":\"mcq\",\"prompt\":\"What observable change occurs right after the acid is added?\",\"options\":[\"Solution turns blue\",\"Solution becomes cloudy\",\"Solution starts to fizz\",\"No visible change\"],\"answer\":2}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating a short 3\u2011question final quiz.",
+          "tool_calls": [
+            {
+              "id": "gen_quiz_105",
+              "name": "generate_assessment",
+              "arguments": {
+                "concepts": [
+                  "Setup of titration apparatus",
+                  "Addition of acid",
+                  "Observation of colour change",
+                  "Calculation of concentration"
+                ],
+                "num_questions": 3
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "gen_quiz_105",
+          "content": "{\"questions\": [{\"type\":\"mcq\",\"prompt\":\"What volume of titrant is needed to reach the endpoint?\",\"options\":[\"10 mL\",\"20 mL\",\"30 mL\",\"40 mL\"],\"answer\":1},{\"type\":\"tf\",\"prompt\":\"The colour change indicates the reaction is complete.\",\"answer\":true},{\"type\":\"short\",\"prompt\":\"Write the formula used to calculate the unknown concentration.\",\"answer\":\"C1V1 = C2V2\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching an interactive\u2011video SCORM template.",
+          "tool_calls": [
+            {
+              "id": "fetch_template_106",
+              "name": "fetch_scorm_template",
+              "arguments": {
+                "template_type": "interactive_video"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_template_106",
+          "content": "{\"template_id\": \"tmpl_interactive_video_01\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Populating the interactive video module with the transcript, checkpoint, and final quiz.",
+          "tool_calls": [
+            {
+              "id": "populate_107",
+              "name": "populate_scorm_module",
+              "arguments": {
+                "template_id": "tmpl_interactive_video_01",
+                "slides": [
+                  {
+                    "title": "Titration Lab Demonstration",
+                    "html_body": "<video src='file_vid_456' controls></video><p>Transcript: [00:00] Intro... [01:23] Acid added... [04:56] Endpoint reached...</p>",
+                    "media_refs": [
+                      "file_vid_456"
+                    ]
+                  }
+                ],
+                "assessment": {
+                  "checkpoint": {
+                    "time_seconds": 83,
+                    "question": {
+                      "type": "mcq",
+                      "prompt": "What observable change occurs right after the acid is added?",
+                      "options": [
+                        "Solution turns blue",
+                        "Solution becomes cloudy",
+                        "Solution starts to fizz",
+                        "No visible change"
+                      ],
+                      "answer": 2
+                    }
+                  },
+                  "final_quiz": {
+                    "questions": [
+                      {
+                        "type": "mcq",
+                        "prompt": "What volume of titrant is needed to reach the endpoint?",
+                        "options": [
+                          "10 mL",
+                          "20 mL",
+                          "30 mL",
+                          "40 mL"
+                        ],
+                        "answer": 1
+                      },
+                      {
+                        "type": "tf",
+                        "prompt": "The colour change indicates the reaction is complete.",
+                        "answer": true
+                      },
+                      {
+                        "type": "short",
+                        "prompt": "Write the formula used to calculate the unknown concentration.",
+                        "answer": "C1V1 = C2V2"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "populate_107",
+          "content": "{\"zip_file_id\": \"zip_vid_mod_001\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Validating the interactive SCORM package.",
+          "tool_calls": [
+            {
+              "id": "validate_108",
+              "name": "validate_scorm_package",
+              "arguments": {
+                "zip_file_id": "zip_vid_mod_001"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "validate_108",
+          "content": "{\"status\": \"pass\", \"messages\": []}"
+        },
+        {
+          "role": "assistant",
+          "content": "Storing the finished module.",
+          "tool_calls": [
+            {
+              "id": "store_109",
+              "name": "store_scorm_package",
+              "arguments": {
+                "zip_file_id": "zip_vid_mod_001",
+                "module_name": "Titration Lab Demo"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "store_109",
+          "content": "{\"download_url\": \"https://cdn.example.com/scorm/titration_lab_demo.zip\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Your interactive SCORM module is ready! Download it here: https://cdn.example.com/scorm/titration_lab_demo.zip",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,367 @@
+{
+  "name": "VirtualHRCoach",
+  "description": "An agentic LLM that acts as a personal HR coach. It pulls an employee's performance data, career goals, and skill inventory, searches internal and external learning catalogs, generates a personalized development pathway, schedules coaching sessions, and records the plan in the HR system.",
+  "tools": [
+    {
+      "name": "get_employee_profile",
+      "description": "Retrieves the employee's current role, performance metrics, strengths, skill gaps, and stated career goals from the HR database.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "employee_id": {
+            "type": "string",
+            "description": "The unique identifier of the employee in the HR system."
+          }
+        },
+        "required": [
+          "employee_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_learning_resources",
+      "description": "Searches the corporate learning catalog and approved external platforms for courses, articles, workshops, or certifications that match the supplied skill topics.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "skills": {
+            "type": "array",
+            "description": "List of skill names to find learning material for.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "level": {
+            "type": "string",
+            "description": "Desired difficulty level (e.g., beginner, intermediate, advanced)."
+          },
+          "max_results": {
+            "type": "integer",
+            "description": "Maximum number of resources to return."
+          }
+        },
+        "required": [
+          "skills",
+          "max_results"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_development_plan",
+      "description": "Combines the employee profile, identified skill gaps, and a set of learning resources to produce a step\u2011by\u2011step development plan with milestones and suggested timelines.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "employee_id": {
+            "type": "string",
+            "description": "Identifier of the employee."
+          },
+          "skill_gaps": {
+            "type": "array",
+            "description": "List of skill gaps extracted from the profile.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "resources": {
+            "type": "array",
+            "description": "Array of learning resource objects (id, title, type, link).",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "link": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "type",
+                "link"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "target_role": {
+            "type": "string",
+            "description": "The career role the employee aspires to achieve."
+          },
+          "duration_months": {
+            "type": "integer",
+            "description": "Desired timeframe (in months) to reach the target role."
+          }
+        },
+        "required": [
+          "employee_id",
+          "skill_gaps",
+          "resources",
+          "target_role",
+          "duration_months"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "schedule_coaching_session",
+      "description": "Books a virtual coaching session between the employee and a designated HR coach at a specified date and time.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "employee_id": {
+            "type": "string",
+            "description": "Identifier of the employee."
+          },
+          "coach_id": {
+            "type": "string",
+            "description": "Identifier of the HR coach who will lead the session."
+          },
+          "datetime_iso": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO\u20118601 timestamp for the start of the meeting."
+          },
+          "duration_minutes": {
+            "type": "integer",
+            "description": "Length of the meeting in minutes."
+          }
+        },
+        "required": [
+          "employee_id",
+          "coach_id",
+          "datetime_iso",
+          "duration_minutes"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "record_development_plan",
+      "description": "Persists the generated development plan into the employee\u2019s HR record and optionally notifies stakeholders via email.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "employee_id": {
+            "type": "string",
+            "description": "Identifier of the employee."
+          },
+          "plan_json": {
+            "type": "object",
+            "description": "The full development plan object to be stored."
+          },
+          "notify_emails": {
+            "type": "array",
+            "description": "List of email addresses that should receive a notification about the new plan.",
+            "items": {
+              "type": "string",
+              "format": "email"
+            }
+          }
+        },
+        "required": [
+          "employee_id",
+          "plan_json"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks for a personalized development plan for an employee who wants to become a Senior Product Manager. The assistant calls the profile, resource, plan\u2011generation, and record tools and returns a readable summary.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are Virtual HR Coach, an autonomous career\u2011development assistant for employees. Use the provided tools to fetch data, locate learning resources, generate development pathways, schedule sessions, and store results."
+        },
+        {
+          "role": "user",
+          "content": "Can you create a development plan for Jane Doe (employee_id: 12345) who wants to become a Senior Product Manager within the next 2 years?"
+        },
+        {
+          "role": "assistant",
+          "content": "Let me pull Jane's current profile from the HR system.",
+          "tool_calls": [
+            {
+              "id": "get_employee_profile_1a2b3c",
+              "name": "get_employee_profile",
+              "arguments": {
+                "employee_id": "12345"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_employee_profile_1a2b3c",
+          "content": "{\"employee_id\":\"12345\",\"name\":\"Jane Doe\",\"current_role\":\"Product Manager\",\"performance_score\":4.2,\"strengths\":[\"roadmapping\",\"stakeholder communication\"],\"skill_gaps\":[\"data analytics\",\"strategic finance\"],\"career_goal\":\"Senior Product Manager\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Got Jane's profile. I will now look for learning resources that cover her skill gaps.",
+          "tool_calls": [
+            {
+              "id": "get_learning_resources_4d5e6f",
+              "name": "get_learning_resources",
+              "arguments": {
+                "skills": [
+                  "data analytics",
+                  "strategic finance"
+                ],
+                "level": "intermediate",
+                "max_results": 5
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_learning_resources_4d5e6f",
+          "content": "[{\"id\":\"res101\",\"title\":\"Data Analytics for Business Leaders\",\"type\":\"online_course\",\"link\":\"https://learning.example.com/res101\"},{\"id\":\"res102\",\"title\":\"Strategic Finance Fundamentals\",\"type\":\"webinar\",\"link\":\"https://learning.example.com/res102\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "I have found suitable resources. Generating a 2\u2011year development plan based on the profile and resources.",
+          "tool_calls": [
+            {
+              "id": "generate_development_plan_7g8h9i",
+              "name": "generate_development_plan",
+              "arguments": {
+                "employee_id": "12345",
+                "skill_gaps": [
+                  "data analytics",
+                  "strategic finance"
+                ],
+                "resources": [
+                  {
+                    "id": "res101",
+                    "title": "Data Analytics for Business Leaders",
+                    "type": "online_course",
+                    "link": "https://learning.example.com/res101"
+                  },
+                  {
+                    "id": "res102",
+                    "title": "Strategic Finance Fundamentals",
+                    "type": "webinar",
+                    "link": "https://learning.example.com/res102"
+                  }
+                ],
+                "target_role": "Senior Product Manager",
+                "duration_months": 24
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_development_plan_7g8h9i",
+          "content": "{\"milestones\":[{\"quarter\":1,\"goal\":\"Complete Data Analytics course\",\"resources\":[\"res101\"]},{\"quarter\":2,\"goal\":\"Apply analytics to current product roadmap\",\"resources\":[]},{\"quarter\":3,\"goal\":\"Attend Strategic Finance webinar\",\"resources\":[\"res102\"]},{\"quarter\":4,\"goal\":\"Lead a cross\u2011functional finance\u2011focused project\",\"resources\":[]}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Development plan generated. I will now store it in Jane's HR record and notify her manager.",
+          "tool_calls": [
+            {
+              "id": "record_development_plan_a1b2c3",
+              "name": "record_development_plan",
+              "arguments": {
+                "employee_id": "12345",
+                "plan_json": {
+                  "milestones": [
+                    {
+                      "quarter": 1,
+                      "goal": "Complete Data Analytics course",
+                      "resources": [
+                        "res101"
+                      ]
+                    },
+                    {
+                      "quarter": 2,
+                      "goal": "Apply analytics to current product roadmap",
+                      "resources": []
+                    },
+                    {
+                      "quarter": 3,
+                      "goal": "Attend Strategic Finance webinar",
+                      "resources": [
+                        "res102"
+                      ]
+                    },
+                    {
+                      "quarter": 4,
+                      "goal": "Lead a cross\u2011functional finance\u2011focused project",
+                      "resources": []
+                    }
+                  ]
+                },
+                "notify_emails": [
+                  "jane.doe@example.com",
+                  "manager@example.com"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "record_development_plan_a1b2c3",
+          "content": "Plan stored successfully; notification emails sent."
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 Here is Jane Doe\u2019s personalized 2\u2011year development plan:\n\n**Quarter\u202f1** \u2013 Complete the *Data Analytics for Business Leaders* online course (res101).\n**Quarter\u202f2** \u2013 Apply the new analytics skills to enhance the product roadmap.\n**Quarter\u202f3** \u2013 Attend the *Strategic Finance Fundamentals* webinar (res102).\n**Quarter\u202f4** \u2013 Lead a cross\u2011functional project focused on finance\u2011driven product decisions.\n\nThe plan has been saved to her HR profile and both Jane and her manager have been notified. Let me know if you\u2019d like to schedule a coaching session to discuss the next steps.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User wants to schedule a 30\u2011minute coaching session with the HR coach for the same employee.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are Virtual HR Coach, an autonomous assistant that can schedule meetings, retrieve data, and manage development plans."
+        },
+        {
+          "role": "user",
+          "content": "Please book a 30\u2011minute coaching session with Coach Alex for Jane Doe (employee_id: 12345) next Tuesday at 10:00\u202fAM UTC."
+        },
+        {
+          "role": "assistant",
+          "content": "Scheduling the session now.",
+          "tool_calls": [
+            {
+              "id": "schedule_coaching_session_d4e5f6",
+              "name": "schedule_coaching_session",
+              "arguments": {
+                "employee_id": "12345",
+                "coach_id": "coach_alex",
+                "datetime_iso": "2025-12-10T10:00:00Z",
+                "duration_minutes": 30
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "schedule_coaching_session_d4e5f6",
+          "content": "Meeting successfully created. Join at https://meet.example.com/coach_alex_12345_20251210"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 Your 30\u2011minute coaching session with Coach Alex has been booked for **Tuesday, 10\u202fDec\u202f2025 at 10:00\u202fAM UTC**. Here is the meeting link: https://meet.example.com/coach_alex_12345_20251210",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

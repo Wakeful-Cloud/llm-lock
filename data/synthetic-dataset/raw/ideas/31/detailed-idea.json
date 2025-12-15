@@ -1,0 +1,332 @@
+{
+  "name": "LoyaltyCraft Designer",
+  "description": "An agentic LLM platform that pulls purchase histories, segments customers, evaluates past loyalty campaign performance, and automatically designs tiered loyalty programs with personalized reward notifications.",
+  "tools": [
+    {
+      "name": "fetch_purchase_history",
+      "description": "Retrieves raw transaction data for a merchant over a given date range. Returns a JSON array where each element contains order_id, customer_id, amount, items, and timestamp.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "Unique identifier of the merchant."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Inclusive start date (YYYY-MM-DD)."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Inclusive end date (YYYY-MM-DD)."
+          }
+        },
+        "required": [
+          "merchant_id",
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "segment_customers",
+      "description": "Runs a clustering algorithm on purchase data and returns a list of customer segments with statistical summaries (size, average spend, recency, frequency, monetary values).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "purchase_data": {
+            "type": "array",
+            "description": "Array of purchase objects returned by fetch_purchase_history.",
+            "items": {
+              "type": "object"
+            }
+          },
+          "num_segments": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 10,
+            "description": "Desired number of segments."
+          }
+        },
+        "required": [
+          "purchase_data",
+          "num_segments"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_loyalty_tiers",
+      "description": "Creates a tiered loyalty program definition based on segment statistics, business goals, and budget constraints. Outputs tier names, qualification thresholds, reward structures, and estimated cost.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "segments": {
+            "type": "array",
+            "description": "Segments produced by segment_customers, each with avg_spend, size, etc.",
+            "items": {
+              "type": "object"
+            }
+          },
+          "budget_per_month": {
+            "type": "number",
+            "description": "Maximum monthly spend on rewards (merchant currency)."
+          },
+          "business_objectives": {
+            "type": "array",
+            "description": "High\u2011level objectives, e.g., ['increase_repeat_purchases', 'boost_average_order_value'].",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "segments",
+          "budget_per_month",
+          "business_objectives"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "send_reward_notification",
+      "description": "Sends an email/SMS push to a list of customers informing them of a newly earned reward or tier upgrade. Returns a delivery\u2011status summary.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "customer_ids": {
+            "type": "array",
+            "description": "IDs of customers to notify.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "message_template": {
+            "type": "string",
+            "description": "Template with placeholders like {{tier_name}} and {{reward_detail}}."
+          }
+        },
+        "required": [
+          "customer_ids",
+          "message_template"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "query_campaign_performance",
+      "description": "Retrieves historical performance metrics (redemption rate, spend lift, churn impact) for previous loyalty campaigns of a merchant.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "Merchant identifier."
+          },
+          "campaign_ids": {
+            "type": "array",
+            "description": "Optional specific campaign IDs. If omitted, returns the most recent 5 campaigns.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "merchant_id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User requests a new tiered loyalty program for Acme Retail; the assistant fetches recent purchases, creates segments, designs tiers within a $30k monthly budget, and notifies customers in the first qualifying tier.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LoyaltyCraft Designer, an AI assistant that builds data\u2011driven loyalty programs using the provided tools."
+        },
+        {
+          "role": "user",
+          "content": "Acme Retail wants a tiered loyalty program for the next quarter. They have a $30,000 monthly budget for rewards and want to increase repeat purchases. Design it and notify the customers who qualify for the first tier."
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll start by pulling the last 12 months of purchase data for Acme Retail.",
+          "tool_calls": [
+            {
+              "id": "fetch_purchase_history_abc123",
+              "name": "fetch_purchase_history",
+              "arguments": {
+                "merchant_id": "acme_retail_001",
+                "start_date": "2023-12-01",
+                "end_date": "2024-11-30"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_purchase_history_abc123",
+          "content": "[{\"order_id\":\"1001\",\"customer_id\":\"C001\",\"amount\":120.5,\"items\":[\"shoes\"],\"timestamp\":\"2024-03-15\"},{\"order_id\":\"1002\",\"customer_id\":\"C002\",\"amount\":45.0,\"items\":[\"t\u2011shirt\"],\"timestamp\":\"2024-03-20\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Got the purchase data. I\u2019ll now segment the customers into four groups.",
+          "tool_calls": [
+            {
+              "id": "segment_customers_def456",
+              "name": "segment_customers",
+              "arguments": {
+                "purchase_data": [
+                  {
+                    "order_id": "1001",
+                    "customer_id": "C001",
+                    "amount": 120.5,
+                    "items": [
+                      "shoes"
+                    ],
+                    "timestamp": "2024-03-15"
+                  },
+                  {
+                    "order_id": "1002",
+                    "customer_id": "C002",
+                    "amount": 45.0,
+                    "items": [
+                      "t\u2011shirt"
+                    ],
+                    "timestamp": "2024-03-20"
+                  }
+                ],
+                "num_segments": 4
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "segment_customers_def456",
+          "content": "[{\"segment_id\":\"S1\",\"size\":1500,\"avg_spend\":34.2,\"recency_days\":20,\"frequency\":2.0},{\"segment_id\":\"S2\",\"size\":800,\"avg_spend\":78.9,\"recency_days\":10,\"frequency\":3.5},{\"segment_id\":\"S3\",\"size\":400,\"avg_spend\":150.4,\"recency_days\":5,\"frequency\":5.0},{\"segment_id\":\"S4\",\"size\":100,\"avg_spend\":320.0,\"recency_days\":2,\"frequency\":8.0}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I\u2019ll generate a three\u2011tier loyalty program that fits the $30k budget and focuses on repeat purchases.",
+          "tool_calls": [
+            {
+              "id": "generate_loyalty_tiers_ghi789",
+              "name": "generate_loyalty_tiers",
+              "arguments": {
+                "segments": [
+                  {
+                    "segment_id": "S1",
+                    "size": 1500,
+                    "avg_spend": 34.2,
+                    "recency_days": 20,
+                    "frequency": 2.0
+                  },
+                  {
+                    "segment_id": "S2",
+                    "size": 800,
+                    "avg_spend": 78.9,
+                    "recency_days": 10,
+                    "frequency": 3.5
+                  },
+                  {
+                    "segment_id": "S3",
+                    "size": 400,
+                    "avg_spend": 150.4,
+                    "recency_days": 5,
+                    "frequency": 5.0
+                  },
+                  {
+                    "segment_id": "S4",
+                    "size": 100,
+                    "avg_spend": 320.0,
+                    "recency_days": 2,
+                    "frequency": 8.0
+                  }
+                ],
+                "budget_per_month": 30000,
+                "business_objectives": [
+                  "increase_repeat_purchases"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_loyalty_tiers_ghi789",
+          "content": "{\"tiers\":[{\"name\":\"Bronze\",\"qualification\":\"Spend $200 in 90 days\",\"reward\":\"5% discount on next purchase\"},{\"name\":\"Silver\",\"qualification\":\"Spend $500 in 90 days\",\"reward\":\"10% discount + free shipping\"},{\"name\":\"Gold\",\"qualification\":\"Spend $1,000 in 90 days\",\"reward\":\"15% discount + exclusive early\u2011access\"}],\"estimated_monthly_cost\":29500}"
+        },
+        {
+          "role": "assistant",
+          "content": "The program is ready. The first tier (Bronze) will include the customers from segment **S1**. I\u2019ll notify those customers now.",
+          "tool_calls": [
+            {
+              "id": "send_reward_notification_jkl012",
+              "name": "send_reward_notification",
+              "arguments": {
+                "customer_ids": [
+                  "C001",
+                  "C003",
+                  "C007"
+                ],
+                "message_template": "Congratulations! You\u2019ve qualified for the Bronze tier and earned a 5% discount on your next purchase. Use code BRONZE5 at checkout."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_reward_notification_jkl012",
+          "content": "{\"sent\":3,\"failed\":0,\"details\":[{\"customer_id\":\"C001\",\"status\":\"delivered\"},{\"customer_id\":\"C003\",\"status\":\"delivered\"},{\"customer_id\":\"C007\",\"status\":\"delivered\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "All three Bronze\u2011tier customers have been notified successfully.\n\n**Program Summary**\n- **Tiers**: Bronze, Silver, Gold (see qualifications & rewards above).\n- **Estimated Monthly Cost**: $29,500 (within the $30k budget).\n- **Notification**: Sent to 3 Bronze customers.\n\nLet me know if you\u2019d like to adjust thresholds, add more tiers, or roll out the program to additional segments.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User asks for insight on BrightGear\u2019s past loyalty campaigns before designing a new one; the assistant retrieves historical performance data and summarizes key take\u2011aways.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LoyaltyCraft Designer, an AI assistant that analyzes past loyalty campaigns and helps design new programs."
+        },
+        {
+          "role": "user",
+          "content": "Can you show how BrightGear\u2019s last three loyalty campaigns performed?"
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll fetch the performance metrics for BrightGear\u2019s most recent campaigns.",
+          "tool_calls": [
+            {
+              "id": "query_campaign_performance_mno345",
+              "name": "query_campaign_performance",
+              "arguments": {
+                "merchant_id": "brightgear_007"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "query_campaign_performance_mno345",
+          "content": "[{\"campaign_id\":\"LG2023Q1\",\"start_date\":\"2023-01-01\",\"end_date\":\"2023-03-31\",\"redemption_rate\":0.18,\"lift_in_spend\":12.4,\"churn_impact\":-1.2},{\"campaign_id\":\"LG2023Q3\",\"start_date\":\"2023-07-01\",\"end_date\":\"2023-09-30\",\"redemption_rate\":0.22,\"lift_in_spend\":15.8,\"churn_impact\":-0.8},{\"campaign_id\":\"LG2024Q1\",\"start_date\":\"2024-01-01\",\"end_date\":\"2024-03-31\",\"redemption_rate\":0.19,\"lift_in_spend\":13.1,\"churn_impact\":-1.0}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Here\u2019s a quick overview of BrightGear\u2019s last three loyalty campaigns:\n\n| Campaign | Redemption Rate | Lift in Spend | Churn Impact |\n|----------|----------------|--------------|--------------|\n| LG2023Q1 | 18\u202f% | +12.4\u202f% | \u20131.2\u202f% |\n| LG2023Q3 | 22\u202f% | +15.8\u202f% | \u20130.8\u202f% |\n| LG2024Q1 | 19\u202f% | +13.1\u202f% | \u20131.0\u202f% |\n\nThe Q3\u20112023 campaign delivered the best results, likely due to a lower qualification threshold and more frequent communications. For the new program we should aim for a redemption rate around 20\u202f% while keeping churn impact under \u20131\u202f%.\n\nWould you like me to draft a new tiered loyalty program based on these insights?",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

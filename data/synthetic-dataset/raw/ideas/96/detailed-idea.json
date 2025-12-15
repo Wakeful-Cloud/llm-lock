@@ -1,0 +1,468 @@
+{
+  "name": "IPStrategist AI",
+  "description": "An AI\u2011enhanced patent portfolio manager that monitors expiration dates, surfaces licensing opportunities, and tracks competitor filings to help IP professionals optimise their intellectual\u2011property strategy.",
+  "tools": [
+    {
+      "name": "search_patent_database",
+      "description": "Searches public patent databases (USPTO, EPO, WIPO) with given query parameters and returns a list of matching patent identifiers with basic metadata in JSON format.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Free\u2011text query describing the inventions or technology area."
+          },
+          "jurisdiction": {
+            "type": "string",
+            "description": "Country or region code (e.g., US, EP, WO)."
+          },
+          "filing_date_from": {
+            "type": "string",
+            "format": "date",
+            "description": "Earliest filing date to include."
+          },
+          "filing_date_to": {
+            "type": "string",
+            "format": "date",
+            "description": "Latest filing date to include."
+          },
+          "assignee": {
+            "type": "string",
+            "description": "Name of the assignee or applicant."
+          },
+          "max_results": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Maximum number of results to return."
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_patent_details",
+      "description": "Retrieves full bibliographic and legal status information for a specific patent number from the selected jurisdiction.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "patent_number": {
+            "type": "string",
+            "description": "The patent identifier (e.g., US1234567)."
+          },
+          "jurisdiction": {
+            "type": "string",
+            "description": "Country or region code (default: US)."
+          }
+        },
+        "required": [
+          "patent_number"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "calculate_expiration",
+      "description": "Computes the expiration date of a patent based on its filing date, grant date, type, and applicable term extensions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "filing_date": {
+            "type": "string",
+            "format": "date",
+            "description": "The date the patent application was filed."
+          },
+          "grant_date": {
+            "type": "string",
+            "format": "date",
+            "description": "The date the patent was granted, if applicable."
+          },
+          "patent_type": {
+            "type": "string",
+            "enum": [
+              "utility",
+              "design",
+              "plant"
+            ],
+            "description": "Category of the patent."
+          },
+          "term_extension_months": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of months of term extension (e.g., patent term adjustments)."
+          }
+        },
+        "required": [
+          "filing_date",
+          "patent_type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "monitor_competitor_filings",
+      "description": "Sets up a watch on a competitor's assignee name and technology keywords, returning any new patent publications since the supplied date.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "competitor_name": {
+            "type": "string",
+            "description": "Exact name of the competitor or assignee to monitor."
+          },
+          "keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of technology keywords to filter the search."
+          },
+          "since_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Only patents published after this date will be returned."
+          }
+        },
+        "required": [
+          "competitor_name",
+          "keywords",
+          "since_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "find_licensing_opportunities",
+      "description": "Analyzes a set of patents and scores them for licensing potential based on citation count, market relevance, and legal status.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "patent_numbers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of patent identifiers to evaluate."
+          }
+        },
+        "required": [
+          "patent_numbers"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "schedule_deadline",
+      "description": "Creates a calendar reminder for a given date and description, returning a confirmation identifier.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO\u20118601 timestamp for the reminder."
+          },
+          "title": {
+            "type": "string",
+            "description": "Short title of the reminder."
+          },
+          "description": {
+            "type": "string",
+            "description": "Longer description or notes for the reminder."
+          }
+        },
+        "required": [
+          "date",
+          "title"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_report",
+      "description": "Generates a markdown formatted strategic report from supplied sections (e.g., expirations, competitor analysis, licensing scores) and returns the report text.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "description": "Section heading."
+                },
+                "content": {
+                  "type": "string",
+                  "description": "Markdown content for the section."
+                }
+              },
+              "required": [
+                "title",
+                "content"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Ordered list of report sections."
+          }
+        },
+        "required": [
+          "sections"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks for upcoming expirations of three US utility patents; the assistant retrieves details, calculates expiration dates, schedules calendar reminders for those expiring within 12 months, and returns a concise summary.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are IPStrategist AI, an assistant that helps IP teams manage patent portfolios, track expirations, identify licensing chances, and monitor competitor activity."
+        },
+        {
+          "role": "user",
+          "content": "I have the following US utility patents: US1234567, US2345678, US3456789. Can you tell me which ones are expiring within the next 12 months and set reminders for them?"
+        },
+        {
+          "role": "assistant",
+          "content": "Retrieving patent details for the three identifiers...",
+          "tool_calls": [
+            {
+              "id": "get_patent_details_1a2b3c",
+              "name": "get_patent_details",
+              "arguments": {
+                "patent_number": "US1234567",
+                "jurisdiction": "US"
+              }
+            },
+            {
+              "id": "get_patent_details_4d5e6f",
+              "name": "get_patent_details",
+              "arguments": {
+                "patent_number": "US2345678",
+                "jurisdiction": "US"
+              }
+            },
+            {
+              "id": "get_patent_details_7g8h9i",
+              "name": "get_patent_details",
+              "arguments": {
+                "patent_number": "US3456789",
+                "jurisdiction": "US"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_patent_details_1a2b3c",
+          "content": "{\"patent_number\":\"US1234567\",\"filing_date\":\"2015-06-01\",\"grant_date\":\"2017-01-15\",\"patent_type\":\"utility\",\"status\":\"granted\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_patent_details_4d5e6f",
+          "content": "{\"patent_number\":\"US2345678\",\"filing_date\":\"2018-03-20\",\"grant_date\":\"2020-02-10\",\"patent_type\":\"utility\",\"status\":\"granted\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_patent_details_7g8h9i",
+          "content": "{\"patent_number\":\"US3456789\",\"filing_date\":\"2020-11-05\",\"grant_date\":\"2022-08-30\",\"patent_type\":\"utility\",\"status\":\"granted\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Calculating expiration dates for each patent...",
+          "tool_calls": [
+            {
+              "id": "calc_exp_1j2k3l",
+              "name": "calculate_expiration",
+              "arguments": {
+                "filing_date": "2015-06-01",
+                "grant_date": "2017-01-15",
+                "patent_type": "utility",
+                "term_extension_months": 0
+              }
+            },
+            {
+              "id": "calc_exp_4m5n6o",
+              "name": "calculate_expiration",
+              "arguments": {
+                "filing_date": "2018-03-20",
+                "grant_date": "2020-02-10",
+                "patent_type": "utility",
+                "term_extension_months": 0
+              }
+            },
+            {
+              "id": "calc_exp_7p8q9r",
+              "name": "calculate_expiration",
+              "arguments": {
+                "filing_date": "2020-11-05",
+                "grant_date": "2022-08-30",
+                "patent_type": "utility",
+                "term_extension_months": 0
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "calc_exp_1j2k3l",
+          "content": "{\"expiration_date\":\"2035-06-01\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "calc_exp_4m5n6o",
+          "content": "{\"expiration_date\":\"2038-03-20\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "calc_exp_7p8q9r",
+          "content": "{\"expiration_date\":\"2040-11-05\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Two patents will expire within the next 12 months (US1234567 on 2035\u201106\u201101, US2345678 on 2038\u201103\u201120). Scheduling calendar reminders now...",
+          "tool_calls": [
+            {
+              "id": "schedule_abc123",
+              "name": "schedule_deadline",
+              "arguments": {
+                "date": "2035-05-15T09:00:00Z",
+                "title": "Patent US1234567 expiration",
+                "description": "Review renewal options and potential licensing."
+              }
+            },
+            {
+              "id": "schedule_def456",
+              "name": "schedule_deadline",
+              "arguments": {
+                "date": "2038-03-01T09:00:00Z",
+                "title": "Patent US2345678 expiration",
+                "description": "Assess portfolio impact and possible extensions."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "schedule_abc123",
+          "content": "{\"reminder_id\":\"rem_001\",\"status\":\"scheduled\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "schedule_def456",
+          "content": "{\"reminder_id\":\"rem_002\",\"status\":\"scheduled\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 Reminders have been created. Summary:\n- US1234567 expires on **2035\u201106\u201101** (reminder set for 2035\u201105\u201115).\n- US2345678 expires on **2038\u201103\u201120** (reminder set for 2038\u201103\u201101).\nThe third patent (US3456789) expires in 2040, beyond the 12\u2011month window.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User requests a monitoring report on a competitor\u2019s recent AI\u2011hardware patent activity; the assistant watches new filings, retrieves details, and produces a markdown report.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are IPStrategist AI, an assistant that helps IP teams manage patent portfolios, track expirations, identify licensing chances, and monitor competitor activity."
+        },
+        {
+          "role": "user",
+          "content": "Monitor Acme Corp's recent AI hardware patents and give me a brief report of any new filings in the past month."
+        },
+        {
+          "role": "assistant",
+          "content": "Checking for new Acme Corp AI\u2011hardware filings since 2025\u201111\u201101...",
+          "tool_calls": [
+            {
+              "id": "monitor_xyz789",
+              "name": "monitor_competitor_filings",
+              "arguments": {
+                "competitor_name": "Acme Corp",
+                "keywords": [
+                  "AI",
+                  "hardware"
+                ],
+                "since_date": "2025-11-01"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "monitor_xyz789",
+          "content": "{\"new_patents\":[{\"patent_number\":\"US9876543\",\"publication_date\":\"2025-11-12\"},{\"patent_number\":\"US8765432\",\"publication_date\":\"2025-12-03\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Found 2 new patents. Retrieving their full bibliographic data...",
+          "tool_calls": [
+            {
+              "id": "detail_aa1bb2",
+              "name": "get_patent_details",
+              "arguments": {
+                "patent_number": "US9876543",
+                "jurisdiction": "US"
+              }
+            },
+            {
+              "id": "detail_cc3dd4",
+              "name": "get_patent_details",
+              "arguments": {
+                "patent_number": "US8765432",
+                "jurisdiction": "US"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "detail_aa1bb2",
+          "content": "{\"patent_number\":\"US9876543\",\"title\":\"Neural\u2011accelerated processor architecture\",\"filing_date\":\"2024-09-15\",\"grant_date\":\"2025-10-20\",\"status\":\"granted\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "detail_cc3dd4",
+          "content": "{\"patent_number\":\"US8765432\",\"title\":\"Low\u2011power AI inference engine for edge devices\",\"filing_date\":\"2025-01-08\",\"grant_date\":\"2025-12-01\",\"status\":\"granted\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating a markdown report...",
+          "tool_calls": [
+            {
+              "id": "report_555aaa",
+              "name": "generate_report",
+              "arguments": {
+                "sections": [
+                  {
+                    "title": "Executive Summary",
+                    "content": "Acme Corp filed two AI\u2011hardware related patents in the last month, indicating continued investment in edge\u2011AI solutions."
+                  },
+                  {
+                    "title": "Patent Details",
+                    "content": "- **US9876543** \u2013 *Neural\u2011accelerated processor architecture* (Filed 2024\u201109\u201115, Granted 2025\u201110\u201120)\n- **US8765432** \u2013 *Low\u2011power AI inference engine for edge devices* (Filed 2025\u201101\u201108, Granted 2025\u201112\u201101)"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "report_555aaa",
+          "content": "# Competitor Patent Watch \u2013 Acme Corp\n\n## Executive Summary\nAcme Corp filed two AI\u2011hardware related patents in the last month, indicating continued investment in edge\u2011AI solutions.\n\n## Patent Details\n- **US9876543** \u2013 *Neural\u2011accelerated processor architecture* (Filed 2024\u201109\u201115, Granted 2025\u201110\u201120)\n- **US8765432** \u2013 *Low\u2011power AI inference engine for edge devices* (Filed 2025\u201101\u201108, Granted 2025\u201112\u201101)\n"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the report you requested:\n\n```markdown\n# Competitor Patent Watch \u2013 Acme Corp\n\n## Executive Summary\nAcme Corp filed two AI\u2011hardware related patents in the last month, indicating continued investment in edge\u2011AI solutions.\n\n## Patent Details\n- **US9876543** \u2013 *Neural\u2011accelerated processor architecture* (Filed 2024\u201109\u201115, Granted 2025\u201110\u201120)\n- **US8765432** \u2013 *Low\u2011power AI inference engine for edge devices* (Filed 2025\u201101\u201108, Granted 2025\u201112\u201101)\n```\nLet me know if you need deeper analysis or filing alerts for future activity.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,416 @@
+{
+  "name": "PodCastPro AI",
+  "description": "An agentic LLM that streamlines podcast production by ingesting episode outlines, guest bios, and raw audio transcripts to automatically generate polished show notes, bite\u2011size social media clips, SEO\u2011friendly metadata, and publishing schedules across major podcast platforms.",
+  "tools": [
+    {
+      "name": "upload_file",
+      "description": "Uploads a file (outline, guest bio, or transcript) to the system and returns a stable file identifier for later processing.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_url": {
+            "type": "string",
+            "description": "Publicly accessible URL of the file to be uploaded."
+          },
+          "doc_type": {
+            "type": "string",
+            "enum": [
+              "outline",
+              "bio",
+              "transcript"
+            ],
+            "description": "The type of document being uploaded."
+          }
+        },
+        "required": [
+          "file_url",
+          "doc_type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "summarize_transcript",
+      "description": "Creates a concise bullet\u2011point summary of a raw transcript, preserving speaker turns and key takeaways.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "transcript_id": {
+            "type": "string",
+            "description": "Identifier returned by upload_file for the transcript."
+          },
+          "max_length": {
+            "type": "integer",
+            "description": "Maximum number of words for the summary."
+          }
+        },
+        "required": [
+          "transcript_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_show_notes",
+      "description": "Generates SEO\u2011optimized markdown show notes using the episode outline, guest bios, and transcript summary.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "outline_id": {
+            "type": "string",
+            "description": "File identifier for the episode outline."
+          },
+          "bios_id": {
+            "type": "string",
+            "description": "File identifier for a JSON array of guest bios."
+          },
+          "transcript_id": {
+            "type": "string",
+            "description": "File identifier for the episode transcript."
+          },
+          "include_timestamp_links": {
+            "type": "boolean",
+            "description": "If true, embed timestamp links to the audio player in the notes."
+          }
+        },
+        "required": [
+          "outline_id",
+          "bios_id",
+          "transcript_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "create_social_clips",
+      "description": "Extracts short (15\u201130 sec) audio snippets from the transcript, generates accompanying caption text, and returns MP3 URLs for each clip.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "transcript_id": {
+            "type": "string",
+            "description": "Identifier of the transcript to source clips from."
+          },
+          "num_clips": {
+            "type": "integer",
+            "description": "Number of social clips to generate."
+          },
+          "theme_keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Keywords that guide which moments are selected (e.g., \"funny\", \"insightful\")."
+          }
+        },
+        "required": [
+          "transcript_id",
+          "num_clips"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_seo_tags",
+      "description": "Creates a set of SEO tags (keywords, hashtags, and meta description) based on the show notes content.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "show_notes_markdown": {
+            "type": "string",
+            "description": "The full markdown text of the show notes."
+          }
+        },
+        "required": [
+          "show_notes_markdown"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "schedule_publish",
+      "description": "Adds the episode to a publishing calendar and returns a confirmation with the scheduled date and platform.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "episode_title": {
+            "type": "string",
+            "description": "Title of the podcast episode."
+          },
+          "release_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Desired release date (YYYY\u2011MM\u2011DD)."
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "anchor",
+              "libsyn",
+              "spotify",
+              "apple_podcasts"
+            ],
+            "description": "Podcast hosting platform where the episode will be published."
+          }
+        },
+        "required": [
+          "episode_title",
+          "release_date",
+          "platform"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "publish_episode",
+      "description": "Executes the actual publish call to the chosen platform, uploading the audio file, show notes, and SEO metadata.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "audio_file_url": {
+            "type": "string",
+            "description": "Public URL of the finalized episode audio (MP3)."
+          },
+          "show_notes_markdown": {
+            "type": "string",
+            "description": "Markdown formatted show notes."
+          },
+          "seo_tags": {
+            "type": "object",
+            "description": "Result from generate_seo_tags (keywords, hashtags, meta description)."
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "anchor",
+              "libsyn",
+              "spotify",
+              "apple_podcasts"
+            ],
+            "description": "Target publishing platform."
+          }
+        },
+        "required": [
+          "audio_file_url",
+          "show_notes_markdown",
+          "seo_tags",
+          "platform"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User requests show notes and three social clips for a new episode; the assistant uploads files, generates notes, extracts clips, and returns URLs.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are PodCastPro AI, an autonomous podcast production assistant. Use the provided tools to fulfill user requests."
+        },
+        {
+          "role": "user",
+          "content": "Hey, I just finished recording episode 27 with guest Dr. Maya Patel. Here are the outline, her bio, and the raw transcript. I need markdown show notes and three TikTok\u2011ready social clips."
+        },
+        {
+          "role": "assistant",
+          "content": "Got it! I\u2019ll upload the files first.",
+          "tool_calls": [
+            {
+              "id": "upload_file_1a2b3c",
+              "name": "upload_file",
+              "arguments": {
+                "file_url": "https://example.com/episode27_outline.pdf",
+                "doc_type": "outline"
+              }
+            },
+            {
+              "id": "upload_file_4d5e6f",
+              "name": "upload_file",
+              "arguments": {
+                "file_url": "https://example.com/maya_patell_bio.json",
+                "doc_type": "bio"
+              }
+            },
+            {
+              "id": "upload_file_7g8h9i",
+              "name": "upload_file",
+              "arguments": {
+                "file_url": "https://example.com/episode27_transcript.txt",
+                "doc_type": "transcript"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "upload_file_1a2b3c",
+          "content": "{\"file_id\": \"outline_27\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "upload_file_4d5e6f",
+          "content": "{\"file_id\": \"bios_27\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "upload_file_7g8h9i",
+          "content": "{\"file_id\": \"transcript_27\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Files are uploaded. I\u2019ll now generate the show notes.",
+          "tool_calls": [
+            {
+              "id": "generate_show_notes_abc123",
+              "name": "generate_show_notes",
+              "arguments": {
+                "outline_id": "outline_27",
+                "bios_id": "bios_27",
+                "transcript_id": "transcript_27",
+                "include_timestamp_links": true
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_show_notes_abc123",
+          "content": "# Episode 27 \u2013 The Future of AI in Healthcare\n\n**Guest:** Dr. Maya Patel, AI\u2011Healthcare Fellow...\n\n---\n\n*TL;DR:* ... (markdown truncated for brevity)"
+        },
+        {
+          "role": "assistant",
+          "content": "Show notes are ready. Next, I\u2019ll create three social clips.",
+          "tool_calls": [
+            {
+              "id": "create_social_clips_xyz789",
+              "name": "create_social_clips",
+              "arguments": {
+                "transcript_id": "transcript_27",
+                "num_clips": 3,
+                "theme_keywords": [
+                  "insightful",
+                  "funny",
+                  "key takeaway"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "create_social_clips_xyz789",
+          "content": "{\n  \"clips\": [\n    {\"audio_url\": \"https://cdn.example.com/clip1.mp3\", \"caption\": \"\ud83d\ude80 AI can predict disease before symptoms appear!\"},\n    {\"audio_url\": \"https://cdn.example.com/clip2.mp3\", \"caption\": \"\ud83d\ude02 When AI misinterprets a sneeze as a cough...\"},\n    {\"audio_url\": \"https://cdn.example.com/clip3.mp3\", \"caption\": \"\ud83d\udca1 Key takeaway: Human\u2011AI collaboration beats solo AI.\"}\n  ]\n}"
+        },
+        {
+          "role": "assistant",
+          "content": "All done! Here are the markdown show notes and the three social\u2011media\u2011ready clips:\n\n**Show Notes:**\n```\n# Episode 27 \u2013 The Future of AI in Healthcare\n\u2026 (full markdown output)\n```\n\n**Clips:**\n1. https://cdn.example.com/clip1.mp3 \u2013 \"\ud83d\ude80 AI can predict disease before symptoms appear!\"\n2. https://cdn.example.com/clip2.mp3 \u2013 \"\ud83d\ude02 When AI misinterprets a sneeze as a cough...\"\n3. https://cdn.example.com/clip3.mp3 \u2013 \"\ud83d\udca1 Key takeaway: Human\u2011AI collaboration beats solo AI.\"\n\nLet me know if you need anything else (e.g., SEO tags or publishing).",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User wants the episode scheduled for next Monday, with SEO tags and immediate publishing to Anchor.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are PodCastPro AI, an autonomous podcast production assistant."
+        },
+        {
+          "role": "user",
+          "content": "Please schedule episode 27 for release on 2025-01-13 on Anchor, generate SEO tags from the notes, and publish it now."
+        },
+        {
+          "role": "assistant",
+          "content": "Sure! I\u2019ll first retrieve the show notes you approved earlier.",
+          "tool_calls": [
+            {
+              "id": "generate_show_notes_fetch_123",
+              "name": "generate_show_notes",
+              "arguments": {
+                "outline_id": "outline_27",
+                "bios_id": "bios_27",
+                "transcript_id": "transcript_27",
+                "include_timestamp_links": false
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_show_notes_fetch_123",
+          "content": "# Episode 27 \u2013 The Future of AI in Healthcare\n\n(Full markdown content \u2026)"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I\u2019ll create SEO tags based on these notes.",
+          "tool_calls": [
+            {
+              "id": "generate_seo_tags_456def",
+              "name": "generate_seo_tags",
+              "arguments": {
+                "show_notes_markdown": "# Episode 27 \u2013 The Future of AI in Healthcare\n\n(Full markdown content \u2026)"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_seo_tags_456def",
+          "content": "{\"keywords\": [\"AI healthcare\", \"machine learning\", \"medical diagnostics\"], \"hashtags\": [\"#AIHealth\", \"#FutureMedicine\"], \"meta_description\": \"Dr. Maya Patel discusses how AI is reshaping diagnostics and patient care.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "SEO tags are ready. I\u2019ll schedule the episode and then publish it to Anchor.",
+          "tool_calls": [
+            {
+              "id": "schedule_publish_789ghi",
+              "name": "schedule_publish",
+              "arguments": {
+                "episode_title": "Episode 27 \u2013 The Future of AI in Healthcare",
+                "release_date": "2025-01-13",
+                "platform": "anchor"
+              }
+            },
+            {
+              "id": "publish_episode_jkl012",
+              "name": "publish_episode",
+              "arguments": {
+                "audio_file_url": "https://cdn.example.com/episode27_final.mp3",
+                "show_notes_markdown": "# Episode 27 \u2013 The Future of AI in Healthcare\n\n(Full markdown content \u2026)",
+                "seo_tags": {
+                  "keywords": [
+                    "AI healthcare",
+                    "machine learning",
+                    "medical diagnostics"
+                  ],
+                  "hashtags": [
+                    "#AIHealth",
+                    "#FutureMedicine"
+                  ],
+                  "meta_description": "Dr. Maya Patel discusses how AI is reshaping diagnostics and patient care."
+                },
+                "platform": "anchor"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "schedule_publish_789ghi",
+          "content": "{\"status\": \"scheduled\", \"release_date\": \"2025-01-13\", \"platform\": \"anchor\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "publish_episode_jkl012",
+          "content": "{\"publish_url\": \"https://anchor.fm/yourshow/episodes/Episode-27---The-Future-of-AI-in-Healthcare-e1a2b3c\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "All set! The episode is scheduled for **2025\u201101\u201113** on Anchor and has already been published. You can view it here: https://anchor.fm/yourshow/episodes/Episode-27---The-Future-of-AI-in-Healthcare-e1a2b3c\n\nSEO Keywords: AI healthcare, machine learning, medical diagnostics\nHashtags: #AIHealth #FutureMedicine\nLet me know if you\u2019d like any promotional graphics or additional edits.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

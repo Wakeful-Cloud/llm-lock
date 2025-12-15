@@ -1,0 +1,638 @@
+{
+  "name": "ClimaVision AI",
+  "description": "ClimaVision AI is an agentic LLM platform that ingests emission inventories, satellite\u2011derived atmospheric data, and user\u2011defined policy scenarios to run reduced\u2011complexity climate models. It delivers region\u2011specific forecasts of temperature, precipitation, and sea\u2011level rise, plus visualisations and reports for governments, NGOs, and corporate sustainability teams.",
+  "tools": [
+    {
+      "name": "fetch_emission_inventory",
+      "description": "Retrieves the latest greenhouse\u2011gas emission inventory for a specified country, region, or sector from public databases such as EDGAR, EPA, or national reporting portals.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "description": "ISO\u20113 country code, sub\u2011national region name, or sector identifier (e.g., \"DEU\", \"Bavaria\", \"transport\")."
+          },
+          "year": {
+            "type": "integer",
+            "description": "Calendar year for which the inventory is requested."
+          },
+          "sector": {
+            "type": "string",
+            "description": "Optional sector filter (e.g., \"energy\", \"agriculture\")."
+          }
+        },
+        "required": [
+          "region",
+          "year"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_satellite_data",
+      "description": "Queries satellite archives (e.g., NASA MODIS, Sentinel\u20115P) for atmospheric composition, land\u2011surface temperature, vegetation indices, or aerosol optical depth over a geographic bounding box and date range.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "bbox": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 4,
+            "maxItems": 4,
+            "description": "Bounding box in [west, south, east, north] degrees."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "ISO\u20118601 start date for the data pull."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "ISO\u20118601 end date for the data pull."
+          },
+          "variables": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of satellite variables to retrieve (e.g., \"LST\", \"CO\", \"NDVI\")."
+          }
+        },
+        "required": [
+          "bbox",
+          "start_date",
+          "end_date",
+          "variables"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_policy_scenario",
+      "description": "Builds a forward\u2011looking emission trajectory based on a baseline inventory and a set of mitigation measures (renewable share, carbon price, sector\u2011specific reductions). Returns annual CO\u2082\u2011equivalent values.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "base_emissions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "year": {
+                  "type": "integer"
+                },
+                "co2e": {
+                  "type": "number",
+                  "description": "CO\u2082\u2011equivalent emissions in MtCO\u2082e."
+                }
+              },
+              "required": [
+                "year",
+                "co2e"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Baseline emissions series to be modified."
+          },
+          "measures": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "description": "Measure type (e.g., \"renewable_share\", \"carbon_price\", \"sector_reduction\")."
+                },
+                "value": {
+                  "type": "number",
+                  "description": "Numeric value of the measure (percent, $/t, etc.)."
+                },
+                "year": {
+                  "type": "integer",
+                  "description": "Year the measure starts to apply."
+                }
+              },
+              "required": [
+                "type",
+                "value",
+                "year"
+              ],
+              "additionalProperties": false
+            },
+            "description": "List of policy levers to apply to the baseline."
+          },
+          "scenario_name": {
+            "type": "string",
+            "description": "Human\u2011readable name for the generated pathway."
+          }
+        },
+        "required": [
+          "base_emissions",
+          "measures",
+          "scenario_name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "run_climate_model",
+      "description": "Executes a reduced\u2011complexity climate model (e.g., FaIR) using a supplied emission trajectory and returns projected temperature, precipitation, and sea\u2011level rise for each year.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "emissions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "year": {
+                  "type": "integer"
+                },
+                "co2e": {
+                  "type": "number",
+                  "description": "CO\u2082\u2011equivalent emissions in MtCO\u2082e."
+                }
+              },
+              "required": [
+                "year",
+                "co2e"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Annual emission values to feed the model."
+          },
+          "scenario_name": {
+            "type": "string",
+            "description": "Label for the run (used in downstream visualizations)."
+          },
+          "region": {
+            "type": "string",
+            "description": "Optional region filter for down\u2011scaling (e.g., \"Europe\")."
+          }
+        },
+        "required": [
+          "emissions",
+          "scenario_name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "aggregate_geospatial",
+      "description": "Aggregates gridded climate model outputs to a set of administrative boundaries (e.g., states, NUTS) and computes statistics such as mean temperature change or percentile precipitation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "grid_data_ref": {
+            "type": "string",
+            "description": "Reference ID or URL to the model output NetCDF/GeoTIFF."
+          },
+          "admin_level": {
+            "type": "string",
+            "description": "Target administrative level (e.g., \"state\", \"NUTS2\")."
+          }
+        },
+        "required": [
+          "grid_data_ref",
+          "admin_level"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "create_visualization",
+      "description": "Generates a PNG or interactive HTML visualization (map, time\u2011series chart, heat\u2011map) from supplied data references and returns a publicly accessible URL.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "data_ref": {
+            "type": "string",
+            "description": "Reference to the processed dataset (e.g., aggregated CSV or GeoJSON)."
+          },
+          "viz_type": {
+            "type": "string",
+            "enum": [
+              "map",
+              "timeseries",
+              "heatmap"
+            ],
+            "description": "Kind of visual to produce."
+          },
+          "title": {
+            "type": "string",
+            "description": "Title to appear on the visualization."
+          }
+        },
+        "required": [
+          "data_ref",
+          "viz_type",
+          "title"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_report",
+      "description": "Compiles a markdown (or PDF) report that narrates the scenario assumptions, model outcomes, and embeds visualizations, ready for stakeholder distribution.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of markdown section headings to include."
+          },
+          "visuals": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of URLs of visual assets to embed."
+          },
+          "output_format": {
+            "type": "string",
+            "enum": [
+              "markdown",
+              "pdf"
+            ],
+            "description": "Desired final format."
+          }
+        },
+        "required": [
+          "sections",
+          "visuals",
+          "output_format"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks for the projected summer temperature increase in Bavaria by 2030 under a 2\u202f\u00b0C\u2011compatible mitigation pathway.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are ClimaVision AI, an expert climate\u2011impact modeling assistant. Use the provided tools to fetch data, build scenarios, run the model, aggregate to the requested region, and deliver clear visual output."
+        },
+        {
+          "role": "user",
+          "content": "What is the expected average summer temperature rise in Bavaria by 2030 if we follow a pathway that limits global warming to 2\u202f\u00b0C?"
+        },
+        {
+          "role": "assistant",
+          "content": "I will (1) fetch the German emission inventory, (2) construct a 2\u202f\u00b0C\u2011compatible scenario, (3) run the climate model, (4) aggregate the results to Bavaria, and (5) generate a map.",
+          "tool_calls": [
+            {
+              "id": "fetch_emission_inventory_a1b2c3",
+              "name": "fetch_emission_inventory",
+              "arguments": {
+                "region": "DEU",
+                "year": 2022
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_emission_inventory_a1b2c3",
+          "content": "{\"inventory\":[{\"year\":2020,\"co2e\":7200},{\"year\":2021,\"co2e\":7300},{\"year\":2022,\"co2e\":7350}],\"region\":\"DEU\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I will create a 2\u202f\u00b0C pathway based on that inventory.",
+          "tool_calls": [
+            {
+              "id": "generate_policy_scenario_d4e5f6",
+              "name": "generate_policy_scenario",
+              "arguments": {
+                "base_emissions": [
+                  {
+                    "year": 2020,
+                    "co2e": 7200
+                  },
+                  {
+                    "year": 2021,
+                    "co2e": 7300
+                  },
+                  {
+                    "year": 2022,
+                    "co2e": 7350
+                  }
+                ],
+                "measures": [
+                  {
+                    "type": "renewable_share",
+                    "value": 55,
+                    "year": 2025
+                  },
+                  {
+                    "type": "carbon_price",
+                    "value": 120,
+                    "year": 2025
+                  }
+                ],
+                "scenario_name": "2C_path_DEU"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_policy_scenario_d4e5f6",
+          "content": "{\"scenario_name\":\"2C_path_DEU\",\"emissions\":[{\"year\":2025,\"co2e\":6800},{\"year\":2030,\"co2e\":6200}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Running the climate model with the generated emissions.",
+          "tool_calls": [
+            {
+              "id": "run_climate_model_g7h8i9",
+              "name": "run_climate_model",
+              "arguments": {
+                "emissions": [
+                  {
+                    "year": 2025,
+                    "co2e": 6800
+                  },
+                  {
+                    "year": 2030,
+                    "co2e": 6200
+                  }
+                ],
+                "scenario_name": "2C_path_DEU"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "run_climate_model_g7h8i9",
+          "content": "{\"results\":[{\"year\":2025,\"temp_change\":0.78},{\"year\":2030,\"temp_change\":1.12}],\"grid_data_ref\":\"grid_2c_deu_2025_2030.nc\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Aggregating the model output to Bavarian boundaries and creating a visualization.",
+          "tool_calls": [
+            {
+              "id": "aggregate_geospatial_j0k1l2",
+              "name": "aggregate_geospatial",
+              "arguments": {
+                "grid_data_ref": "grid_2c_deu_2025_2030.nc",
+                "admin_level": "Bavaria"
+              }
+            },
+            {
+              "id": "create_visualization_m3n4o5",
+              "name": "create_visualization",
+              "arguments": {
+                "data_ref": "agg_bavaria_2025_2030.json",
+                "viz_type": "map",
+                "title": "Projected Summer Temperature Increase in Bavaria (2025\u20112030)"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "aggregate_geospatial_j0k1l2",
+          "content": "{\"aggregated_ref\":\"agg_bavaria_2025_2030.json\",\"average_summer_temp_change\":1.07}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "create_visualization_m3n4o5",
+          "content": "{\"vis_url\":\"https://climavision.ai/visuals/bavaria_temp_2025_2030.html\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "The projected average summer temperature increase for Bavaria by 2030 under a 2\u202f\u00b0C\u2011compatible pathway is **~1.07\u202f\u00b0C**. View the interactive map here: https://climavision.ai/visuals/bavaria_temp_2025_2030.html",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User requests a side\u2011by\u2011side comparison of sea\u2011level rise for US coastal states under Business\u2011as\u2011Usual versus Net\u2011Zero\u2011by\u20112050 scenarios.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are ClimaVision AI. Use the tools to obtain US emissions, build two scenarios, run the climate model, aggregate sea\u2011level rise to each coastal state, generate a comparative map, and offer a summary report."
+        },
+        {
+          "role": "user",
+          "content": "Show me projected sea\u2011level rise by 2100 for all US coastal states under a Business\u2011as\u2011Usual scenario and a Net\u2011Zero\u2011by\u20112050 scenario."
+        },
+        {
+          "role": "assistant",
+          "content": "First I will fetch the latest US emission inventory.",
+          "tool_calls": [
+            {
+              "id": "fetch_emission_inventory_p6q7r8",
+              "name": "fetch_emission_inventory",
+              "arguments": {
+                "region": "USA",
+                "year": 2022
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_emission_inventory_p6q7r8",
+          "content": "{\"inventory\":[{\"year\":2020,\"co2e\":6300},{\"year\":2021,\"co2e\":6350},{\"year\":2022,\"co2e\":6400}],\"region\":\"USA\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I will construct the two emission pathways.",
+          "tool_calls": [
+            {
+              "id": "generate_policy_scenario_s9t0u1",
+              "name": "generate_policy_scenario",
+              "arguments": {
+                "base_emissions": [
+                  {
+                    "year": 2020,
+                    "co2e": 6300
+                  },
+                  {
+                    "year": 2021,
+                    "co2e": 6350
+                  },
+                  {
+                    "year": 2022,
+                    "co2e": 6400
+                  }
+                ],
+                "measures": [
+                  {
+                    "type": "sector_reduction",
+                    "value": 0,
+                    "year": 2023
+                  }
+                ],
+                "scenario_name": "BAU_USA"
+              }
+            },
+            {
+              "id": "generate_policy_scenario_v2w3x4",
+              "name": "generate_policy_scenario",
+              "arguments": {
+                "base_emissions": [
+                  {
+                    "year": 2020,
+                    "co2e": 6300
+                  },
+                  {
+                    "year": 2021,
+                    "co2e": 6350
+                  },
+                  {
+                    "year": 2022,
+                    "co2e": 6400
+                  }
+                ],
+                "measures": [
+                  {
+                    "type": "carbon_price",
+                    "value": 150,
+                    "year": 2025
+                  },
+                  {
+                    "type": "renewable_share",
+                    "value": 80,
+                    "year": 2030
+                  },
+                  {
+                    "type": "sector_reduction",
+                    "value": 90,
+                    "year": 2040
+                  }
+                ],
+                "scenario_name": "NetZero_2050_USA"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_policy_scenario_s9t0u1",
+          "content": "{\"scenario_name\":\"BAU_USA\",\"emissions\":[{\"year\":2030,\"co2e\":6800},{\"year\":2100,\"co2e\":13000}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_policy_scenario_v2w3x4",
+          "content": "{\"scenario_name\":\"NetZero_2050_USA\",\"emissions\":[{\"year\":2030,\"co2e\":6600},{\"year\":2050,\"co2e\":4000},{\"year\":2100,\"co2e\":4000}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Running the climate model for both scenarios.",
+          "tool_calls": [
+            {
+              "id": "run_climate_model_y5z6a7",
+              "name": "run_climate_model",
+              "arguments": {
+                "emissions": [
+                  {
+                    "year": 2030,
+                    "co2e": 6800
+                  },
+                  {
+                    "year": 2100,
+                    "co2e": 13000
+                  }
+                ],
+                "scenario_name": "BAU_USA"
+              }
+            },
+            {
+              "id": "run_climate_model_b8c9d0",
+              "name": "run_climate_model",
+              "arguments": {
+                "emissions": [
+                  {
+                    "year": 2030,
+                    "co2e": 6600
+                  },
+                  {
+                    "year": 2050,
+                    "co2e": 4000
+                  },
+                  {
+                    "year": 2100,
+                    "co2e": 4000
+                  }
+                ],
+                "scenario_name": "NetZero_2050_USA"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "run_climate_model_y5z6a7",
+          "content": "{\"results\":[{\"year\":2100,\"sea_level_rise\":0.84}],\"grid_data_ref\":\"grid_bau_usa_2100.nc\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "run_climate_model_b8c9d0",
+          "content": "{\"results\":[{\"year\":2100,\"sea_level_rise\":0.43}],\"grid_data_ref\":\"grid_netzero_usa_2100.nc\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Aggregating sea\u2011level rise to each US coastal state and creating a comparative map.",
+          "tool_calls": [
+            {
+              "id": "aggregate_geospatial_e1f2g3",
+              "name": "aggregate_geospatial",
+              "arguments": {
+                "grid_data_ref": "grid_bau_usa_2100.nc",
+                "admin_level": "US_coastal_states"
+              }
+            },
+            {
+              "id": "aggregate_geospatial_h4i5j6",
+              "name": "aggregate_geospatial",
+              "arguments": {
+                "grid_data_ref": "grid_netzero_usa_2100.nc",
+                "admin_level": "US_coastal_states"
+              }
+            },
+            {
+              "id": "create_visualization_k7l8m9",
+              "name": "create_visualization",
+              "arguments": {
+                "data_ref": "sea_level_comparison_us_coastal.json",
+                "viz_type": "map",
+                "title": "Sea\u2011Level Rise 2100: BAU vs Net\u2011Zero\u2011by\u20112050 (US Coastal States)"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "aggregate_geospatial_e1f2g3",
+          "content": "{\"aggregated_ref\":\"sea_level_bau_us_coastal.json\",\"values\":{\"Florida\":0.91,\"Louisiana\":0.88,\"California\":0.72}}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "aggregate_geospatial_h4i5j6",
+          "content": "{\"aggregated_ref\":\"sea_level_netzero_us_coastal.json\",\"values\":{\"Florida\":0.45,\"Louisiana\":0.42,\"California\":0.38}}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "create_visualization_k7l8m9",
+          "content": "{\"vis_url\":\"https://climavision.ai/visuals/us_coastal_sea_level_2100.html\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is a side\u2011by\u2011side map of projected sea\u2011level rise by 2100 for each US coastal state under the two scenarios: https://climavision.ai/visuals/us_coastal_sea_level_2100.html\n\nKey takeaways:\n- **Business\u2011as\u2011Usual:** average rise \u2248 0.84\u202fm (Florida 0.91\u202fm, Louisiana 0.88\u202fm).\n- **Net\u2011Zero\u2011by\u20112050:** average rise \u2248 0.43\u202fm (Florida 0.45\u202fm, Louisiana 0.42\u202fm).\nMitigation could halve exposure for the most vulnerable states.\n\nWould you like a short PDF report summarising these findings?",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

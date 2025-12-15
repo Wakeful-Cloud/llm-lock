@@ -1,0 +1,159 @@
+{
+  "description": "A study coordinator uploads trial eligibility, the AI parses it, queries the EMR for matching patients, sends secure portal invitations, records a patient\u2019s consent, and automatically schedules the first screening appointment.",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are TrialMatchAI, an AI\u2011enhanced clinical trial recruiter. Parse free\u2011text eligibility, query the EMR for matches, send secure portal messages, capture patient consent, and schedule screening appointments while keeping an audit trail."
+    },
+    {
+      "role": "user",
+      "content": "We have a new Phase\u202fII trial for non\u2011small cell lung cancer (NSCLC). Inclusion criteria: \n- Age 45\u201175 years\n- Diagnosis of NSCLC, stage III or IV\n- EGFR mutation positive\n- ECOG performance status \u2264\u202f1\n- No prior immunotherapy\nExclusion: active autoimmune disease, uncontrolled hypertension.\nPlease find eligible patients, contact them, and schedule the first screening if they consent."
+    },
+    {
+      "role": "assistant",
+      "content": "First I will transform the free\u2011text inclusion/exclusion criteria into a structured JSON schema that the EMR can query.",
+      "tool_calls": [
+        {
+          "id": "eligibility_parser_01a2b3c",
+          "name": "eligibility_parser",
+          "arguments": {
+            "eligibility_text": "Inclusion criteria:\n- Age 45\u201175 years\n- Diagnosis of NSCLC, stage III or IV\n- EGFR mutation positive\n- ECOG performance status \u2264\u202f1\n- No prior immunotherapy\nExclusion: active autoimmune disease, uncontrolled hypertension."
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "eligibility_parser_01a2b3c",
+      "content": "{\"age_min\":45,\"age_max\":75,\"diagnosis\":\"NSCLC\",\"stage\":[\"III\",\"IV\"],\"molecular_marker\":\"EGFR mutation positive\",\"ecog_max\":1,\"prior_immunotherapy\":false,\"exclusions\":[\"active autoimmune disease\",\"uncontrolled hypertension\"]}"
+    },
+    {
+      "role": "assistant",
+      "content": "Using the parsed criteria, I will search the EMR for up to 10 patients who meet these requirements.",
+      "tool_calls": [
+        {
+          "id": "emr_query_04d5e6f",
+          "name": "emr_query",
+          "arguments": {
+            "criteria": {
+              "age_min": 45,
+              "age_max": 75,
+              "diagnosis": "NSCLC",
+              "stage": [
+                "III",
+                "IV"
+              ],
+              "molecular_marker": "EGFR mutation positive",
+              "ecog_max": 1,
+              "prior_immunotherapy": false,
+              "exclusions": [
+                "active autoimmune disease",
+                "uncontrolled hypertension"
+              ]
+            },
+            "limit": 10
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "emr_query_04d5e6f",
+      "content": "[{\"patient_id\":\"PAT001\",\"age\":58,\"sex\":\"F\",\"stage\":\"III\",\"ecog\":1},{\"patient_id\":\"PAT014\",\"age\":62,\"sex\":\"M\",\"stage\":\"IV\",\"ecog\":0}]"
+    },
+    {
+      "role": "assistant",
+      "content": "I found two eligible patients (PAT001 and PAT014). I will send each a secure portal message introducing the trial and asking for consent.\n---\nFirst message (PAT001):",
+      "tool_calls": [
+        {
+          "id": "secure_message_send_07g8h9i",
+          "name": "secure_message_send",
+          "arguments": {
+            "patient_id": "PAT001",
+            "subject": "Invitation to Join a Phase\u202fII NSCLC Trial",
+            "body": "## Dear Patient,\n\nYou have been identified as potentially eligible for a Phase\u202fII clinical trial studying a new treatment for non\u2011small cell lung cancer (NSCLC) with EGFR mutation positivity.\n\n**Key details**:\n- **Eligibility**: Age 45\u201175, stage III/IV NSCLC, ECOG \u2264\u202f1, no prior immunotherapy.\n- **Commitment**: One screening visit (\u22482\u202fhours) and possible follow\u2011up visits.\n- **Benefits**: Access to a novel targeted therapy and close monitoring by our oncology team.\n\nIf you would like to learn more or consent to be contacted for a screening appointment, please reply **YES** to this message or click the consent button below.\n\nThank you for considering participation.\n\n*Your care team*"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "secure_message_send_07g8h9i",
+      "content": "{\"delivery_receipt\":\"msg-2025-12-09-001\",\"status\":\"sent\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "The invitation has been delivered to PAT001. I will now send the same message to PAT014.",
+      "tool_calls": [
+        {
+          "id": "secure_message_send_08j9k0l",
+          "name": "secure_message_send",
+          "arguments": {
+            "patient_id": "PAT014",
+            "subject": "Invitation to Join a Phase\u202fII NSCLC Trial",
+            "body": "## Dear Patient,\n\nYou have been identified as potentially eligible for a Phase\u202fII clinical trial studying a new treatment for non\u2011small cell lung cancer (NSCLC) with EGFR mutation positivity.\n\n**Key details**:\n- **Eligibility**: Age 45\u201175, stage III/IV NSCLC, ECOG \u2264\u202f1, no prior immunotherapy.\n- **Commitment**: One screening visit (\u22482\u202fhours) and possible follow\u2011up visits.\n- **Benefits**: Access to a novel targeted therapy and close monitoring by our oncology team.\n\nIf you would like to learn more or consent to be contacted for a screening appointment, please reply **YES** to this message or click the consent button below.\n\nThank you for considering participation.\n\n*Your care team*"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "secure_message_send_08j9k0l",
+      "content": "{\"delivery_receipt\":\"msg-2025-12-09-002\",\"status\":\"sent\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "Both secure messages have been sent. I will monitor the portal for patient replies.",
+      "tool_calls": []
+    },
+    {
+      "role": "user",
+      "content": "Patient PAT001 has replied with \"YES\" and has clicked the consent button."
+    },
+    {
+      "role": "assistant",
+      "content": "Great! I will record PAT001\u2019s consent and then schedule the first screening appointment.",
+      "tool_calls": [
+        {
+          "id": "consent_capture_10j11k",
+          "name": "consent_capture",
+          "arguments": {
+            "patient_id": "PAT001",
+            "consent_given": true,
+            "timestamp": "2025-12-09T14:27:00Z"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "consent_capture_10j11k",
+      "content": "{\"audit_id\":\"consent-2025-12-09-001\",\"status\":\"recorded\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "Consent has been recorded. I will now create a virtual screening appointment for PAT001 on Thursday, December 12 at 10:00\u202fAM Eastern Time.",
+      "tool_calls": [
+        {
+          "id": "schedule_meeting_12l13m",
+          "name": "schedule_meeting",
+          "arguments": {
+            "patient_id": "PAT001",
+            "datetime": "2025-12-12T10:00:00-05:00",
+            "meeting_type": "video"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "schedule_meeting_12l13m",
+      "content": "{\"meeting_id\":\"meet-2025-12-12-001\",\"join_link\":\"https://videomeet.example.com/join/meet-2025-12-12-001\",\"status\":\"scheduled\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "The screening appointment has been scheduled. A calendar invitation with the video\u2011conference link has been sent to PAT001. I will repeat the consent\u2011capture and scheduling steps when other patients respond.",
+      "tool_calls": []
+    }
+  ]
+}

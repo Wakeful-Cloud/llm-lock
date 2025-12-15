@@ -1,0 +1,210 @@
+{
+  "description": "The user uploads a health\u2011claim PDF, the assistant extracts and parses the claim, looks up each medical code, checks insurer coverage, generates correction suggestions, and then provides a clear step\u2011by\u2011step guide for resubmitting the corrected claim.",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are MedClaim AI Analyzer, an intelligent assistant that extracts data from health\u2011claim PDFs, validates CPT/HCPCS/ICD\u201110 codes against insurer policies, flags billing errors, and provides concrete correction and resubmission instructions."
+    },
+    {
+      "role": "user",
+      "content": "Here is my claim PDF (Base64 encoded). Please analyze it and tell me what needs to be corrected.\n\nJVBERi0xLjQKJeLjz9MKNCAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwo ..."
+    },
+    {
+      "role": "assistant",
+      "content": "I will extract the text from the PDF, parse the claim into a structured format, look up each medical code, check coverage against the insurer's policy, and then generate correction suggestions.",
+      "tool_calls": [
+        {
+          "id": "extract_text_from_pdf_a1b2c3",
+          "name": "extract_text_from_pdf",
+          "arguments": {
+            "pdf_base64": "JVBERi0xLjQKJeLjz9MKNCAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwo ..."
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "extract_text_from_pdf_a1b2c3",
+      "content": "Patient: John Doe\nDOB: 01/15/1975\nProvider: ABC Imaging Center\nNPI: 1234567890\nInsurer: AETNA\nPolicy ID: AETNA-PLAT-2023\n\nLine Items:\n1. CPT: 72148 - MRI Lumbar Spine without contrast, Modifier: 26\n   Diagnosis ICD-10: M48.06\n   Charged: $1,200\n2. CPT: 99213 - Office/outpatient visit, Modifier: None\n   Diagnosis ICD-10: R07.9\n   Charged: $150"
+    },
+    {
+      "role": "assistant",
+      "content": "Now I will convert the raw text into a structured JSON representation of the claim.",
+      "tool_calls": [
+        {
+          "id": "parse_claim_form_d4e5f6",
+          "name": "parse_claim_form",
+          "arguments": {
+            "raw_text": "Patient: John Doe\nDOB: 01/15/1975\nProvider: ABC Imaging Center\nNPI: 1234567890\nInsurer: AETNA\nPolicy ID: AETNA-PLAT-2023\n\nLine Items:\n1. CPT: 72148 - MRI Lumbar Spine without contrast, Modifier: 26\n   Diagnosis ICD-10: M48.06\n   Charged: $1,200\n2. CPT: 99213 - Office/outpatient visit, Modifier: None\n   Diagnosis ICD-10: R07.9\n   Charged: $150"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "parse_claim_form_d4e5f6",
+      "content": "{\"patient\":{\"name\":\"John Doe\",\"dob\":\"1975-01-15\"},\"provider\":{\"name\":\"ABC Imaging Center\",\"npi\":\"1234567890\"},\"insurer\":{\"id\":\"AETNA\",\"policy_id\":\"AETNA-PLAT-2023\"},\"lines\":[{\"line_number\":1,\"cpt\":\"72148\",\"description\":\"MRI Lumbar Spine without contrast\",\"modifier\":\"26\",\"icd10\":\"M48.06\",\"charge\":1200},{\"line_number\":2,\"cpt\":\"99213\",\"description\":\"Office/outpatient visit\",\"modifier\":null,\"icd10\":\"R07.9\",\"charge\":150}]}"
+    },
+    {
+      "role": "assistant",
+      "content": "I will look up each CPT code to obtain its official description, required modifiers, and category.",
+      "tool_calls": [
+        {
+          "id": "lookup_medical_code_7a8b9c",
+          "name": "lookup_medical_code",
+          "arguments": {
+            "code": "72148"
+          }
+        },
+        {
+          "id": "lookup_medical_code_1d2e3f",
+          "name": "lookup_medical_code",
+          "arguments": {
+            "code": "99213"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "lookup_medical_code_7a8b9c",
+      "content": "{\"code\":\"72148\",\"description\":\"Magnetic resonance imaging, lumbar spine; without contrast\",\"category\":\"Radiology\",\"required_modifiers\":[\"26\"]}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "lookup_medical_code_1d2e3f",
+      "content": "{\"code\":\"99213\",\"description\":\"Office or other outpatient visit for the evaluation and management of an established patient, low complexity\",\"category\":\"Evaluation & Management\",\"required_modifiers\":[]}"
+    },
+    {
+      "role": "assistant",
+      "content": "Now I will check AETNA's policy coverage for each line item.",
+      "tool_calls": [
+        {
+          "id": "query_policy_coverage_4g5h6i",
+          "name": "query_policy_coverage",
+          "arguments": {
+            "insurer_id": "AETNA",
+            "policy_id": "AETNA-PLAT-2023",
+            "code": "72148"
+          }
+        },
+        {
+          "id": "query_policy_coverage_7j8k9l",
+          "name": "query_policy_coverage",
+          "arguments": {
+            "insurer_id": "AETNA",
+            "policy_id": "AETNA-PLAT-2023",
+            "code": "99213"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "query_policy_coverage_4g5h6i",
+      "content": "{\"insurer_id\":\"AETNA\",\"policy_id\":\"AETNA-PLAT-2023\",\"code\":\"72148\",\"covered\":true,\"max_reimbursement\":1100,\"prior_auth_required\":true}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "query_policy_coverage_7j8k9l",
+      "content": "{\"insurer_id\":\"AETNA\",\"policy_id\":\"AETNA-PLAT-2023\",\"code\":\"99213\",\"covered\":true,\"max_reimbursement\":120,\"prior_auth_required\":false}"
+    },
+    {
+      "role": "assistant",
+      "content": "With the claim data, code details, and coverage information, I will generate correction suggestions.",
+      "tool_calls": [
+        {
+          "id": "generate_correction_suggestion_m0n1o2",
+          "name": "generate_correction_suggestion",
+          "arguments": {
+            "claim_struct": {
+              "patient": {
+                "name": "John Doe",
+                "dob": "1975-01-15"
+              },
+              "provider": {
+                "name": "ABC Imaging Center",
+                "npi": "1234567890"
+              },
+              "insurer": {
+                "id": "AETNA",
+                "policy_id": "AETNA-PLAT-2023"
+              },
+              "lines": [
+                {
+                  "line_number": 1,
+                  "cpt": "72148",
+                  "description": "MRI Lumbar Spine without contrast",
+                  "modifier": "26",
+                  "icd10": "M48.06",
+                  "charge": 1200
+                },
+                {
+                  "line_number": 2,
+                  "cpt": "99213",
+                  "description": "Office/outpatient visit",
+                  "modifier": null,
+                  "icd10": "R07.9",
+                  "charge": 150
+                }
+              ]
+            },
+            "code_details": [
+              {
+                "code": "72148",
+                "description": "Magnetic resonance imaging, lumbar spine; without contrast",
+                "category": "Radiology",
+                "required_modifiers": [
+                  "26"
+                ]
+              },
+              {
+                "code": "99213",
+                "description": "Office or other outpatient visit for the evaluation and management of an established patient, low complexity",
+                "category": "Evaluation & Management",
+                "required_modifiers": []
+              }
+            ],
+            "coverage_info": [
+              {
+                "insurer_id": "AETNA",
+                "policy_id": "AETNA-PLAT-2023",
+                "code": "72148",
+                "covered": true,
+                "max_reimbursement": 1100,
+                "prior_auth_required": true
+              },
+              {
+                "insurer_id": "AETNA",
+                "policy_id": "AETNA-PLAT-2023",
+                "code": "99213",
+                "covered": true,
+                "max_reimbursement": 120,
+                "prior_auth_required": false
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "generate_correction_suggestion_m0n1o2",
+      "content": "{\"errors\":[{\"line\":1,\"issue\":\"Charge exceeds maximum reimbursable amount\",\"suggested_charge\":1100,\"note\":\"Obtain prior\u2011auth for $100 excess or reduce charge to $1,100.\"},{\"line\":2,\"issue\":\"Charge exceeds allowable amount\",\"suggested_charge\":120,\"note\":\"Adjust charge to $120 to match policy maximum.\"}],\"overall_note\":\"All codes are covered, but line\u2011item charges must be aligned with AETNA\u2019s limits. Prior authorization is required for the MRI.\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "Here are the correction suggestions for your claim:\n\n- **Line 1 (CPT 72148)**: The charge of **$1,200** exceeds the policy\u2019s maximum reimbursement of **$1,100**. You can either:\n  1. Submit a prior\u2011authorization request for the $100 excess, **or**\n  2. Reduce the billed amount to **$1,100**.\n- **Line 2 (CPT 99213)**: The charge of **$150** exceeds the allowed amount of **$120**. Adjust the billed amount to **$120**.\n\nAll codes are covered under your AETNA plan, but the MRI requires prior authorization for any amount above $1,100.\n\nWould you like a step\u2011by\u2011step guide on how to resubmit the corrected claim?",
+      "tool_calls": []
+    },
+    {
+      "role": "user",
+      "content": "Yes, please give me a detailed step\u2011by\u2011step workflow for resubmitting the corrected claim after I make those adjustments."
+    },
+    {
+      "role": "assistant",
+      "content": "Sure! Follow these steps to resubmit your corrected claim:\n\n**Step 1 \u2013 Update the Claim Form**\n1. Open the original claim PDF in a PDF editor (e.g., Adobe Acrobat, Nitro PDF).\n2. Locate the line\u2011item tables:\n   - **Line\u202f1** (CPT\u202f72148) \u2013 change the **Charge** field from **$1,200** to **$1,100** (or keep $1,200 if you will attach a prior\u2011auth document).\n   - **Line\u202f2** (CPT\u202f99213) \u2013 change the **Charge** field from **$150** to **$120**.\n3. If you choose the prior\u2011authorization route for the MRI, add a new **Attachments** section on the bottom of the form and label it \u201cPrior\u2011Auth for MRI\u2011Lumbar\u202f(72148) \u2013 $100 excess.\u201d\n4. Save the edited PDF with a clear name, e.g., `JohnDoe_Claim_Resubmitted_2025-12-09.pdf`.\n\n**Step 2 \u2013 Gather Supporting Documents**\n- **Prior\u2011auth approval** (if you kept the $1,200 charge). Obtain the approval letter/email from AETNA and save it as a PDF.\n- **Proof of service** (e.g., radiology report) \u2013 optional but helpful if the payer requests it.\n\n**Step 3 \u2013 Prepare the Electronic Submission Package**\n1. Create a zip folder named `JohnDoe_ClaimResubmit.zip`.\n2. Add the edited claim PDF.\n3. Add any supporting PDFs (prior\u2011auth letter, radiology report).\n4. Include a short **README.txt** that lists the contents and notes the adjustments made.\n\n**Step 4 \u2013 Submit Through the Provider Portal**\n1. Log in to the AETNA provider portal (or your clearinghouse if you use one).\n2. Choose **\u201cSubmit a New Claim\u201d** \u2192 **\u201cUpload Existing Claim\u201d**.\n3. Upload the `JohnDoe_ClaimResubmit.zip` file.\n4. In the comment field, write a brief note, e.g.:\n   > \"Adjusted line\u2011item charges to align with policy limits. Prior\u2011auth for MRI\u2011Lumbar (72148) attached.\"\n5. Review the summary screen to ensure the file count and sizes are correct.\n6. Click **Submit**.\n\n**Step 5 \u2013 Verify Receipt**\n- After submission, you will receive an electronic acknowledgment (E\u2011ACK) from AETNA within minutes.\n- Save the E\u2011ACK PDF for your records.\n\n**Step 6 \u2013 Follow Up**\n- If you submitted a prior\u2011auth document, monitor the claim status for the **\u201cAuthorization Received\u201d** flag (typically 1\u20112 business days).\n- If the claim status changes to **\u201cPaid\u201d** or **\u201cProcessed\u201d**, download the Explanation of Benefits (EOB).\n- If the claim is again denied, the EOB will include a new denial code; you can repeat this workflow with the new information.\n\n**Quick Checklist**\n- [ ] Adjusted charges (Line\u202f1 \u2192 $1,100, Line\u202f2 \u2192 $120)\n- [ ] Prior\u2011auth document attached (if needed)\n- [ ] All PDFs zipped together with README\n- [ ] Submitted via provider portal with comment note\n- [ ] Saved E\u2011ACK and subsequent EOB\n\nFollowing these steps will ensure your corrected claim meets AETNA\u2019s coverage rules and speeds up reimbursement. Let me know if you need help drafting the prior\u2011auth request or anything else!",
+      "tool_calls": []
+    }
+  ]
+}

@@ -1,0 +1,442 @@
+{
+  "name": "RenovaPlanner",
+  "description": "RenovaPlanner is an agentic LLM assistant that creates detailed home\u2011renovation plans, pulls local building\u2011code requirements, gathers real\u2011time material costs, obtains contractor bids, and produces budget estimates and project schedules for homeowners.",
+  "tools": [
+    {
+      "name": "geo_lookup",
+      "description": "Converts a free\u2011form street address into structured location data (city, state, ZIP, latitude, longitude) for use by downstream tools.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "The full mailing address supplied by the user."
+          }
+        },
+        "required": [
+          "address"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_building_code",
+      "description": "Retrieves the applicable building\u2011code sections for a specific city, state, ZIP and renovation type, returning a list of citations and a plain\u2011language summary of constraints.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "description": "City name."
+          },
+          "state": {
+            "type": "string",
+            "description": "State abbreviation (e.g., CO, TX)."
+          },
+          "zip_code": {
+            "type": "string",
+            "description": "Five\u2011digit ZIP code."
+          },
+          "renovation_type": {
+            "type": "string",
+            "description": "High\u2011level renovation category (e.g., kitchen, addition)."
+          }
+        },
+        "required": [
+          "city",
+          "state",
+          "zip_code",
+          "renovation_type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_material_costs",
+      "description": "Looks up current market prices for a list of construction materials in a given city/state and returns a dictionary of material \u2192 unit cost.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "materials": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Materials to price (e.g., \"quartz countertop\", \"drywall\")."
+          },
+          "city": {
+            "type": "string",
+            "description": "City for regional pricing."
+          },
+          "state": {
+            "type": "string",
+            "description": "State abbreviation."
+          }
+        },
+        "required": [
+          "materials",
+          "city",
+          "state"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_contractor_bids",
+      "description": "Queries a vetted network of local contractors for price estimates based on a textual project scope and location, returning an array of offers.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "project_type": {
+            "type": "string",
+            "description": "High\u2011level project type (e.g., \"kitchen remodel\")."
+          },
+          "location": {
+            "type": "string",
+            "description": "City and state (e.g., \"Denver, CO\")."
+          },
+          "scope_description": {
+            "type": "string",
+            "description": "Detailed description of the work to be performed."
+          }
+        },
+        "required": [
+          "project_type",
+          "location",
+          "scope_description"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_plan_scoping",
+      "description": "Creates a structured scope of work and material list based on homeowner requirements and code constraints, returning a JSON object with tasks and material identifiers.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_requirements": {
+            "type": "string",
+            "description": "Free\u2011form description supplied by the homeowner."
+          },
+          "code_constraints": {
+            "type": "string",
+            "description": "Plain\u2011language summary of relevant building\u2011code constraints."
+          }
+        },
+        "required": [
+          "user_requirements",
+          "code_constraints"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "calculate_budget",
+      "description": "Aggregates material costs and a selected contractor bid, applies a contingency margin, and returns a line\u2011item budget breakdown with total cost.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "material_costs": {
+            "type": "object",
+            "description": "Dictionary of material \u2192 total cost (as returned by get_material_costs)."
+          },
+          "contractor_bid": {
+            "type": "object",
+            "description": "One contractor offer (price and details)."
+          },
+          "contingency_percent": {
+            "type": "number",
+            "description": "Percent to add as contingency (e.g., 10)."
+          }
+        },
+        "required": [
+          "material_costs",
+          "contractor_bid",
+          "contingency_percent"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "schedule_project",
+      "description": "Generates a phased project timeline based on the scope, contractor availability, and desired start date, returning a JSON schedule with start/end dates per phase.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "object",
+            "description": "Scope object returned by generate_plan_scoping."
+          },
+          "contractor_availability": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of date ranges (ISO strings) when the chosen contractor can start."
+          },
+          "desired_start": {
+            "type": "string",
+            "format": "date",
+            "description": "Earliest date the homeowner wants work to begin."
+          }
+        },
+        "required": [
+          "scope",
+          "contractor_availability",
+          "desired_start"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "Homeowner asks for a kitchen remodel in Denver. The assistant looks up the address, fetches building\u2011code constraints, gets material prices, obtains contractor bids, and returns a budget estimate with code highlights.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are RenovaPlanner, an agentic assistant that creates renovation plans, fetches local building codes, gathers material costs, obtains contractor bids, and calculates budgets."
+        },
+        {
+          "role": "user",
+          "content": "I want to remodel my kitchen at 1234 Elm St, Denver, CO. I\u2019d like modern cabinets, quartz countertops, and new appliances. What\u2019s the estimated cost and are there any code restrictions?"
+        },
+        {
+          "role": "assistant",
+          "content": "Let me first translate the address into structured location data.",
+          "tool_calls": [
+            {
+              "id": "geo_lookup_1a2b3c",
+              "name": "geo_lookup",
+              "arguments": {
+                "address": "1234 Elm St, Denver, CO"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "geo_lookup_1a2b3c",
+          "content": "{\"city\":\"Denver\",\"state\":\"CO\",\"zip_code\":\"80204\",\"latitude\":39.7392,\"longitude\":-104.9903}"
+        },
+        {
+          "role": "assistant",
+          "content": "Got the location. I\u2019ll now pull the relevant building\u2011code sections, current material costs, and a couple of contractor bids for a kitchen remodel in Denver.",
+          "tool_calls": [
+            {
+              "id": "fetch_building_code_4d5e6f",
+              "name": "fetch_building_code",
+              "arguments": {
+                "city": "Denver",
+                "state": "CO",
+                "zip_code": "80204",
+                "renovation_type": "kitchen"
+              }
+            },
+            {
+              "id": "get_material_costs_7g8h9i",
+              "name": "get_material_costs",
+              "arguments": {
+                "materials": [
+                  "modern cabinets",
+                  "quartz countertop",
+                  "stainless steel appliances"
+                ],
+                "city": "Denver",
+                "state": "CO"
+              }
+            },
+            {
+              "id": "get_contractor_bids_j0k1l2",
+              "name": "get_contractor_bids",
+              "arguments": {
+                "project_type": "kitchen remodel",
+                "location": "Denver, CO",
+                "scope_description": "Install modern cabinets, place quartz countertop, replace all appliances, update lighting and flooring."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_building_code_4d5e6f",
+          "content": "{\"code_sections\":[\"IBC 2021 Chapter 4 - Safety\",\"IBC 2021 Chapter 5 - General Building Areas\",\"Denver Building Code 2022 Sec. 15.3 - Kitchen Ventilation\"],\"summary\":\"Require minimum 15\u202fft\u00b3/min mechanical ventilation for gas cooking, clearances around electrical panels, and fire\u2011rated soffit construction.\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_material_costs_7g8h9i",
+          "content": "{\"material_costs\":{\"modern cabinets\":15000,\"quartz countertop\":8000,\"stainless steel appliances\":12000}}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_contractor_bids_j0k1l2",
+          "content": "{\"bids\":[{\"contractor\":\"BuildRight Renovations\",\"price\":48000,\"notes\":\"Includes demolition, installation, permits.\"},{\"contractor\":\"Peak Home Improvements\",\"price\":52500,\"notes\":\"Premium finish guarantee.\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "### Summary\n\n**Code constraints**\n- Minimum 15\u202fft\u00b3/min ventilation for gas cooking.\n- Required fire\u2011rated soffit around new cabinets.\n- Electrical clearances as per local safety code.\n\n**Material costs (approx.)**\n- Modern cabinets: $15,000\n- Quartz countertop: $8,000\n- Stainless\u2011steel appliances: $12,000\n- **Total materials:** $35,000\n\n**Contractor bids**\n- BuildRight Renovations: $48,000 (includes permits)\n- Peak Home Improvements: $52,500 (premium finish)\n\nAssuming a 10\u202f% contingency on the combined total:\n```\nMaterials: $35,000\nLabor (lowest bid): $48,000\nSubtotal: $83,000\nContingency (10%): $8,300\n**Estimated total: $91,300**\n```\nWould you like a detailed scope of work, a formal budget breakdown, or to schedule the project?\n",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "Homeowner wants to add a second floor in Austin. The assistant gathers location, code, builds a scope, and creates a 20\u2011week schedule based on contractor availability.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are RenovaPlanner, an agentic assistant that creates renovation plans, fetches building codes, gathers material costs, obtains contractor bids, and produces schedules."
+        },
+        {
+          "role": "user",
+          "content": "I own a single\u2011story house at 78 Oak Avenue, Austin, TX. I\u2019m thinking about adding a second floor with three bedrooms and a bathroom. When could construction start and how long would it take?"
+        },
+        {
+          "role": "assistant",
+          "content": "First, I\u2019ll translate the address into structured location data.",
+          "tool_calls": [
+            {
+              "id": "geo_lookup_aa11bb",
+              "name": "geo_lookup",
+              "arguments": {
+                "address": "78 Oak Avenue, Austin, TX"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "geo_lookup_aa11bb",
+          "content": "{\"city\":\"Austin\",\"state\":\"TX\",\"zip_code\":\"78704\",\"latitude\":30.2672,\"longitude\":-97.7431}"
+        },
+        {
+          "role": "assistant",
+          "content": "Got the location. I\u2019ll now pull the relevant building\u2011code sections for a residential addition in Austin.",
+          "tool_calls": [
+            {
+              "id": "fetch_building_code_cc22dd",
+              "name": "fetch_building_code",
+              "arguments": {
+                "city": "Austin",
+                "state": "TX",
+                "zip_code": "78704",
+                "renovation_type": "addition"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_building_code_cc22dd",
+          "content": "{\"code_sections\":[\"IBC 2021 Chapter 7 - Fire and Smoke Protection\",\"Austin Municipal Code 25-3-2 - Residential Additions\",\"IBC 2021 Chapter 8 - Mechanical Ventilation\"],\"summary\":\"New bedrooms must each have two means of egress, stairwell must be fire\u2011rated, and HVAC capacity must be increased by at least 25\u202f% to serve the additional floor.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Based on your description and the code summary, I\u2019ll generate a scoped list of tasks and materials.",
+          "tool_calls": [
+            {
+              "id": "generate_plan_scoping_ee33ff",
+              "name": "generate_plan_scoping",
+              "arguments": {
+                "user_requirements": "Add a second floor containing three bedrooms and one full bathroom. Include a code\u2011compliant stairwell, structural framing, insulation, electrical, HVAC extension, exterior siding matching the existing house, and interior finishes.",
+                "code_constraints": "New bedrooms need two egress routes, fire\u2011rated stair enclosure, HVAC capacity +25%."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_plan_scoping_ee33ff",
+          "content": "{\"scope\":{\"tasks\":[{\"id\":1,\"description\":\"Structural framing for second floor\",\"quantity\":\"1\",\"notes\":\"Engineered joists per engineer's design\"},{\"id\":2,\"description\":\"Install code\u2011compliant stairwell\",\"quantity\":\"1\",\"notes\":\"Fire\u2011rated enclosure, two egresses\"},{\"id\":3,\"description\":\"Electrical rough\u2011in for three bedrooms + bathroom\",\"quantity\":\"1\",\"notes\":\"Add 30\u202fA circuits, smoke detectors\"},{\"id\":4,\"description\":\"HVAC extension\",\"quantity\":\"1\",\"notes\":\"Increase system capacity by 25\u202f%\"},{\"id\":5,\"description\":\"Insulation & drywall\",\"quantity\":\"1\",\"notes\":\"R\u201119 insulation, 1/2\" drywall\"},{\"id\":6,\"description\":\"Interior finishes (paint, trim, fixtures)\",\"quantity\":\"1\",\"notes\":\"Match existing interior style\"}],\"materials\":[\"engineered lumber\",\"drywall\",\"R\u201119 insulation\",\"quartz bathroom vanity\",\"stainless steel fixtures\"]}}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I\u2019ll ask the contractor network for a bid and then build a schedule based on typical availability.",
+          "tool_calls": [
+            {
+              "id": "get_contractor_bids_ff44gg",
+              "name": "get_contractor_bids",
+              "arguments": {
+                "project_type": "second\u2011floor addition",
+                "location": "Austin, TX",
+                "scope_description": "Structural framing, fire\u2011rated stairwell, electrical and HVAC extensions, insulation, drywall, interior finishes for 3 bedrooms and 1 bathroom."
+              }
+            },
+            {
+              "id": "schedule_project_hh55ii",
+              "name": "schedule_project",
+              "arguments": {
+                "scope": {
+                  "tasks": [
+                    {
+                      "id": 1,
+                      "description": "Structural framing for second floor",
+                      "quantity": "1",
+                      "notes": "Engineered joists per engineer's design"
+                    },
+                    {
+                      "id": 2,
+                      "description": "Install code\u2011compliant stairwell",
+                      "quantity": "1",
+                      "notes": "Fire\u2011rated enclosure, two egresses"
+                    },
+                    {
+                      "id": 3,
+                      "description": "Electrical rough\u2011in for three bedrooms + bathroom",
+                      "quantity": "1",
+                      "notes": "Add 30\u202fA circuits, smoke detectors"
+                    },
+                    {
+                      "id": 4,
+                      "description": "HVAC extension",
+                      "quantity": "1",
+                      "notes": "Increase system capacity by 25\u202f%"
+                    },
+                    {
+                      "id": 5,
+                      "description": "Insulation & drywall",
+                      "quantity": "1",
+                      "notes": "R\u201119 insulation, 1/2\" drywall"
+                    },
+                    {
+                      "id": 6,
+                      "description": "Interior finishes (paint, trim, fixtures)",
+                      "quantity": "1",
+                      "notes": "Match existing interior style"
+                    }
+                  ],
+                  "materials": [
+                    "engineered lumber",
+                    "drywall",
+                    "R\u201119 insulation",
+                    "quartz bathroom vanity",
+                    "stainless steel fixtures"
+                  ]
+                },
+                "contractor_availability": [
+                  "2025-03-01 to 2025-05-31",
+                  "2025-09-01 to 2025-12-31"
+                ],
+                "desired_start": "2025-03-15"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_contractor_bids_ff44gg",
+          "content": "{\"bids\":[{\"contractor\":\"Lone Star Builders\",\"price\":115000,\"notes\":\"Includes permits and design assistance\"},{\"contractor\":\"Capital Construction\",\"price\":128000,\"notes\":\"Premium warranty\"}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "schedule_project_hh55ii",
+          "content": "{\"schedule\":[{\"phase\":\"Permitting\",\"start\":\"2025-03-15\",\"end\":\"2025-04-10\"},{\"phase\":\"Structural framing\",\"start\":\"2025-04-12\",\"end\":\"2025-05-05\"},{\"phase\":\"Stairwell installation\",\"start\":\"2025-05-07\",\"end\":\"2025-05-18\"},{\"phase\":\"Rough\u2011in (electrical & HVAC)\",\"start\":\"2025-05-20\",\"end\":\"2025-06-03\"},{\"phase\":\"Insulation & drywall\",\"start\":\"2025-06-05\",\"end\":\"2025-06-28\"},{\"phase\":\"Interior finishes\",\"start\":\"2025-07-01\",\"end\":\"2025-08-15\"}],\"total_duration_weeks\":20}"
+        },
+        {
+          "role": "assistant",
+          "content": "### Project Overview\n\n- **Code highlights**: Two egress routes for each new bedroom, fire\u2011rated stair enclosure, and HVAC capacity increase of 25\u202f%.\n- **Scope**: Structural framing, stairwell, electrical & HVAC extensions, insulation, drywall, and interior finishes for three bedrooms and a bathroom (see task list above).\n- **Selected contractor (lowest bid)**: Lone Star Builders \u2013 $115,000 (includes permits).\n- **Proposed schedule (starting 15\u202fMar\u202f2025)**: 20\u202fweeks total, ending around 15\u202fAug\u202f2025.\n\nWould you like a detailed budget breakdown (material costs + contingency) or to lock in the contractor and start date?\n",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,569 @@
+{
+  "name": "ConsentCraft AI",
+  "description": "An AI\u2011powered platform that automatically creates, customizes, and delivers patient consent forms for medical procedures. It adapts the content to the specific procedure, applicable legal jurisdiction, patient language preference, and the individual's health data, then records and securely sends the consent for signature.",
+  "tools": [
+    {
+      "name": "retrieve_template",
+      "description": "Retrieves a base consent form template for a specified medical procedure and jurisdiction. Returns the template text with placeholders for dynamic content.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "procedure": {
+            "type": "string",
+            "description": "The medical procedure name (e.g., \"knee arthroscopy\")."
+          },
+          "jurisdiction": {
+            "type": "string",
+            "description": "The legal jurisdiction or state (e.g., \"California\")."
+          }
+        },
+        "required": [
+          "procedure",
+          "jurisdiction"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_regulatory_requirements",
+      "description": "Looks up mandatory legal clauses, disclosures, and formatting rules for a given procedure in a specific jurisdiction. Returns an array of clause texts.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "procedure": {
+            "type": "string",
+            "description": "The medical procedure name."
+          },
+          "jurisdiction": {
+            "type": "string",
+            "description": "The state or country whose regulations apply."
+          }
+        },
+        "required": [
+          "procedure",
+          "jurisdiction"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "patient_data_lookup",
+      "description": "Pulls relevant patient demographics, medical history, and known allergies from the electronic health record (EHR) using the patient identifier.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "patient_id": {
+            "type": "string",
+            "description": "Unique identifier of the patient in the health system."
+          }
+        },
+        "required": [
+          "patient_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "translate_text",
+      "description": "Translates a block of English medical text into the requested target language while preserving clinical terminology.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The English text to translate."
+          },
+          "target_language": {
+            "type": "string",
+            "description": "ISO\u2011639\u20111 language code (e.g., \"es\" for Spanish, \"zh\" for Mandarin)."
+          }
+        },
+        "required": [
+          "text",
+          "target_language"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "format_consent_form",
+      "description": "Merges the template, patient\u2011specific information, risk statements, and regulatory clauses into a polished PDF/HTML document in the desired language.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "template": {
+            "type": "string",
+            "description": "The raw consent template with placeholders."
+          },
+          "patient_info": {
+            "type": "object",
+            "description": "Object containing patient name, age, and any relevant health details.",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Patient full name."
+              },
+              "age": {
+                "type": "integer",
+                "description": "Patient age."
+              },
+              "allergies": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "List of known allergies."
+              }
+            },
+            "required": [
+              "name",
+              "age"
+            ]
+          },
+          "risk_clauses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Array of risk statements specific to the procedure."
+          },
+          "regulatory_clauses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Legal clauses that must appear in the consent for the jurisdiction."
+          },
+          "language": {
+            "type": "string",
+            "description": "ISO\u2011639\u20111 code indicating the language of the final document."
+          }
+        },
+        "required": [
+          "template",
+          "patient_info",
+          "risk_clauses",
+          "regulatory_clauses",
+          "language"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "store_consent_record",
+      "description": "Persists the generated consent document (as base64\u2011encoded PDF) in the health system's document store and returns a unique record identifier.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "patient_id": {
+            "type": "string",
+            "description": "Identifier of the patient."
+          },
+          "document": {
+            "type": "string",
+            "description": "Base64\u2011encoded PDF of the consent."
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "html"
+            ],
+            "description": "File format of the stored document."
+          }
+        },
+        "required": [
+          "patient_id",
+          "document",
+          "format"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "send_to_patient",
+      "description": "Sends the consent document to the patient via the chosen delivery method (email or SMS) and includes a secure signing link.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "patient_contact": {
+            "type": "object",
+            "description": "Contact details for delivery.",
+            "properties": {
+              "email": {
+                "type": "string",
+                "format": "email",
+                "description": "Patient email address."
+              },
+              "phone": {
+                "type": "string",
+                "description": "Patient phone number in E.164 format."
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          },
+          "document_id": {
+            "type": "string",
+            "description": "Record identifier returned by store_consent_record."
+          },
+          "delivery_method": {
+            "type": "string",
+            "enum": [
+              "email",
+              "sms"
+            ],
+            "description": "How the patient should receive the consent."
+          }
+        },
+        "required": [
+          "patient_contact",
+          "document_id",
+          "delivery_method"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "audit_log",
+      "description": "Writes an audit entry recording the action performed, the user who initiated it, and any pertinent details.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "Short description of the action (e.g., \"generate_consent\")."
+          },
+          "user_id": {
+            "type": "string",
+            "description": "Identifier of the clinician or staff member who triggered the process."
+          },
+          "details": {
+            "type": "object",
+            "description": "Arbitrary key\u2011value pairs with extra context.",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "action",
+          "user_id",
+          "details"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "A clinician requests a Spanish\u2011language consent form for a 45\u2011year\u2011old patient undergoing knee arthroscopy in California. The assistant gathers the template, regulatory clauses, patient data, translates, formats, stores, and sends the document.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are ConsentCraft AI, an agentic assistant that creates legally compliant, patient\u2011specific consent forms and delivers them securely."
+        },
+        {
+          "role": "user",
+          "content": "Please generate a consent form for patient ID 12345 who will have a knee arthroscopy. The patient prefers Spanish and the procedure is scheduled in California."
+        },
+        {
+          "role": "assistant",
+          "content": "Generating the consent form\u2026",
+          "tool_calls": [
+            {
+              "id": "retrieve_template_001a",
+              "name": "retrieve_template",
+              "arguments": {
+                "procedure": "knee arthroscopy",
+                "jurisdiction": "California"
+              }
+            },
+            {
+              "id": "fetch_regulatory_requirements_001b",
+              "name": "fetch_regulatory_requirements",
+              "arguments": {
+                "procedure": "knee arthroscopy",
+                "jurisdiction": "California"
+              }
+            },
+            {
+              "id": "patient_data_lookup_001c",
+              "name": "patient_data_lookup",
+              "arguments": {
+                "patient_id": "12345"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "retrieve_template_001a",
+          "content": "{\"template\": \"[PatientName], you are scheduled for [Procedure]...\\n\\n[RiskSection]\\n\\n[RegulatorySection]\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_regulatory_requirements_001b",
+          "content": "{\"regulatory_clauses\": [\"You have the right to receive a copy of this consent form.\", \"You may withdraw consent at any time before the procedure.\"]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "patient_data_lookup_001c",
+          "content": "{\"name\": \"Mar\u00eda Gonz\u00e1lez\", \"age\": 45, \"allergies\": [\"Penicillin\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I will translate the English template and risk statements into Spanish, then assemble the final document.",
+          "tool_calls": [
+            {
+              "id": "translate_text_001d",
+              "name": "translate_text",
+              "arguments": {
+                "text": "[PatientName], you are scheduled for [Procedure]...\\n\\n[RiskSection]\\n\\n[RegulatorySection]",
+                "target_language": "es"
+              }
+            },
+            {
+              "id": "format_consent_form_001e",
+              "name": "format_consent_form",
+              "arguments": {
+                "template": "[PatientName], you are scheduled for [Procedure]...\\n\\n[RiskSection]\\n\\n[RegulatorySection]",
+                "patient_info": {
+                  "name": "Mar\u00eda Gonz\u00e1lez",
+                  "age": 45,
+                  "allergies": [
+                    "Penicillin"
+                  ]
+                },
+                "risk_clauses": [
+                  "Bleeding, infection, and blood clots are possible risks.",
+                  "There is a small chance of nerve injury leading to numbness."
+                ],
+                "regulatory_clauses": [
+                  "You have the right to receive a copy of this consent form.",
+                  "You may withdraw consent at any time before the procedure."
+                ],
+                "language": "es"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "translate_text_001d",
+          "content": "{\"translated_text\": \"Mar\u00eda Gonz\u00e1lez, est\u00e1 programada para una artroscopia de rodilla...\\n\\n[Secci\u00f3n de Riesgos]\\n\\n[Secci\u00f3n Regulatoria]\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "format_consent_form_001e",
+          "content": "{\"pdf_base64\": \"JVBERi0xLjQKJcfs... (truncated base64)\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "The consent PDF has been created and stored. I will now record the event and send the document to Mar\u00eda Gonz\u00e1lez via email.",
+          "tool_calls": [
+            {
+              "id": "store_consent_record_001f",
+              "name": "store_consent_record",
+              "arguments": {
+                "patient_id": "12345",
+                "document": "JVBERi0xLjQKJcfs... (truncated base64)",
+                "format": "pdf"
+              }
+            },
+            {
+              "id": "send_to_patient_001g",
+              "name": "send_to_patient",
+              "arguments": {
+                "patient_contact": {
+                  "email": "maria.gonzalez@example.com"
+                },
+                "document_id": "consent_78901",
+                "delivery_method": "email"
+              }
+            },
+            {
+              "id": "audit_log_001h",
+              "name": "audit_log",
+              "arguments": {
+                "action": "generate_consent",
+                "user_id": "clinician_567",
+                "details": {
+                  "patient_id": "12345",
+                  "procedure": "knee arthroscopy",
+                  "language": "es",
+                  "document_id": "consent_78901"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "store_consent_record_001f",
+          "content": "{\"record_id\": \"consent_78901\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_to_patient_001g",
+          "content": "{\"status\": \"queued\", \"message\": \"Email sent to maria.gonzalez@example.com with signing link.\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "audit_log_001h",
+          "content": "{\"status\": \"recorded\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 Consent form generated, stored (ID: consent_78901), and emailed to Mar\u00eda Gonz\u00e1lez. She will receive a secure link to review and sign the document.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "A nurse discovers that patient 98765 has a new latex allergy after a consent form for a catheter insertion was already generated. The nurse asks to regenerate the consent with the updated allergy information and send it via SMS.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are ConsentCraft AI, an autonomous assistant that creates and updates patient consent forms while ensuring legal compliance."
+        },
+        {
+          "role": "user",
+          "content": "Patient 98765 now has a latex allergy. Please update the consent for the urinary catheter insertion and send the new form to their phone."
+        },
+        {
+          "role": "assistant",
+          "content": "Updating the consent form with the new allergy information.",
+          "tool_calls": [
+            {
+              "id": "patient_data_lookup_002a",
+              "name": "patient_data_lookup",
+              "arguments": {
+                "patient_id": "98765"
+              }
+            },
+            {
+              "id": "retrieve_template_002b",
+              "name": "retrieve_template",
+              "arguments": {
+                "procedure": "urinary catheter insertion",
+                "jurisdiction": "New York"
+              }
+            },
+            {
+              "id": "fetch_regulatory_requirements_002c",
+              "name": "fetch_regulatory_requirements",
+              "arguments": {
+                "procedure": "urinary catheter insertion",
+                "jurisdiction": "New York"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "patient_data_lookup_002a",
+          "content": "{\"name\": \"John Doe\", \"age\": 62, \"allergies\": [\"Latex\"]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "retrieve_template_002b",
+          "content": "{\"template\": \"[PatientName], you are scheduled for [Procedure]...\\n\\n[RiskSection]\\n\\n[RegulatorySection]\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_regulatory_requirements_002c",
+          "content": "{\"regulatory_clauses\": [\"You may ask for a copy of this form.\", \"You can withdraw consent at any time before the procedure.\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Assembling the updated consent document.",
+          "tool_calls": [
+            {
+              "id": "format_consent_form_002d",
+              "name": "format_consent_form",
+              "arguments": {
+                "template": "[PatientName], you are scheduled for [Procedure]...\\n\\n[RiskSection]\\n\\n[RegulatorySection]",
+                "patient_info": {
+                  "name": "John Doe",
+                  "age": 62,
+                  "allergies": [
+                    "Latex"
+                  ]
+                },
+                "risk_clauses": [
+                  "Urinary tract infection and bleeding are possible risks.",
+                  "Discomfort or pain during insertion."
+                ],
+                "regulatory_clauses": [
+                  "You may ask for a copy of this form.",
+                  "You can withdraw consent at any time before the procedure."
+                ],
+                "language": "en"
+              }
+            },
+            {
+              "id": "store_consent_record_002e",
+              "name": "store_consent_record",
+              "arguments": {
+                "patient_id": "98765",
+                "document": "JVBERi0xLjQKJcfs... (truncated base64)",
+                "format": "pdf"
+              }
+            },
+            {
+              "id": "send_to_patient_002f",
+              "name": "send_to_patient",
+              "arguments": {
+                "patient_contact": {
+                  "phone": "+15551234567"
+                },
+                "document_id": "consent_54321",
+                "delivery_method": "sms"
+              }
+            },
+            {
+              "id": "audit_log_002g",
+              "name": "audit_log",
+              "arguments": {
+                "action": "update_consent",
+                "user_id": "nurse_312",
+                "details": {
+                  "patient_id": "98765",
+                  "procedure": "urinary catheter insertion",
+                  "updated_allergies": [
+                    "Latex"
+                  ],
+                  "document_id": "consent_54321"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "format_consent_form_002d",
+          "content": "{\"pdf_base64\": \"JVBERi0xLjQKJcfs... (truncated base64)\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "store_consent_record_002e",
+          "content": "{\"record_id\": \"consent_54321\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_to_patient_002f",
+          "content": "{\"status\": \"queued\", \"message\": \"SMS sent to +15551234567 with signing link.\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "audit_log_002g",
+          "content": "{\"status\": \"recorded\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 Updated consent generated (ID: consent_54321) and sent via SMS to John Doe\u2019s phone. The document now includes his latex allergy.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

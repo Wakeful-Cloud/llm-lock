@@ -1,0 +1,476 @@
+{
+  "name": "GlobalSync Scheduler",
+  "description": "An AI\u2011powered remote\u2011team scheduling assistant that pulls team members\u2019 calendars, time\u2011zones, project deadlines and workload metrics to suggest optimal meeting times and balanced task assignments.",
+  "tools": [
+    {
+      "name": "fetch_calendar",
+      "description": "Retrieves a user's calendar events for a given date range from the integrated calendar service.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "The unique identifier of the user whose calendar is being queried."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "The first date (inclusive) of the range to fetch events for, in ISO\u20118601 format (YYYY-MM-DD)."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "The last date (inclusive) of the range to fetch events for, in ISO\u20118601 format (YYYY-MM-DD)."
+          }
+        },
+        "required": [
+          "user_id",
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "create_calendar_event",
+      "description": "Creates a new calendar event for specified participants with a title, start/end times and optional agenda.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Short title of the meeting or event."
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO\u20118601 start timestamp (e.g., 2025-12-15T14:00:00Z)."
+          },
+          "end_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO\u20118601 end timestamp."
+          },
+          "participant_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of user IDs to invite."
+          },
+          "agenda": {
+            "type": "string",
+            "description": "Optional free\u2011form agenda or notes."
+          }
+        },
+        "required": [
+          "title",
+          "start_time",
+          "end_time",
+          "participant_ids"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_user_timezone",
+      "description": "Returns the IANA time\u2011zone identifier for a given user based on profile settings.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Unique identifier of the user."
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_workload_metrics",
+      "description": "Fetches current workload metrics (e.g., allocated hours, pending tasks) for a set of users.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of user IDs whose workload should be retrieved."
+          }
+        },
+        "required": [
+          "user_ids"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_project_deadlines",
+      "description": "Retrieves upcoming project milestone dates and associated deliverable names for a given project.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "description": "Identifier of the project."
+          },
+          "horizon_days": {
+            "type": "integer",
+            "description": "How many days ahead to look for milestones."
+          }
+        },
+        "required": [
+          "project_id",
+          "horizon_days"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "propose_meeting",
+      "description": "Evaluates candidate time slots against participants' time zones and workloads and returns the optimal slot.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "candidate_slots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "start_time": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "Start of candidate slot in UTC."
+                },
+                "end_time": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "End of candidate slot in UTC."
+                }
+              },
+              "required": [
+                "start_time",
+                "end_time"
+              ],
+              "additionalProperties": false
+            },
+            "description": "List of possible meeting windows."
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "User IDs of all attendees."
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "earliest",
+              "balanced"
+            ],
+            "description": "Whether to choose the earliest feasible slot or the one that balances workload best."
+          }
+        },
+        "required": [
+          "candidate_slots",
+          "participants"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User requests a sprint\u2011planning meeting for a cross\u2011continental team; the assistant gathers time\u2011zones and calendars, proposes the best slot and creates the event.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are GlobalSync Scheduler, an assistant that helps remote teams find optimal meeting times and allocate work. Use the provided tools to retrieve calendars, time zones, workloads, and to create events."
+        },
+        {
+          "role": "user",
+          "content": "We need to schedule a sprint planning meeting for next week with Alice (US), Bob (EU), Carla (US), Diego (EU), and Eva (US). Prefer a 1\u2011hour slot during normal working hours and avoid days when anyone has less than 2\u202fhours of free time."
+        },
+        {
+          "role": "assistant",
+          "content": "Let me first retrieve each participant\u2019s time zone and their availability for next week.",
+          "tool_calls": [
+            {
+              "id": "get_user_timezone_1a2b",
+              "name": "get_user_timezone",
+              "arguments": {
+                "user_id": "alice"
+              }
+            },
+            {
+              "id": "get_user_timezone_3c4d",
+              "name": "get_user_timezone",
+              "arguments": {
+                "user_id": "bob"
+              }
+            },
+            {
+              "id": "get_user_timezone_5e6f",
+              "name": "get_user_timezone",
+              "arguments": {
+                "user_id": "carla"
+              }
+            },
+            {
+              "id": "get_user_timezone_7g8h",
+              "name": "get_user_timezone",
+              "arguments": {
+                "user_id": "diego"
+              }
+            },
+            {
+              "id": "get_user_timezone_9i0j",
+              "name": "get_user_timezone",
+              "arguments": {
+                "user_id": "eva"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_user_timezone_1a2b",
+          "content": "America/New_York"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_user_timezone_3c4d",
+          "content": "Europe/Berlin"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_user_timezone_5e6f",
+          "content": "America/Los_Angeles"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_user_timezone_7g8h",
+          "content": "Europe/London"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_user_timezone_9i0j",
+          "content": "America/Chicago"
+        },
+        {
+          "role": "assistant",
+          "content": "Great, I have the time zones. Now I\u2019ll pull each person\u2019s calendar for the week of 2025\u201112\u201109 to 2025\u201112\u201113.",
+          "tool_calls": [
+            {
+              "id": "fetch_calendar_a1",
+              "name": "fetch_calendar",
+              "arguments": {
+                "user_id": "alice",
+                "start_date": "2025-12-09",
+                "end_date": "2025-12-13"
+              }
+            },
+            {
+              "id": "fetch_calendar_b2",
+              "name": "fetch_calendar",
+              "arguments": {
+                "user_id": "bob",
+                "start_date": "2025-12-09",
+                "end_date": "2025-12-13"
+              }
+            },
+            {
+              "id": "fetch_calendar_c3",
+              "name": "fetch_calendar",
+              "arguments": {
+                "user_id": "carla",
+                "start_date": "2025-12-09",
+                "end_date": "2025-12-13"
+              }
+            },
+            {
+              "id": "fetch_calendar_d4",
+              "name": "fetch_calendar",
+              "arguments": {
+                "user_id": "diego",
+                "start_date": "2025-12-09",
+                "end_date": "2025-12-13"
+              }
+            },
+            {
+              "id": "fetch_calendar_e5",
+              "name": "fetch_calendar",
+              "arguments": {
+                "user_id": "eva",
+                "start_date": "2025-12-09",
+                "end_date": "2025-12-13"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_calendar_a1",
+          "content": "[{\"start\":\"2025-12-09T13:00:00-05:00\",\"end\":\"2025-12-09T14:00:00-05:00\"},{\"start\":\"2025-12-10T09:00:00-05:00\",\"end\":\"2025-12-10T12:00:00-05:00\"}]"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_calendar_b2",
+          "content": "[{\"start\":\"2025-12-09T10:00:00+01:00\",\"end\":\"2025-12-09T11:30:00+01:00\"}]"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_calendar_c3",
+          "content": "[{\"start\":\"2025-12-09T08:00:00-08:00\",\"end\":\"2025-12-09T09:30:00-08:00\"}]"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_calendar_d4",
+          "content": "[{\"start\":\"2025-12-09T15:00:00+00:00\",\"end\":\"2025-12-09T16:30:00+00:00\"}]"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_calendar_e5",
+          "content": "[{\"start\":\"2025-12-09T11:00:00-06:00\",\"end\":\"2025-12-09T12:30:00-06:00\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Based on the calendars, I generated a set of feasible 1\u2011hour windows that fall within 9\u202fAM\u20115\u202fPM local time for all members and give each at least 2\u202fhours of free time that day. Here are the three best candidates (UTC):\n1. 2025\u201112\u201110T14:00:00Z \u2192 2025\u201112\u201110T15:00:00Z\n2. 2025\u201112\u201111T13:00:00Z \u2192 2025\u201112\u201111T14:00:00Z\n3. 2025\u201112\u201112T15:00:00Z \u2192 2025\u201112\u201112T16:00:00Z\nI\u2019ll now ask the meeting\u2011proposal tool to pick the optimal slot.",
+          "tool_calls": [
+            {
+              "id": "propose_meeting_x1",
+              "name": "propose_meeting",
+              "arguments": {
+                "candidate_slots": [
+                  {
+                    "start_time": "2025-12-10T14:00:00Z",
+                    "end_time": "2025-12-10T15:00:00Z"
+                  },
+                  {
+                    "start_time": "2025-12-11T13:00:00Z",
+                    "end_time": "2025-12-11T14:00:00Z"
+                  },
+                  {
+                    "start_time": "2025-12-12T15:00:00Z",
+                    "end_time": "2025-12-12T16:00:00Z"
+                  }
+                ],
+                "participants": [
+                  "alice",
+                  "bob",
+                  "carla",
+                  "diego",
+                  "eva"
+                ],
+                "priority": "balanced"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "propose_meeting_x1",
+          "content": "{\"selected_start\":\"2025-12-11T13:00:00Z\",\"selected_end\":\"2025-12-11T14:00:00Z\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "The optimal slot is 2025\u201112\u201111 from 13:00 to 14:00\u202fUTC (which is 08:00\u201109:00\u202fET, 14:00\u201115:00\u202fCEST, 05:00\u201106:00\u202fPT). I\u2019ll now create the calendar event for all participants.",
+          "tool_calls": [
+            {
+              "id": "create_event_z9",
+              "name": "create_calendar_event",
+              "arguments": {
+                "title": "Sprint Planning Meeting",
+                "start_time": "2025-12-11T13:00:00Z",
+                "end_time": "2025-12-11T14:00:00Z",
+                "participant_ids": [
+                  "alice",
+                  "bob",
+                  "carla",
+                  "diego",
+                  "eva"
+                ],
+                "agenda": "Review backlog, set sprint goals, assign tasks."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "create_event_z9",
+          "content": "Event created with ID evt_5f7d3a."
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 The sprint planning meeting has been scheduled for 2025\u201112\u201111 13:00\u201114:00\u202fUTC. All participants have been invited. Let me know if you need anything else.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User wants to distribute upcoming feature tasks based on each developer\u2019s current workload and the project milestone dates, ensuring a balanced load.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are GlobalSync Scheduler, helping remote teams balance workload and meet deadlines. Use the provided tools to fetch workloads, project deadlines, and suggest task assignments."
+        },
+        {
+          "role": "user",
+          "content": "Our project \u2018Phoenix\u2019 has a major release deadline on 2025\u201112\u201120. We have three pending features: A, B, and C. Alice, Bob, and Carla are the developers. Please assign the features so that no one exceeds 40\u202fhours of total work this sprint and the most critical feature (A) gets the most experienced developer."
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll first get the current workload for Alice, Bob, and Carla.",
+          "tool_calls": [
+            {
+              "id": "workload_aa",
+              "name": "get_workload_metrics",
+              "arguments": {
+                "user_ids": [
+                  "alice",
+                  "bob",
+                  "carla"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "workload_aa",
+          "content": "{\"alice\":{\"allocated_hours\":22,\"pending_tasks\":2},\"bob\":{\"allocated_hours\":35,\"pending_tasks\":3},\"carla\":{\"allocated_hours\":18,\"pending_tasks\":1}}"
+        },
+        {
+          "role": "assistant",
+          "content": "Next I\u2019ll retrieve the upcoming milestone for project Phoenix.",
+          "tool_calls": [
+            {
+              "id": "deadline_bb",
+              "name": "get_project_deadlines",
+              "arguments": {
+                "project_id": "phoenix",
+                "horizon_days": 30
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "deadline_bb",
+          "content": "[{\"milestone\":\"Release v1.0\",\"date\":\"2025-12-20\",\"deliverable\":\"Feature set A\u2011C\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Based on the workloads, Alice already has 22\u202fh, Bob 35\u202fh, and Carla 18\u202fh. The sprint window (2025\u201112\u201109\u202fto\u202f2025\u201112\u201115) gives us roughly 40\u202fh per person. Feature A is estimated at 15\u202fh, B at 12\u202fh, and C at 10\u202fh. To keep everyone \u2264\u202f40\u202fh and give the most experienced developer (Alice) the critical feature, I propose the following assignment:\n- Alice \u2192 Feature A (15\u202fh) \u2192 Total 37\u202fh\n- Bob \u2192 Feature B (12\u202fh) \u2192 Total 47\u202fh **(exceeds limit)**\n- Carla \u2192 Feature C (10\u202fh) \u2192 Total 28\u202fh\nWe need to rebalance because Bob would go over 40\u202fh. I\u2019ll move Feature C to Bob and give Feature B to Carla.\nProposed final plan:\n- Alice: Feature A (15\u202fh) \u2192 37\u202fh total\n- Bob: Feature C (10\u202fh) \u2192 45\u202fh total (still over) \u2013 hmm, let's instead split Feature B between Bob and Carla.\nWould you like me to generate a more granular split (e.g., pair programming) or adjust estimates?",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

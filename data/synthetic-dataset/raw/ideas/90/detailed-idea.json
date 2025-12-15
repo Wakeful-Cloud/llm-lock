@@ -1,0 +1,307 @@
+{
+  "name": "LexiTranslate",
+  "description": "LexiTranslate is an AI\u2011enhanced legal document translation service that converts contracts, terms\u2011of\u2011service, and other legal texts between languages while preserving precise legal terminology. It leverages bilingual legal corpora, jurisdiction\u2011specific glossaries, and post\u2011processing tools to deliver translations that are both linguistically accurate and legally enforceable, enabling law firms, multinational corporations, and freelancers to work across borders with confidence.",
+  "tools": [
+    {
+      "name": "detect_language",
+      "description": "Detects the ISO\u2011639\u20111 language code of a given piece of text. Useful as a first step before translation when the source language is unknown.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The raw text whose language should be identified."
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_legal_glossary",
+      "description": "Retrieves a jurisdiction\u2011specific legal glossary entry for a term, returning the preferred translation in the target language and any usage notes.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "term": {
+            "type": "string",
+            "description": "Legal term (in source language) to look up."
+          },
+          "source_lang": {
+            "type": "string",
+            "description": "ISO\u2011639\u20111 code of the source language (e.g., \"en\")."
+          },
+          "target_lang": {
+            "type": "string",
+            "description": "ISO\u2011639\u20111 code of the target language (e.g., \"es\")."
+          },
+          "jurisdiction": {
+            "type": "string",
+            "description": "Optional jurisdiction identifier (e.g., \"US-CA\", \"EU\")."
+          }
+        },
+        "required": [
+          "term",
+          "source_lang",
+          "target_lang"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "translate_text",
+      "description": "Translates legal text from a source language to a target language, optionally applying a custom glossary to enforce exact term translations.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The full legal text to translate."
+          },
+          "source_lang": {
+            "type": "string",
+            "description": "ISO\u2011639\u20111 code of the source language."
+          },
+          "target_lang": {
+            "type": "string",
+            "description": "ISO\u2011639\u20111 code of the target language."
+          },
+          "glossary": {
+            "type": "object",
+            "description": "A map of source terms to target terms (e.g., {\"force majeure\": \"fuerza mayor\"}).",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "text",
+          "source_lang",
+          "target_lang"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "compare_versions",
+      "description": "Compares an original legal text with its translation and returns a diff report highlighting any missing or altered legal terminology.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "original_text": {
+            "type": "string",
+            "description": "The source\u2011language legal text."
+          },
+          "translated_text": {
+            "type": "string",
+            "description": "The target\u2011language translation to compare."
+          },
+          "source_lang": {
+            "type": "string",
+            "description": "ISO\u2011639\u20111 code of the source language."
+          },
+          "target_lang": {
+            "type": "string",
+            "description": "ISO\u2011639\u20111 code of the target language."
+          }
+        },
+        "required": [
+          "original_text",
+          "translated_text",
+          "source_lang",
+          "target_lang"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "format_output",
+      "description": "Wraps translated legal text in the requested output format (Markdown, HTML, or PDF\u2011encoded base64) for easy download or integration.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "translated_text": {
+            "type": "string",
+            "description": "The already\u2011translated legal document."
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "markdown",
+              "html",
+              "pdf"
+            ],
+            "description": "Desired output format."
+          }
+        },
+        "required": [
+          "translated_text",
+          "format"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks to translate a force\u2011majeure clause from English to Spanish, ensuring the term is rendered with the jurisdiction\u2011specific wording used in Spanish civil law.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LexiTranslate, an expert legal translator. Use the provided tools to detect language, fetch specialized glossaries, translate text, and format the final output."
+        },
+        {
+          "role": "user",
+          "content": "Please translate the following clause into Spanish, preserving the exact legal terminology for \u2018force majeure\u2019 as used in Spanish civil contracts:\n\n\"The parties agree that any event of force majeure, including natural disasters, war, or governmental action, shall suspend performance without liability.\"\n"
+        },
+        {
+          "role": "assistant",
+          "content": "I will first detect the language of the source text, then fetch the appropriate legal glossary entry for \u201cforce majeure\u201d, and finally translate the clause using that glossary.",
+          "tool_calls": [
+            {
+              "id": "detect_language_1a2b",
+              "name": "detect_language",
+              "arguments": {
+                "text": "The parties agree that any event of force majeure, including natural disasters, war, or governmental action, shall suspend performance without liability."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "detect_language_1a2b",
+          "content": "{\"language\":\"en\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I will retrieve the Spanish civil\u2011law translation for the term \u201cforce majeure\u201d.",
+          "tool_calls": [
+            {
+              "id": "fetch_legal_glossary_3c4d",
+              "name": "fetch_legal_glossary",
+              "arguments": {
+                "term": "force majeure",
+                "source_lang": "en",
+                "target_lang": "es",
+                "jurisdiction": "ES"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_legal_glossary_3c4d",
+          "content": "{\"translation\":\"fuerza mayor\",\"notes\":\"Used in Spanish Civil Code Art. 1105 as \u2018fuerza mayor\u2019\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "I have the glossary entry. I will now translate the clause, forcing the term to use the retrieved translation.",
+          "tool_calls": [
+            {
+              "id": "translate_text_5e6f",
+              "name": "translate_text",
+              "arguments": {
+                "text": "The parties agree that any event of force majeure, including natural disasters, war, or governmental action, shall suspend performance without liability.",
+                "source_lang": "en",
+                "target_lang": "es",
+                "glossary": {
+                  "force majeure": "fuerza mayor"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "translate_text_5e6f",
+          "content": "{\"translated_text\":\"Las partes acuerdan que cualquier evento de fuerza mayor, incluidos desastres naturales, guerra o acci\u00f3n gubernamental, suspender\u00e1 la ejecuci\u00f3n sin responsabilidad.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Finally, I will format the result as Markdown for easy reading.",
+          "tool_calls": [
+            {
+              "id": "format_output_7g8h",
+              "name": "format_output",
+              "arguments": {
+                "translated_text": "Las partes acuerdan que cualquier evento de fuerza mayor, incluidos desastres naturales, guerra o acci\u00f3n gubernamental, suspender\u00e1 la ejecuci\u00f3n sin responsabilidad.",
+                "format": "markdown"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "format_output_7g8h",
+          "content": "# Translated Clause (Spanish)\n\nLas partes acuerdan que cualquier evento de **fuerza mayor**, incluidos desastres naturales, guerra o acci\u00f3n gubernamental, suspender\u00e1 la ejecuci\u00f3n sin responsabilidad."
+        },
+        {
+          "role": "assistant",
+          "content": "Here is your translated clause in Markdown:\n\n# Translated Clause (Spanish)\n\nLas partes acuerdan que cualquier evento de **fuerza mayor**, incluidos desastres naturales, guerra o acci\u00f3n gubernamental, suspender\u00e1 la ejecuci\u00f3n sin responsabilidad.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User uploads a short employment contract in English and wants a side\u2011by\u2011side comparison with the German translation, highlighting any legal terms that changed.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LexiTranslate, an AI\u2011powered legal translator capable of generating diff reports between source and target texts."
+        },
+        {
+          "role": "user",
+          "content": "Please translate this employment contract into German and give me a diff report that flags any legal terminology that differs from the source.\n\n\"Employer: ABC Corp.\nEmployee: John Doe\nTerm: This agreement is effective from 1\u202fJanuary\u202f2025 for a period of two years.\nTermination: Either party may terminate with 30 days' written notice.\nGoverning Law: The laws of the State of New York shall apply.\"\n"
+        },
+        {
+          "role": "assistant",
+          "content": "I will translate the contract to German and then generate a diff report that emphasizes any legal terms that changed.",
+          "tool_calls": [
+            {
+              "id": "translate_text_a1b2",
+              "name": "translate_text",
+              "arguments": {
+                "text": "Employer: ABC Corp.\nEmployee: John Doe\nTerm: This agreement is effective from 1\u202fJanuary\u202f2025 for a period of two years.\nTermination: Either party may terminate with 30 days' written notice.\nGoverning Law: The laws of the State of New York shall apply.",
+                "source_lang": "en",
+                "target_lang": "de"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "translate_text_a1b2",
+          "content": "{\"translated_text\":\"Arbeitgeber: ABC Corp.\nArbeitnehmer: John Doe\nLaufzeit: Dieser Vertrag tritt am 1. Januar 2025 in Kraft und hat eine Laufzeit von zwei Jahren.\nK\u00fcndigung: Jede Partei kann mit einer schriftlichen Frist von 30 Tagen k\u00fcndigen.\nGeltendes Recht: Es gilt das Recht des Bundesstaates New York.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I will compare the English source with the German translation and highlight any legal terminology differences.",
+          "tool_calls": [
+            {
+              "id": "compare_versions_c3d4",
+              "name": "compare_versions",
+              "arguments": {
+                "original_text": "Employer: ABC Corp.\nEmployee: John Doe\nTerm: This agreement is effective from 1\u202fJanuary\u202f2025 for a period of two years.\nTermination: Either party may terminate with 30 days' written notice.\nGoverning Law: The laws of the State of New York shall apply.",
+                "translated_text": "Arbeitgeber: ABC Corp.\nArbeitnehmer: John Doe\nLaufzeit: Dieser Vertrag tritt am 1. Januar 2025 in Kraft und hat eine Laufzeit von zwei Jahren.\nK\u00fcndigung: Jede Partei kann mit einer schriftlichen Frist von 30 Tagen k\u00fcndigen.\nGeltendes Recht: Es gilt das Recht des Bundesstaates New York.",
+                "source_lang": "en",
+                "target_lang": "de"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "compare_versions_c3d4",
+          "content": "{\"diff\":\"- Term: This agreement is effective from 1\u202fJanuary\u202f2025 for a period of two years.\\n+ Laufzeit: Dieser Vertrag tritt am 1. Januar 2025 in Kraft und hat eine Laufzeit von zwei Jahren.\\n- Governing Law: The laws of the State of New York shall apply.\\n+ Geltendes Recht: Es gilt das Recht des Bundesstaates New York.\",\"notes\":\"All key legal terms (Employer, Employee, Term/Laufzeit, Termination/K\u00fcndigung, Governing Law/Geltendes Recht) were correctly translated. No terminology loss detected.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the side\u2011by\u2011side diff report:\n\n```\n- Term: This agreement is effective from 1\u202fJanuary\u202f2025 for a period of two years.\n+ Laufzeit: Dieser Vertrag tritt am 1. Januar 2025 in Kraft und hat eine Laufzeit von zwei Jahren.\n\n- Governing Law: The laws of the State of New York shall apply.\n+ Geltendes Recht: Es gilt das Recht des Bundesstaates New York.\n```\n\nAll critical legal terms were preserved in the German version.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

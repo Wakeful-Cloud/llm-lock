@@ -1,0 +1,603 @@
+{
+  "name": "FAQMaster AI",
+  "description": "An AI\u2011generated FAQ bot that automatically ingests product manuals, support tickets and community forum posts, extracts knowledge, continuously learns, and publishes dynamic FAQ pages that stay up\u2011to\u2011date without manual effort.",
+  "tools": [
+    {
+      "name": "fetch_documents",
+      "description": "Retrieves document identifiers from the configured storage based on source type (manuals, tickets, forum) and optional filters such as product ID or date range.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "manuals",
+              "tickets",
+              "forum"
+            ],
+            "description": "Type of source to fetch."
+          },
+          "product_id": {
+            "type": "string",
+            "description": "Unique identifier of the product whose documents are requested."
+          },
+          "date_from": {
+            "type": "string",
+            "format": "date",
+            "description": "Earliest creation date of documents to include (optional)."
+          },
+          "date_to": {
+            "type": "string",
+            "format": "date",
+            "description": "Latest creation date of documents to include (optional)."
+          }
+        },
+        "required": [
+          "source_type",
+          "product_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "extract_text",
+      "description": "Parses a raw document (PDF, HTML, plain\u2011text, or image) identified by doc_id and returns the extracted clean text.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "doc_id": {
+            "type": "string",
+            "description": "Identifier returned by fetch_documents."
+          },
+          "doc_type": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "html",
+              "txt",
+              "image"
+            ],
+            "description": "Original format of the document."
+          }
+        },
+        "required": [
+          "doc_id",
+          "doc_type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "embed_text",
+      "description": "Generates vector embeddings for each supplied text chunk using the configured LLM embedding model.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "chunks": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "A piece of extracted text, typically 200\u2011500 words."
+            },
+            "description": "List of text chunks to embed."
+          }
+        },
+        "required": [
+          "chunks"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "query_vector_store",
+      "description": "Performs a similarity search over the stored embeddings and returns the most relevant text passages.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Natural\u2011language query describing the information needed."
+          },
+          "top_k": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "description": "Number of most similar passages to retrieve."
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "summarize_chunks",
+      "description": "Creates a concise summary of the supplied text chunks, optionally limiting the output length.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "chunks": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Raw text chunk to be summarized."
+            },
+            "description": "Pieces of text to condense."
+          },
+          "max_length": {
+            "type": "integer",
+            "minimum": 50,
+            "maximum": 1000,
+            "description": "Maximum number of characters for the summary."
+          }
+        },
+        "required": [
+          "chunks"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_faq",
+      "description": "Generates a set of question\u2011answer pairs given a list of topics and supporting source summaries.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "topics": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "High\u2011level topic (e.g., \"Installation\", \"Troubleshooting power issues\")."
+            },
+            "description": "Topics that the FAQ should cover."
+          },
+          "source_summaries": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Summaries produced by summarize_chunks."
+            },
+            "description": "Relevant knowledge extracts to base the FAQ on."
+          },
+          "faq_count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Desired number of Q&A pairs."
+          }
+        },
+        "required": [
+          "topics",
+          "source_summaries"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "update_faq_page",
+      "description": "Pushes the generated FAQ markdown content to the product's public help site via the configured CMS API.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "description": "Identifier of the product whose FAQ page will be updated."
+          },
+          "faq_content": {
+            "type": "string",
+            "description": "Markdown string containing the full FAQ (questions and answers)."
+          }
+        },
+        "required": [
+          "product_id",
+          "faq_content"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks the bot to create a fresh FAQ for the newly released X200 smartwatch. The assistant fetches manuals, recent tickets and forum threads, extracts and summarizes relevant knowledge, generates 12 Q&A pairs and publishes them to the help site.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are FAQMaster AI, an autonomous agent that builds and maintains FAQ pages by ingesting product manuals, support tickets and community forum posts. Use the available tools to retrieve, process, and publish content. Respond to the user only after the FAQ is successfully published."
+        },
+        {
+          "role": "user",
+          "content": "Create an up\u2011to\u2011date FAQ page for the X200 smartwatch."
+        },
+        {
+          "role": "assistant",
+          "content": "Sure, I\u2019ll start by gathering all source documents for the X200.",
+          "tool_calls": [
+            {
+              "id": "fetch_documents_1a2b3c",
+              "name": "fetch_documents",
+              "arguments": {
+                "source_type": "manuals",
+                "product_id": "X200"
+              }
+            },
+            {
+              "id": "fetch_documents_4d5e6f",
+              "name": "fetch_documents",
+              "arguments": {
+                "source_type": "tickets",
+                "product_id": "X200",
+                "date_from": "2024-01-01",
+                "date_to": "2024-12-31"
+              }
+            },
+            {
+              "id": "fetch_documents_7g8h9i",
+              "name": "fetch_documents",
+              "arguments": {
+                "source_type": "forum",
+                "product_id": "X200",
+                "date_from": "2024-01-01",
+                "date_to": "2024-12-31"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_documents_1a2b3c",
+          "content": "{\"doc_ids\": [\"manual_001\", \"manual_002\"]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_documents_4d5e6f",
+          "content": "{\"doc_ids\": [\"ticket_101\", \"ticket_102\", \"ticket_103\"]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_documents_7g8h9i",
+          "content": "{\"doc_ids\": [\"forum_201\", \"forum_202\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Got the document IDs. I\u2019ll now extract the raw text from each of them.",
+          "tool_calls": [
+            {
+              "id": "extract_text_aa11bb",
+              "name": "extract_text",
+              "arguments": {
+                "doc_id": "manual_001",
+                "doc_type": "pdf"
+              }
+            },
+            {
+              "id": "extract_text_cc22dd",
+              "name": "extract_text",
+              "arguments": {
+                "doc_id": "manual_002",
+                "doc_type": "pdf"
+              }
+            },
+            {
+              "id": "extract_text_ee33ff",
+              "name": "extract_text",
+              "arguments": {
+                "doc_id": "ticket_101",
+                "doc_type": "txt"
+              }
+            },
+            {
+              "id": "extract_text_gg44hh",
+              "name": "extract_text",
+              "arguments": {
+                "doc_id": "forum_201",
+                "doc_type": "html"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_text_aa11bb",
+          "content": "{\"text\": \"...extracted text of manual 001...\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_text_cc22dd",
+          "content": "{\"text\": \"...extracted text of manual 002...\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_text_ee33ff",
+          "content": "{\"text\": \"Customer reports battery drains after 4h of use...\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_text_gg44hh",
+          "content": "{\"text\": \"Thread: 'Why does the heart\u2011rate sensor lag?'.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Text extraction complete. I\u2019ll chunk the texts and generate embeddings.",
+          "tool_calls": [
+            {
+              "id": "embed_text_zz99yy",
+              "name": "embed_text",
+              "arguments": {
+                "chunks": [
+                  "...extracted text of manual 001...",
+                  "...extracted text of manual 002...",
+                  "Customer reports battery drains after 4h of use...",
+                  "Thread: 'Why does the heart\u2011rate sensor lag?'."
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "embed_text_zz99yy",
+          "content": "{\"status\": \"embeddings stored\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I\u2019ll retrieve the most relevant passages for the main FAQ topics.",
+          "tool_calls": [
+            {
+              "id": "query_vector_store_1",
+              "name": "query_vector_store",
+              "arguments": {
+                "query": "How to set up Bluetooth pairing on X200?",
+                "top_k": 5
+              }
+            },
+            {
+              "id": "query_vector_store_2",
+              "name": "query_vector_store",
+              "arguments": {
+                "query": "Battery life expectations and troubleshooting",
+                "top_k": 5
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "query_vector_store_1",
+          "content": "{\"passages\": [\"...pairing instructions from manual...\", \"...user tip from forum...\"]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "query_vector_store_2",
+          "content": "{\"passages\": [\"...battery specs from manual...\", \"...ticket about rapid drain...\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll summarize the retrieved passages before generating the FAQ.",
+          "tool_calls": [
+            {
+              "id": "summarize_chunks_abc123",
+              "name": "summarize_chunks",
+              "arguments": {
+                "chunks": [
+                  "...pairing instructions from manual...",
+                  "...user tip from forum...",
+                  "...battery specs from manual...",
+                  "...ticket about rapid drain..."
+                ],
+                "max_length": 800
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_chunks_abc123",
+          "content": "{\"summary\": \"Bluetooth pairing: open Settings \u2192 Bluetooth, hold the side button for 5 seconds, select X200. Battery: 48\u2011hour typical use, issues often caused by third\u2011party apps; resetting clears. \"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Using the summary, I\u2019ll now create 12 FAQ entries covering the most common topics.",
+          "tool_calls": [
+            {
+              "id": "generate_faq_f1",
+              "name": "generate_faq",
+              "arguments": {
+                "topics": [
+                  "Bluetooth pairing",
+                  "Battery life & troubleshooting",
+                  "Heart\u2011rate sensor accuracy",
+                  "Water resistance limits",
+                  "Firmware update process"
+                ],
+                "source_summaries": [
+                  "Bluetooth pairing: open Settings \u2192 Bluetooth, hold the side button for 5 seconds, select X200. Battery: 48\u2011hour typical use, issues often caused by third\u2011party apps; resetting clears."
+                ],
+                "faq_count": 12
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_faq_f1",
+          "content": "{\"faq\": \"### Q: How do I pair my X200 with my phone?\\nA: Open Settings \u2192 Bluetooth, hold the side button on the watch for 5 seconds until it vibrates, then select \\\"X200\\\" in your phone\u2019s Bluetooth list.\\n\\n### Q: Why does the battery drain quickly?\\nA: ... (remaining 10 Q&A pairs)\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Finally I\u2019ll push the generated FAQ to the website.",
+          "tool_calls": [
+            {
+              "id": "update_faq_page_777",
+              "name": "update_faq_page",
+              "arguments": {
+                "product_id": "X200",
+                "faq_content": "### Q: How do I pair my X200 with my phone?\nA: Open Settings \u2192 Bluetooth, hold the side button on the watch for 5 seconds until it vibrates, then select \"X200\" in your phone\u2019s Bluetooth list.\n\n### Q: Why does the battery drain quickly?\nA: ... (remaining 10 Q&A pairs)"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "update_faq_page_777",
+          "content": "{\"status\": \"FAQ page updated successfully\", \"url\": \"https://support.example.com/x200/faq\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 The FAQ page for the X200 smartwatch has been created and published at https://support.example.com/x200/faq. Let me know if you\u2019d like to add more topics or schedule periodic updates.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User reports a surge of new support tickets about a firmware bug. The assistant identifies the new tickets, extracts the symptom, updates the existing FAQ with a new entry, and republishes the page.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are FAQMaster AI, responsible for keeping product FAQs current by ingesting new support tickets and forum activity."
+        },
+        {
+          "role": "user",
+          "content": "We just got 15 new tickets that the X200 crashes after the latest firmware update. Add a troubleshooting entry to the FAQ."
+        },
+        {
+          "role": "assistant",
+          "content": "Understood. I\u2019ll fetch the latest tickets for the X200.",
+          "tool_calls": [
+            {
+              "id": "fetch_documents_newtickets",
+              "name": "fetch_documents",
+              "arguments": {
+                "source_type": "tickets",
+                "product_id": "X200",
+                "date_from": "2025-11-01",
+                "date_to": "2025-12-07"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_documents_newtickets",
+          "content": "{\"doc_ids\": [\"ticket_301\", \"ticket_302\", \"ticket_303\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll extract the text of those tickets.",
+          "tool_calls": [
+            {
+              "id": "extract_text_t301",
+              "name": "extract_text",
+              "arguments": {
+                "doc_id": "ticket_301",
+                "doc_type": "txt"
+              }
+            },
+            {
+              "id": "extract_text_t302",
+              "name": "extract_text",
+              "arguments": {
+                "doc_id": "ticket_302",
+                "doc_type": "txt"
+              }
+            },
+            {
+              "id": "extract_text_t303",
+              "name": "extract_text",
+              "arguments": {
+                "doc_id": "ticket_303",
+                "doc_type": "txt"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_text_t301",
+          "content": "{\"text\": \"After installing firmware v3.2.1 the watch reboots randomly within 2 minutes.\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_text_t302",
+          "content": "{\"text\": \"v3.2.1 causes the device to freeze on the home screen, needs a hard reset.\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_text_t303",
+          "content": "{\"text\": \"Crash occurs when Bluetooth is on after the update.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Summarizing the new ticket information.",
+          "tool_calls": [
+            {
+              "id": "summarize_new_issues",
+              "name": "summarize_chunks",
+              "arguments": {
+                "chunks": [
+                  "After installing firmware v3.2.1 the watch reboots randomly within 2 minutes.",
+                  "v3.2.1 causes the device to freeze on the home screen, needs a hard reset.",
+                  "Crash occurs when Bluetooth is on after the update."
+                ],
+                "max_length": 500
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_new_issues",
+          "content": "{\"summary\": \"Firmware v3.2.1 introduces crashes: random reboot, home\u2011screen freeze, and Bluetooth\u2011related crash. Work\u2011around: reinstall previous firmware or perform a hard reset.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll append a new FAQ entry based on the summary and republish.",
+          "tool_calls": [
+            {
+              "id": "generate_faq_update",
+              "name": "generate_faq",
+              "arguments": {
+                "topics": [
+                  "Firmware v3.2.1 crash issue"
+                ],
+                "source_summaries": [
+                  "Firmware v3.2.1 introduces crashes: random reboot, home\u2011screen freeze, and Bluetooth\u2011related crash. Work\u2011around: reinstall previous firmware or perform a hard reset."
+                ],
+                "faq_count": 1
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_faq_update",
+          "content": "{\"faq\": \"### Q: My X200 crashes after updating to firmware v3.2.1. What should I do?\\nA: This firmware version is known to cause random reboots and freezes. As a temporary fix, roll back to the previous firmware (v3.1.9) via the Settings \u2192 About \u2192 Firmware section, or perform a hard reset (hold both side buttons for 10 seconds) and reinstall the older version. A hot\u2011fix is scheduled for next week.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Appending the new entry to the existing FAQ and updating the page.",
+          "tool_calls": [
+            {
+              "id": "update_faq_page_bugfix",
+              "name": "update_faq_page",
+              "arguments": {
+                "product_id": "X200",
+                "faq_content": "### Existing FAQ content...\\n\\n### Q: My X200 crashes after updating to firmware v3.2.1. What should I do?\\nA: This firmware version is known to cause random reboots and freezes. As a temporary fix, roll back to the previous firmware (v3.1.9) via the Settings \u2192 About \u2192 Firmware section, or perform a hard reset (hold both side buttons for 10 seconds) and reinstall the older version. A hot\u2011fix is scheduled for next week."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "update_faq_page_bugfix",
+          "content": "{\"status\": \"FAQ updated\", \"url\": \"https://support.example.com/x200/faq\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 The FAQ now includes a troubleshooting entry for the firmware v3.2.1 crash issue. The updated page is live at https://support.example.com/x200/faq.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

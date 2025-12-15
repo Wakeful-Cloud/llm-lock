@@ -1,0 +1,398 @@
+{
+  "name": "InterviewCoach AI",
+  "description": "An AI\u2011driven interview coaching platform that lets users upload video or audio answers, automatically transcribes them, analyses vocal confidence and body\u2011language cues, compares the content against the target job description, and returns a detailed feedback report covering phrasing, confidence, and relevance.",
+  "tools": [
+    {
+      "name": "upload_media",
+      "description": "Accepts a URL to a video or audio file, validates the media type, stores the media in a temporary bucket, and returns a unique media_id for downstream processing.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_url": {
+            "type": "string",
+            "description": "HTTPS URL pointing to the media file (video or audio)."
+          },
+          "media_type": {
+            "type": "string",
+            "enum": [
+              "video",
+              "audio"
+            ],
+            "description": "Specifies whether the uploaded file is a video or an audio recording."
+          }
+        },
+        "required": [
+          "file_url",
+          "media_type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "transcribe_media",
+      "description": "Runs a speech\u2011to\u2011text engine on the stored media and returns the plain\u2011text transcript together with timestamps.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "media_id": {
+            "type": "string",
+            "description": "Identifier returned by upload_media that points to the stored media."
+          }
+        },
+        "required": [
+          "media_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "analyze_facial_expression",
+      "description": "Analyzes a video for eye\u2011contact, smile intensity, nods, and facial tension, returning normalized scores (0\u20111) for each cue.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "media_id": {
+            "type": "string",
+            "description": "Identifier of the video to be analysed."
+          }
+        },
+        "required": [
+          "media_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "analyze_voice_confidence",
+      "description": "Evaluates prosody, pitch variation, speech rate, and filler usage to compute a confidence_score between 0 and 1.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "media_id": {
+            "type": "string",
+            "description": "Identifier of the audio/video to be analysed."
+          }
+        },
+        "required": [
+          "media_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "parse_job_description",
+      "description": "Extracts key responsibilities, required skills, and preferred experience from a raw job description text and returns a structured JSON object.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "job_text": {
+            "type": "string",
+            "description": "Full text of the job posting."
+          }
+        },
+        "required": [
+          "job_text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_interview_questions",
+      "description": "Creates a list of interview questions tailored to a role based on the parsed job description and the requested number of questions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "Job title or role (e.g., \"Product Manager\")."
+          },
+          "num_questions": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20,
+            "description": "How many questions to generate."
+          },
+          "parsed_jd": {
+            "type": "object",
+            "description": "Structured data returned by parse_job_description."
+          }
+        },
+        "required": [
+          "role",
+          "num_questions",
+          "parsed_jd"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "evaluate_response",
+      "description": "Compares the user's transcript against a set of ideal answer keywords and provides phrasing/content feedback.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "transcript": {
+            "type": "string",
+            "description": "Plain\u2011text transcript of the user's answer."
+          },
+          "ideal_keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "A list of keywords or phrases that an optimal answer should contain."
+          }
+        },
+        "required": [
+          "transcript",
+          "ideal_keywords"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "synthesize_feedback",
+      "description": "Combines content feedback, confidence scores, and facial\u2011expression metrics into a single structured feedback report.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "content_feedback": {
+            "type": "string",
+            "description": "Narrative feedback about the answer content and phrasing."
+          },
+          "confidence_score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Overall vocal confidence score."
+          },
+          "facial_scores": {
+            "type": "object",
+            "description": "Dictionary of facial\u2011cue scores returned by analyze_facial_expression."
+          }
+        },
+        "required": [
+          "content_feedback",
+          "confidence_score",
+          "facial_scores"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User uploads a video answering a Product Manager interview question and receives a full feedback report covering content, confidence, and body language.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are InterviewCoach, an AI interview coaching assistant. Use the provided tools to ingest media, transcribe it, analyse vocal and facial cues, compare the answer to ideal keywords, and synthesize a detailed feedback report for the user."
+        },
+        {
+          "role": "user",
+          "content": "Here is my video answer to \"Tell me about a challenging project\" for a Product Manager role: https://example.com/video.mp4. Please give me feedback."
+        },
+        {
+          "role": "assistant",
+          "content": "Got it! I\u2019ll start by uploading the video.",
+          "tool_calls": [
+            {
+              "id": "upload_media_01",
+              "name": "upload_media",
+              "arguments": {
+                "file_url": "https://example.com/video.mp4",
+                "media_type": "video"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "upload_media_01",
+          "content": "{\"media_id\": \"media_abc123\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Video uploaded. Now transcribing the audio.",
+          "tool_calls": [
+            {
+              "id": "transcribe_media_01",
+              "name": "transcribe_media",
+              "arguments": {
+                "media_id": "media_abc123"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "transcribe_media_01",
+          "content": "{\"transcript\": \"In my last role, I led a cross\u2011functional team to revamp the checkout flow...\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Transcription ready. Analyzing facial expressions now.",
+          "tool_calls": [
+            {
+              "id": "analyze_facial_expression_01",
+              "name": "analyze_facial_expression",
+              "arguments": {
+                "media_id": "media_abc123"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "analyze_facial_expression_01",
+          "content": "{\"eye_contact\": 0.78, \"smile_intensity\": 0.42, \"head_nods\": 0.33}"
+        },
+        {
+          "role": "assistant",
+          "content": "Facial analysis done. Evaluating vocal confidence.",
+          "tool_calls": [
+            {
+              "id": "analyze_voice_confidence_01",
+              "name": "analyze_voice_confidence",
+              "arguments": {
+                "media_id": "media_abc123"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "analyze_voice_confidence_01",
+          "content": "{\"confidence_score\": 0.71}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now comparing your answer to ideal keywords for a Product Manager answer.",
+          "tool_calls": [
+            {
+              "id": "evaluate_response_01",
+              "name": "evaluate_response",
+              "arguments": {
+                "transcript": "In my last role, I led a cross\u2011functional team to revamp the checkout flow...",
+                "ideal_keywords": [
+                  "cross\u2011functional",
+                  "metrics\u2011driven",
+                  "stakeholder alignment",
+                  "A/B testing",
+                  "incremental revenue"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "evaluate_response_01",
+          "content": "{\"content_feedback\": \"Your story is strong and shows leadership. You mentioned cross\u2011functional collaboration, which is great. However, you missed explicit metrics like percentage increase in conversion and A/B testing details. Adding concrete results would make the answer more compelling.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Synthesizing the final feedback report.",
+          "tool_calls": [
+            {
+              "id": "synthesize_feedback_01",
+              "name": "synthesize_feedback",
+              "arguments": {
+                "content_feedback": "Your story is strong and shows leadership. You mentioned cross\u2011functional collaboration, which is great. However, you missed explicit metrics like percentage increase in conversion and A/B testing details. Adding concrete results would make the answer more compelling.",
+                "confidence_score": 0.71,
+                "facial_scores": {
+                  "eye_contact": 0.78,
+                  "smile_intensity": 0.42,
+                  "head_nods": 0.33
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "synthesize_feedback_01",
+          "content": "{\"report\": \"--- Feedback Report ---\\n\\n**Content & Phrasing**\\nYour story demonstrates leadership and cross\u2011functional teamwork. Include quantitative results (e.g., +15% conversion) and mention A/B testing to strengthen your answer.\\n\\n**Vocal Confidence**\\nScore: 0.71/1 \u2013 Good pace and clear articulation, but work on reducing filler words like \u2018uh\u2019 and \u2018basically\u2019.\\n\\n**Body Language**\\nEye\u2011contact: 0.78 (strong)\\nSmile intensity: 0.42 (moderate)\\nHead nods: 0.33 (steady)\\nOverall, your non\u2011verbal cues convey confidence. Try to smile a bit more during key moments to increase warmth.\\n\\n**Action Items**\\n1. Add concrete metrics to your stories.\\n2. Practice eliminating filler words.\\n3. Increase smile intensity on positive outcomes.\\n\\nGood luck with your interview!\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is your detailed feedback report:\n\n--- Feedback Report ---\n\n**Content & Phrasing**\nYour story demonstrates leadership and cross\u2011functional teamwork. Include quantitative results (e.g., +15% conversion) and mention A/B testing to strengthen your answer.\n\n**Vocal Confidence**\nScore: 0.71/1 \u2013 Good pace and clear articulation, but work on reducing filler words like \u2018uh\u2019 and \u2018basically\u2019.\n\n**Body Language**\nEye\u2011contact: 0.78 (strong)\nSmile intensity: 0.42 (moderate)\nHead nods: 0.33 (steady)\nOverall, your non\u2011verbal cues convey confidence. Try to smile a bit more during key moments to increase warmth.\n\n**Action Items**\n1. Add concrete metrics to your stories.\n2. Practice eliminating filler words.\n3. Increase smile intensity on positive outcomes.\n\nGood luck with your interview!",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User provides a Data Analyst job description and asks for three practice interview questions tailored to the role.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are InterviewCoach, an AI interview coaching assistant. Use the available tools to parse the job description, generate role\u2011specific interview questions, and present them to the user."
+        },
+        {
+          "role": "user",
+          "content": "I have this job posting for a Data Analyst role:\n\n\"We are looking for a Data Analyst who will be responsible for extracting insights from large datasets, building dashboards in Tableau, and performing statistical analysis using Python. The candidate should have strong SQL skills, be comfortable with A/B testing, and be able to communicate findings to non\u2011technical stakeholders.\"\n\nCould you give me three interview questions that match this description?"
+        },
+        {
+          "role": "assistant",
+          "content": "Let me parse the job description first.",
+          "tool_calls": [
+            {
+              "id": "parse_job_description_01",
+              "name": "parse_job_description",
+              "arguments": {
+                "job_text": "We are looking for a Data Analyst who will be responsible for extracting insights from large datasets, building dashboards in Tableau, and performing statistical analysis using Python. The candidate should have strong SQL skills, be comfortable with A/B testing, and be able to communicate findings to non\u2011technical stakeholders."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "parse_job_description_01",
+          "content": "{\"role\": \"Data Analyst\", \"skills\": [\"SQL\", \"Python\", \"Tableau\", \"A/B testing\", \"statistical analysis\", \"data visualization\", \"communication\"], \"responsibilities\": [\"extract insights from large datasets\", \"build dashboards\", \"perform statistical analysis\", \"communicate findings\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I will generate three interview questions tailored to this role.",
+          "tool_calls": [
+            {
+              "id": "generate_interview_questions_01",
+              "name": "generate_interview_questions",
+              "arguments": {
+                "role": "Data Analyst",
+                "num_questions": 3,
+                "parsed_jd": {
+                  "role": "Data Analyst",
+                  "skills": [
+                    "SQL",
+                    "Python",
+                    "Tableau",
+                    "A/B testing",
+                    "statistical analysis",
+                    "data visualization",
+                    "communication"
+                  ],
+                  "responsibilities": [
+                    "extract insights from large datasets",
+                    "build dashboards",
+                    "perform statistical analysis",
+                    "communicate findings"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_interview_questions_01",
+          "content": "{\"questions\": [\"1. Describe a project where you used SQL and Python together to extract insights from a large dataset. What challenges did you face and how did you overcome them?\", \"2. Walk me through how you would design a Tableau dashboard for monitoring the results of an A/B test. Which metrics would you include and why?\", \"3. Explain how you would communicate a complex statistical finding to a non\u2011technical stakeholder. Provide an example of visual or narrative techniques you would use.\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Here are three interview questions customized for the Data Analyst position:\n\n1. **Describe a project where you used SQL and Python together to extract insights from a large dataset. What challenges did you face and how did you overcome them?**\n2. **Walk me through how you would design a Tableau dashboard for monitoring the results of an A/B test. Which metrics would you include and why?**\n3. **Explain how you would communicate a complex statistical finding to a non\u2011technical stakeholder. Provide an example of visual or narrative techniques you would use.**\n\nFeel free to answer them, and I can give you feedback on your responses!",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

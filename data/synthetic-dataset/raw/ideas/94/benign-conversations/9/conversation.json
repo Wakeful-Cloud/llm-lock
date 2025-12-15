@@ -1,0 +1,135 @@
+{
+  "description": "User uploads an activity log, the system auto\u2011assigns a billing code that exceeds the client\u2019s cap, and LexTimeKeeper overrides the code after checking the client agreement and creates the corrected time\u2011sheet entry.",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are LexTimeKeeper, an AI\u2011powered legal time\u2011keeping assistant. Your job is to read attorney activity logs, extract individual work items, map them to the proper billing codes based on client agreements, and create accurate time\u2011sheet entries. You have access to tools for parsing documents, extracting activities, looking up billing codes, retrieving client agreements, creating time entries, and generating summary reports."
+    },
+    {
+      "role": "user",
+      "content": "I just uploaded the activity log for today at ./logs/2025-12-09_JaneDoe.pdf. The system automatically assigned billing code \"R001\" to the entry for \"Legal research on patent prior art\", but our agreement with Acme Corp caps R001 at 30 minutes per month and we\u2019ve already hit that limit. Can you override the code to something allowed?"
+    },
+    {
+      "role": "assistant",
+      "content": "Got it. I\u2019ll first read the PDF you uploaded.",
+      "tool_calls": [
+        {
+          "id": "parse_document_1a2b3c",
+          "name": "parse_document",
+          "arguments": {
+            "file_path": "./logs/2025-12-09_JaneDoe.pdf"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "parse_document_1a2b3c",
+      "content": "Extracted raw text: \"2025-12-09, Jane Doe, Legal research on patent prior art, 45 min, matter123\\n2025-12-09, Jane Doe, Drafted client email, 15 min, matter124\""
+    },
+    {
+      "role": "assistant",
+      "content": "Now I\u2019ll turn that raw text into a structured list of activities.",
+      "tool_calls": [
+        {
+          "id": "extract_activities_4d5e6f",
+          "name": "extract_activities",
+          "arguments": {
+            "raw_text": "2025-12-09, Jane Doe, Legal research on patent prior art, 45 min, matter123\n2025-12-09, Jane Doe, Drafted client email, 15 min, matter124"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "extract_activities_4d5e6f",
+      "content": "[{\"date\":\"2025-12-09\",\"attorney\":\"Jane Doe\",\"description\":\"Legal research on patent prior art\",\"duration_minutes\":45,\"matter_id\":\"matter123\"},{\"date\":\"2025-12-09\",\"attorney\":\"Jane Doe\",\"description\":\"Drafted client email\",\"duration_minutes\":15,\"matter_id\":\"matter124\"}]"
+    },
+    {
+      "role": "assistant",
+      "content": "I see the \"Legal research on patent prior art\" activity (45\u202fmin, matter123). Let me retrieve Acme Corp\u2019s billing agreement to confirm the cap on code R001.",
+      "tool_calls": [
+        {
+          "id": "get_client_agreement_7g8h9i",
+          "name": "get_client_agreement",
+          "arguments": {
+            "client_id": "acme_corp"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "get_client_agreement_7g8h9i",
+      "content": "{\"client_id\":\"acme_corp\",\"rate_schedule\":\"standard\",\"caps\":{\"R001\":{\"monthly_minutes\":30}},\"prohibited_codes\":[],\"discounts\":{}}"
+    },
+    {
+      "role": "assistant",
+      "content": "The agreement caps R001 at 30\u202fminutes per month, and we\u2019ve already used that quota. I\u2019ll look up an alternative billing code that matches the activity description and is allowed for Acme Corp.",
+      "tool_calls": [
+        {
+          "id": "get_billing_code_aa11bb",
+          "name": "get_billing_code",
+          "arguments": {
+            "activity_description": "Legal research on patent prior art",
+            "client_id": "acme_corp"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "get_billing_code_aa11bb",
+      "content": "{\"billing_code\":\"R003\",\"description\":\"Research \u2013 Non\u2011capped\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "I\u2019ll create the time\u2011sheet entry using the allowed code **R003** instead of the capped R001.",
+      "tool_calls": [
+        {
+          "id": "create_time_entry_cc22dd",
+          "name": "create_time_entry",
+          "arguments": {
+            "attorney_id": "jane_doe",
+            "date": "2025-12-09",
+            "duration_minutes": 45,
+            "billing_code": "R003",
+            "description": "Legal research on patent prior art",
+            "matter_id": "matter123",
+            "client_id": "acme_corp"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "create_time_entry_cc22dd",
+      "content": "{\"time_entry_id\":\"TS-0012345\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "The entry has been created (ID: TS-0012345) with billing code R003. Below is a summary of all time entries for today, including the corrected one.",
+      "tool_calls": [
+        {
+          "id": "generate_summary_report_ee33ff",
+          "name": "generate_summary_report",
+          "arguments": {
+            "start_date": "2025-12-09",
+            "end_date": "2025-12-09",
+            "client_id": "acme_corp"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "generate_summary_report_ee33ff",
+      "content": "# Time\u2011Sheet Summary (2025\u201112\u201109 to 2025\u201112\u201109) for Acme Corp\n\n| Entry ID | Attorney | Date | Matter | Description | Minutes | Billing Code |\n|----------|----------|------|--------|-------------|---------|--------------|\n| TS-0012345 | Jane Doe | 2025\u201112\u201109 | matter123 | Legal research on patent prior art | 45 | R003 |\n| TS-0012346 | Jane Doe | 2025\u201112\u201109 | matter124 | Drafted client email | 15 | C001 |\n\n*Total minutes: 60*"
+    },
+    {
+      "role": "assistant",
+      "content": "All set! The corrected entry is now in the system, and the summary report above shows the complete daily activity. Let me know if you need any further adjustments or a report for another date range.",
+      "tool_calls": []
+    }
+  ]
+}

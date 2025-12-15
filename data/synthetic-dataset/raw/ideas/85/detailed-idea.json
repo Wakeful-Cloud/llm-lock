@@ -1,0 +1,315 @@
+{
+  "name": "CharityCompass",
+  "description": "A personalized donation advisor that matches donors with high\u2011impact charities based on their interests, financial situation, and tax-advantage calculations, and can even schedule recurring gifts.",
+  "tools": [
+    {
+      "name": "search_charities",
+      "description": "Searches a charitable\u2011organization database using keywords, categories, rating thresholds and optional geographic constraints, returning a list of matching charity IDs with brief summaries.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Free\u2011text search terms describing the donor's cause interests (e.g., \"education for girls\")."
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "One or more predefined category names such as \"education\", \"health\", \"environment\"."
+          },
+          "min_rating": {
+            "type": "number",
+            "description": "Minimum overall rating (0\u20115) a charity must have to be included."
+          },
+          "max_distance_km": {
+            "type": "number",
+            "description": "Optional radius in kilometers limiting results to charities operating near the donor's location."
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_charity_details",
+      "description": "Retrieves detailed information about a specific charity, including its mission statement, financial health, recent impact reports, and donation methods.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "charity_id": {
+            "type": "string",
+            "description": "Unique identifier of the charity as returned by search_charities."
+          }
+        },
+        "required": [
+          "charity_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "calculate_tax_benefit",
+      "description": "Computes the estimated federal and state tax deduction for a given charitable donation amount based on the donor's filing status and state of residence.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "donation_amount": {
+            "type": "number",
+            "description": "The amount of money (in USD) the donor intends to give in a single year."
+          },
+          "filing_status": {
+            "type": "string",
+            "enum": [
+              "single",
+              "married_filing_jointly",
+              "married_filing_separately",
+              "head_of_household"
+            ],
+            "description": "The donor's IRS filing status."
+          },
+          "state": {
+            "type": "string",
+            "description": "Two\u2011letter US state abbreviation for calculating state\u2011level deductions."
+          }
+        },
+        "required": [
+          "donation_amount",
+          "filing_status",
+          "state"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_impact_metrics",
+      "description": "Fetches the latest measurable impact statistics for a charity, such as beneficiaries served, program outcomes, and cost\u2011per\u2011beneficiary ratios.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "charity_id": {
+            "type": "string",
+            "description": "Unique identifier of the charity."
+          }
+        },
+        "required": [
+          "charity_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "schedule_recurring_donation",
+      "description": "Creates a recurring donation schedule with a chosen charity, specifying amount, frequency, and start date; returns a confirmation and payment reference.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "charity_id": {
+            "type": "string",
+            "description": "Unique identifier of the charity to receive the recurring donation."
+          },
+          "amount": {
+            "type": "number",
+            "description": "The amount (USD) to donate each period."
+          },
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "quarterly",
+              "annually"
+            ],
+            "description": "How often the donation should be executed."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "ISO\u20118601 date string indicating when the first donation should occur."
+          }
+        },
+        "required": [
+          "charity_id",
+          "amount",
+          "frequency",
+          "start_date"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User wants a $5,000 one\u2011time donation focused on education, maximizing tax benefit.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are CharityCompass, an expert donation advisor. Use the provided tools to find suitable charities, calculate tax deductions, and present a clear recommendation."
+        },
+        {
+          "role": "user",
+          "content": "I have $5,000 to give this year. I'm passionate about education for girls in low\u2011income regions and want to make the most of the tax deduction. Can you suggest where to donate?"
+        },
+        {
+          "role": "assistant",
+          "content": "Sure, let me find charities that match your interest and then calculate the tax benefit.",
+          "tool_calls": [
+            {
+              "id": "search_charities_1a2b3c",
+              "name": "search_charities",
+              "arguments": {
+                "query": "girls education low income",
+                "categories": [
+                  "education"
+                ],
+                "min_rating": 4
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_charities_1a2b3c",
+          "content": "{\"results\":[{\"charity_id\":\"c123\",\"name\":\"Girls' Education Fund\",\"summary\":\"Provides scholarships and school supplies to girls in Sub\u2011Saharan Africa.\",\"rating\":4.7},{\"charity_id\":\"c456\",\"name\":\"EducateHer Initiative\",\"summary\":\"Builds community learning centers for girls in rural India.\",\"rating\":4.5}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "I found two highly rated charities that fit your criteria. I\u2019ll pull details for each and then compute the tax deduction for a $5,000 gift.",
+          "tool_calls": [
+            {
+              "id": "get_charity_details_a1b2c3",
+              "name": "get_charity_details",
+              "arguments": {
+                "charity_id": "c123"
+              }
+            },
+            {
+              "id": "get_charity_details_d4e5f6",
+              "name": "get_charity_details",
+              "arguments": {
+                "charity_id": "c456"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_charity_details_a1b2c3",
+          "content": "{\"charity_id\":\"c123\",\"mission\":\"Ensure girls worldwide have access to quality primary education.\",\"financials\":{\"program_expense_pct\":85},\"recent_impact\":{\"girls_scholarships\":1240,\"schools_supported\":23}}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_charity_details_d4e5f6",
+          "content": "{\"charity_id\":\"c456\",\"mission\":\"Create safe learning environments for girls in rural India.\",\"financials\":{\"program_expense_pct\":88},\"recent_impact\":{\"learning_centers\":12,\"girls_enrolled\":830}}"
+        },
+        {
+          "role": "assistant",
+          "content": "Great, here are the highlights:\n\n1. **Girls' Education Fund** \u2013 85% of budget goes directly to programs, 1,240 scholarships last year.\n2. **EducateHer Initiative** \u2013 88% program spend, 12 learning centers serving 830 girls.\n\nNow I\u2019ll estimate your tax deduction.",
+          "tool_calls": [
+            {
+              "id": "calculate_tax_benefit_7g8h9i",
+              "name": "calculate_tax_benefit",
+              "arguments": {
+                "donation_amount": 5000,
+                "filing_status": "single",
+                "state": "CA"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "calculate_tax_benefit_7g8h9i",
+          "content": "{\"federal_deduction\":1500,\"state_deduction\":300,\"total_estimated_savings\":1800}"
+        },
+        {
+          "role": "assistant",
+          "content": "Based on a $5,000 donation, you could reduce your federal tax by about **$1,500** and California state tax by roughly **$300**, for a total estimated savings of **$1,800**.\n\n**Recommendation**:\n- Donate $2,500 to Girls' Education Fund (high impact, slightly lower program\u2011expense ratio).\n- Donate $2,500 to EducateHer Initiative (strong program focus, high efficiency).\n\nThis split lets you diversify impact while still maximizing your tax benefit. Would you like me to set up the donations or provide more details on any charity?",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User wants to set up a monthly $100 donation to a health\u2011focused charity and see the latest impact metrics before confirming.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are CharityCompass, helping donors find and schedule recurring gifts while showing impact data."
+        },
+        {
+          "role": "user",
+          "content": "I\u2019d like to give $100 every month to a reputable health charity that provides clean water in developing countries. Show me the impact numbers and set it up if I\u2019m happy."
+        },
+        {
+          "role": "assistant",
+          "content": "Let me locate health\u2011focused charities that work on clean water projects.",
+          "tool_calls": [
+            {
+              "id": "search_charities_zz99yy",
+              "name": "search_charities",
+              "arguments": {
+                "query": "clean water health",
+                "categories": [
+                  "health",
+                  "water"
+                ],
+                "min_rating": 4.5
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_charities_zz99yy",
+          "content": "{\"results\":[{\"charity_id\":\"h789\",\"name\":\"WaterHealth Alliance\",\"summary\":\"Provides safe drinking water and hygiene education in Sub\u2011Saharan Africa.\",\"rating\":4.8}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "I found **WaterHealth Alliance**, a 4.8\u2011rated organization that combines water infrastructure with health education. Let me pull its latest impact metrics.",
+          "tool_calls": [
+            {
+              "id": "get_impact_metrics_1122aa",
+              "name": "get_impact_metrics",
+              "arguments": {
+                "charity_id": "h789"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_impact_metrics_1122aa",
+          "content": "{\"charity_id\":\"h789\",\"impact\":{\"people_served\":452000,\"wells_built\":375,\"diseases_prevented\":22000,\"cost_per_beneficiary\":4.5}}"
+        },
+        {
+          "role": "assistant",
+          "content": "**Latest Impact (WaterHealth Alliance)**\n- People served: **452,000**\n- Wells built: **375**\n- Estimated diseases prevented: **22,000**\n- Cost per beneficiary: **$4.5**\n\nThese numbers show a strong cost\u2011effectiveness. Would you like me to schedule the $100\u202fmonthly donation starting on the first of next month?",
+          "tool_calls": [
+            {
+              "id": "schedule_recurring_donation_cc33dd",
+              "name": "schedule_recurring_donation",
+              "arguments": {
+                "charity_id": "h789",
+                "amount": 100,
+                "frequency": "monthly",
+                "start_date": "2025-01-01"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "schedule_recurring_donation_cc33dd",
+          "content": "{\"confirmation_id\":\"txn_5f3e9b\",\"status\":\"scheduled\",\"next_charge_date\":\"2025-01-01\",\"payment_method\":\"saved_card_ending_4242\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Your recurring donation has been **scheduled**! \ud83c\udf89\n- **Charity:** WaterHealth Alliance\n- **Amount:** $100 per month\n- **First charge:** 2025\u201101\u201101\n- **Confirmation ID:** txn_5f3e9b\n\nYou\u2019ll receive an email receipt each month. Is there anything else I can help you with?",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

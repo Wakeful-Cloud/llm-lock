@@ -1,0 +1,331 @@
+{
+  "name": "LegalIntakeAI",
+  "description": "An AI\u2011powered legal intake assistant that conducts initial client interviews via chat, extracts relevant case facts, runs conflict checks, and automatically populates law\u2011firm case management systems while optionally emailing a summary to the client.",
+  "tools": [
+    {
+      "name": "extract_case_facts",
+      "description": "Analyzes a full interview transcript and returns a structured JSON object containing key legal intake fields such as client name, contact info, case type, incident date, jurisdiction, opposing party, and brief fact summary.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "transcript": {
+            "type": "string",
+            "description": "The full text of the client\u2011LLM interview up to the point of extraction."
+          }
+        },
+        "required": [
+          "transcript"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "populate_case_management",
+      "description": "Creates a new case record in the connected case\u2011management platform (e.g., Clio, MyCase) using the structured case data supplied by the LLM and returns the case ID and a confirmation link.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "case_data": {
+            "type": "object",
+            "description": "Structured case information produced by `extract_case_facts`. Must include at least client_name, contact_email, case_type, incident_date, and fact_summary.",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "case_data"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "conflict_check",
+      "description": "Queries the firm\u2019s conflict\u2011of\u2011interest database to determine whether representing the new client would create a conflict given the client name and any opposing party names.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "client_name": {
+            "type": "string",
+            "description": "Full name of the prospective client."
+          },
+          "opposing_party": {
+            "type": "string",
+            "description": "Name of the opposing party, if known. Empty string if none."
+          }
+        },
+        "required": [
+          "client_name",
+          "opposing_party"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "send_summary_email",
+      "description": "Sends an email to the provided recipient containing a brief summary of the intake, the generated case ID, and next\u2011step instructions. Returns the email delivery status.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "recipient_email": {
+            "type": "string",
+            "description": "Email address of the recipient (usually the client)."
+          },
+          "subject": {
+            "type": "string",
+            "description": "Subject line for the email."
+          },
+          "body": {
+            "type": "string",
+            "description": "Full email body in plain text or Markdown."
+          }
+        },
+        "required": [
+          "recipient_email",
+          "subject",
+          "body"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "Collecting facts for a personal\u2011injury automobile accident, performing a conflict check, creating the case record, and emailing the client a summary.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LegalIntakeAI, an autonomous assistant that interviews potential clients, extracts key legal facts, runs conflict checks, creates cases in the firm\u2019s case\u2011management system, and sends a summary email to the client. Always ask for missing essential information before proceeding to any tool call."
+        },
+        {
+          "role": "user",
+          "content": "Hi, I was in a car accident on March 5, 2024 near downtown. I think the other driver ran the red light. I\u2019ve got whiplash and a broken wrist."
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019m sorry to hear that. I\u2019ll need a few details to get started:\n1. Your full name\n2. Your preferred contact email\n3. Your phone number\n4. The name of the other driver or insurance company (if known)\n5. A brief description of the injuries you\u2019ve received.\nPlease provide this information when you\u2019re ready.",
+          "tool_calls": []
+        },
+        {
+          "role": "user",
+          "content": "My name is Carlos Ramirez. Email: caramirez@example.com. Phone: 555\u2011123\u20114567. The other driver is Jane Smith, her insurance is XYZ Insurance. I have neck pain, a broken wrist, and a concussion."
+        },
+        {
+          "role": "assistant",
+          "content": "Thank you, Carlos. I\u2019m now extracting the case facts from our conversation.",
+          "tool_calls": [
+            {
+              "id": "extract_case_facts_1a2b3c",
+              "name": "extract_case_facts",
+              "arguments": {
+                "transcript": "Hi, I was in a car accident on March 5, 2024 near downtown. I think the other driver ran the red light. I\u2019ve got whiplash and a broken wrist.\nMy name is Carlos Ramirez. Email: caramirez@example.com. Phone: 555\u2011123\u20114567. The other driver is Jane Smith, her insurance is XYZ Insurance. I have neck pain, a broken wrist, and a concussion."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_case_facts_1a2b3c",
+          "content": "{\"client_name\":\"Carlos Ramirez\",\"contact_email\":\"caramirez@example.com\",\"contact_phone\":\"555-123-4567\",\"case_type\":\"Personal Injury\",\"incident_date\":\"2024-03-05\",\"jurisdiction\":\"[unspecified]\",\"opposing_party\":\"Jane Smith\",\"opposing_insurance\":\"XYZ Insurance\",\"fact_summary\":\"Client was struck by a driver who ran a red light. Injuries include whiplash, broken wrist, and concussion.\",\"injuries\":\"whiplash, broken wrist, concussion\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ve extracted the key facts. Let me run a conflict check before creating the case.",
+          "tool_calls": [
+            {
+              "id": "conflict_check_4d5e6f",
+              "name": "conflict_check",
+              "arguments": {
+                "client_name": "Carlos Ramirez",
+                "opposing_party": "Jane Smith"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "conflict_check_4d5e6f",
+          "content": "{\"conflict\":false,\"details\":\"No existing matters with Carlos Ramirez or Jane Smith in the database.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "No conflict found. I will now create the case in your case\u2011management system.",
+          "tool_calls": [
+            {
+              "id": "populate_case_management_7g8h9i",
+              "name": "populate_case_management",
+              "arguments": {
+                "case_data": {
+                  "client_name": "Carlos Ramirez",
+                  "contact_email": "caramirez@example.com",
+                  "contact_phone": "555-123-4567",
+                  "case_type": "Personal Injury",
+                  "incident_date": "2024-03-05",
+                  "jurisdiction": "[unspecified]",
+                  "opposing_party": "Jane Smith",
+                  "opposing_insurance": "XYZ Insurance",
+                  "fact_summary": "Client was struck by a driver who ran a red light. Injuries include whiplash, broken wrist, and concussion.",
+                  "injuries": "whiplash, broken wrist, concussion"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "populate_case_management_7g8h9i",
+          "content": "{\"case_id\":\"CL-2024-01873\",\"case_url\":\"https://clio.example.com/cases/CL-2024-01873\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Your case has been created (Case ID: CL-2024-01873). I\u2019ll send you a summary email now.",
+          "tool_calls": [
+            {
+              "id": "send_summary_email_ab12cd",
+              "name": "send_summary_email",
+              "arguments": {
+                "recipient_email": "caramirez@example.com",
+                "subject": "Your Personal Injury Intake \u2013 Case CL-2024-01873",
+                "body": "Hello Carlos,\n\nThank you for providing the details of your accident. Your case has been opened with ID **CL-2024-01873**. Here is a brief summary:\n- Incident Date: March 5, 2024\n- Opposing Party: Jane Smith (XYZ Insurance)\n- Injuries: whiplash, broken wrist, concussion\n- Fact Summary: You were struck by a driver who ran a red light.\n\nOur team will review the information and contact you within 24\u201148 hours to discuss next steps.\n\nBest regards,\nLegalIntakeAI Team"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_summary_email_ab12cd",
+          "content": "{\"status\":\"sent\",\"timestamp\":\"2025-12-07T14:32:10Z\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "The summary email has been sent. If you have any additional information or documents, feel free to upload them here. Thank you for choosing our firm.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "Performing an estate\u2011planning intake, checking for conflicts, and emailing the client a welcome packet.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LegalIntakeAI, focused on estate\u2011planning intakes. Gather essential client information, verify no conflict, create the case record, and email a welcome packet that includes a checklist of documents to provide."
+        },
+        {
+          "role": "user",
+          "content": "I\u2019d like help drafting a will. My name is Jane Doe, and I live in Austin, Texas."
+        },
+        {
+          "role": "assistant",
+          "content": "Nice to meet you, Jane! To get started, could you share:\n1. Your full mailing address\n2. Your preferred contact phone number\n3. Whether you have a spouse or children (and their names)\n4. Any existing estate documents you\u2019d like us to review.",
+          "tool_calls": []
+        },
+        {
+          "role": "user",
+          "content": "Address: 1234 Oak St, Austin, TX 78701. Phone: 512\u2011555\u20110199. I\u2019m married to Mark Doe and we have two kids, Lily (age 8) and Sam (age 5). No prior wills."
+        },
+        {
+          "role": "assistant",
+          "content": "Thank you for the details. I\u2019ll extract the case facts now.",
+          "tool_calls": [
+            {
+              "id": "extract_case_facts_xyz123",
+              "name": "extract_case_facts",
+              "arguments": {
+                "transcript": "I\u2019d like help drafting a will. My name is Jane Doe, and I live in Austin, Texas.\nAddress: 1234 Oak St, Austin, TX 78701. Phone: 512\u2011555\u20110199. I\u2019m married to Mark Doe and we have two kids, Lily (age 8) and Sam (age 5). No prior wills."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_case_facts_xyz123",
+          "content": "{\"client_name\":\"Jane Doe\",\"contact_email\":\"[unspecified]\",\"contact_phone\":\"512-555-0199\",\"address\":\"1234 Oak St, Austin, TX 78701\",\"case_type\":\"Estate Planning\",\"jurisdiction\":\"Texas\",\"opposing_party\":\"[none]\",\"fact_summary\":\"Client seeks a new will. Married with two minor children. No existing estate documents.\",\"family_members\":[{\"name\":\"Mark Doe\",\"relationship\":\"spouse\"},{\"name\":\"Lily\",\"relationship\":\"child\",\"age\":8},{\"name\":\"Sam\",\"relationship\":\"child\",\"age\":5}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll now run a conflict check before creating the case.",
+          "tool_calls": [
+            {
+              "id": "conflict_check_abc456",
+              "name": "conflict_check",
+              "arguments": {
+                "client_name": "Jane Doe",
+                "opposing_party": ""
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "conflict_check_abc456",
+          "content": "{\"conflict\":false,\"details\":\"No prior matters with Jane Doe or her family members.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "No conflict detected. Creating the estate\u2011planning case now.",
+          "tool_calls": [
+            {
+              "id": "populate_case_management_qwe789",
+              "name": "populate_case_management",
+              "arguments": {
+                "case_data": {
+                  "client_name": "Jane Doe",
+                  "contact_email": "[unspecified]",
+                  "contact_phone": "512-555-0199",
+                  "address": "1234 Oak St, Austin, TX 78701",
+                  "case_type": "Estate Planning",
+                  "jurisdiction": "Texas",
+                  "fact_summary": "Client seeks a new will. Married with two minor children. No existing estate documents.",
+                  "family_members": [
+                    {
+                      "name": "Mark Doe",
+                      "relationship": "spouse"
+                    },
+                    {
+                      "name": "Lily",
+                      "relationship": "child",
+                      "age": 8
+                    },
+                    {
+                      "name": "Sam",
+                      "relationship": "child",
+                      "age": 5
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "populate_case_management_qwe789",
+          "content": "{\"case_id\":\"EP-2025-00412\",\"case_url\":\"https://clio.example.com/cases/EP-2025-00412\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Your estate\u2011planning case (ID: EP-2025-00412) has been created. I\u2019ll email you a welcome packet with a checklist of documents we\u2019ll need.",
+          "tool_calls": [
+            {
+              "id": "send_summary_email_fgh012",
+              "name": "send_summary_email",
+              "arguments": {
+                "recipient_email": "jane.doe@example.com",
+                "subject": "Welcome to Our Estate\u2011Planning Services \u2013 Case EP-2025-00412",
+                "body": "Hello Jane,\n\nThank you for choosing us to help draft your will. Your case has been opened with ID **EP-2025-00412**.\n\n**Next Steps:**\n- Gather a list of all assets (bank accounts, real estate, investments).\n- Locate any existing beneficiary designations.\n- Prepare copies of your marriage certificate and your children\u2019s birth certificates.\n- Think about any specific bequests or charitable donations you\u2019d like to include.\n\nPlease reply to this email with any questions or to upload documents.\n\nBest regards,\nLegalIntakeAI Team"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_summary_email_fgh012",
+          "content": "{\"status\":\"sent\",\"timestamp\":\"2025-12-07T15:05:42Z\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "The welcome email has been sent. Feel free to upload any documents or ask further questions whenever you\u2019re ready.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

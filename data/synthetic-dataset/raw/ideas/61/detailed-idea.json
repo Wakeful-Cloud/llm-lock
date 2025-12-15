@@ -1,0 +1,288 @@
+{
+  "name": "RentWise Assistant",
+  "description": "An AI\u2011driven rental\u2011management agent that automatically pulls lease agreements, maintenance tickets, and payment histories to send rent reminders, schedule repairs, and generate financial reports for property managers.",
+  "tools": [
+    {
+      "name": "fetch_lease_agreement",
+      "description": "Retrieves the lease agreement document for a given property and optional tenant. Returns the lease text or a link to the stored PDF.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "property_id": {
+            "type": "string",
+            "description": "Unique identifier of the rental property."
+          },
+          "tenant_id": {
+            "type": "string",
+            "description": "Optional unique identifier of the tenant."
+          }
+        },
+        "required": [
+          "property_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_maintenance_tickets",
+      "description": "Returns a list of open or filtered maintenance tickets for a specific property, including ticket IDs, descriptions, statuses, and priority.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "property_id": {
+            "type": "string",
+            "description": "Unique identifier of the rental property."
+          },
+          "status": {
+            "type": "string",
+            "description": "Optional filter for ticket status (e.g., open, in_progress, closed)."
+          }
+        },
+        "required": [
+          "property_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_payment_history",
+      "description": "Retrieves payment records for a property (or a specific tenant) covering amounts, due dates, and payment status.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "property_id": {
+            "type": "string",
+            "description": "Unique identifier of the rental property."
+          },
+          "tenant_id": {
+            "type": "string",
+            "description": "Optional unique identifier of the tenant."
+          }
+        },
+        "required": [
+          "property_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "send_rent_reminder",
+      "description": "Sends an email reminder to a tenant about an outstanding rent amount and due date. Returns a confirmation string.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "tenant_email": {
+            "type": "string",
+            "description": "Email address of the tenant."
+          },
+          "amount_due": {
+            "type": "number",
+            "description": "Outstanding rent amount in the local currency."
+          },
+          "due_date": {
+            "type": "string",
+            "description": "ISO\u20118601 formatted date when the rent was due."
+          }
+        },
+        "required": [
+          "tenant_email",
+          "amount_due",
+          "due_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "schedule_repair",
+      "description": "Schedules a repair appointment for a maintenance ticket with a specified date and optional contractor. Returns a scheduling confirmation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "ticket_id": {
+            "type": "string",
+            "description": "Identifier of the maintenance ticket to be repaired."
+          },
+          "scheduled_date": {
+            "type": "string",
+            "description": "ISO\u20118601 date (and optional time) for the repair."
+          },
+          "contractor_id": {
+            "type": "string",
+            "description": "Optional identifier of the contractor who will perform the repair."
+          }
+        },
+        "required": [
+          "ticket_id",
+          "scheduled_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "update_payment_status",
+      "description": "Updates the status of a specific payment record (e.g., marked as paid, partially paid, or disputed). Returns a status update message.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "Unique identifier of the payment transaction."
+          },
+          "status": {
+            "type": "string",
+            "description": "New status value (e.g., paid, pending, disputed)."
+          }
+        },
+        "required": [
+          "payment_id",
+          "status"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_financial_report",
+      "description": "Creates a PDF/Markdown financial summary for selected properties over a date range, including revenue, expenses, and outstanding balances.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "start_date": {
+            "type": "string",
+            "description": "ISO\u20118601 start date for the report period."
+          },
+          "end_date": {
+            "type": "string",
+            "description": "ISO\u20118601 end date for the report period."
+          },
+          "property_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional list of property identifiers to include. If omitted, all properties are used."
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks the assistant to send rent reminders to all tenants with overdue payments for property\u202fPROP123.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are RentWise Assistant, an AI that helps property managers automate rent reminders, repairs, and reporting by calling appropriate tools."
+        },
+        {
+          "role": "user",
+          "content": "Please send rent reminders to any tenants who are late on their rent for property PROP123."
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching the latest payment history for property PROP123 to identify overdue balances.",
+          "tool_calls": [
+            {
+              "id": "fetch_payment_history_1a2b3c",
+              "name": "fetch_payment_history",
+              "arguments": {
+                "property_id": "PROP123"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_payment_history_1a2b3c",
+          "content": "[{\"tenant_id\":\"T001\",\"tenant_email\":\"alice@example.com\",\"amount_due\":1250.00,\"due_date\":\"2025-11-01\",\"status\":\"overdue\"},{\"tenant_id\":\"T002\",\"tenant_email\":\"bob@example.com\",\"amount_due\":0,\"due_date\":\"2025-10-01\",\"status\":\"paid\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "I found one overdue tenant (Alice). Sending a reminder now.",
+          "tool_calls": [
+            {
+              "id": "send_rent_reminder_4d5e6f",
+              "name": "send_rent_reminder",
+              "arguments": {
+                "tenant_email": "alice@example.com",
+                "amount_due": 1250.0,
+                "due_date": "2025-11-01"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_rent_reminder_4d5e6f",
+          "content": "Reminder email queued for alice@example.com (Amount: 1250.00, Due: 2025-11-01)."
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 Rent reminder sent to alice@example.com. No other tenants are overdue at the moment.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User reports a burst pipe in unit\u202f4B of property\u202fPROP789 and asks the assistant to schedule a repair for tomorrow.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are RentWise Assistant, helping property managers handle maintenance tickets and repair scheduling."
+        },
+        {
+          "role": "user",
+          "content": "A pipe burst in unit 4B of property PROP789. Please schedule a repair for tomorrow morning."
+        },
+        {
+          "role": "assistant",
+          "content": "Creating a maintenance ticket for the burst pipe in unit 4B of PROP789.",
+          "tool_calls": [
+            {
+              "id": "fetch_maintenance_tickets_7g8h9i",
+              "name": "fetch_maintenance_tickets",
+              "arguments": {
+                "property_id": "PROP789",
+                "status": "open"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_maintenance_tickets_7g8h9i",
+          "content": "[{\"ticket_id\":\"MT-2025-001\",\"description\":\"Burst pipe in unit 4B\",\"status\":\"open\",\"priority\":\"high\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Scheduling the repair for ticket MT-2025-001 on 2025-12-08 (tomorrow) with our preferred contractor.",
+          "tool_calls": [
+            {
+              "id": "schedule_repair_a1b2c3",
+              "name": "schedule_repair",
+              "arguments": {
+                "ticket_id": "MT-2025-001",
+                "scheduled_date": "2025-12-08T09:00:00",
+                "contractor_id": "CONTRACTOR_42"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "schedule_repair_a1b2c3",
+          "content": "Repair for ticket MT-2025-001 scheduled on 2025-12-08 at 09:00 with contractor CONTRACTOR_42."
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 The repair has been scheduled for tomorrow at 9\u202fAM. The contractor will confirm shortly.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

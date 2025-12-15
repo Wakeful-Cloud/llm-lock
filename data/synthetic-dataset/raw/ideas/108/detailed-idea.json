@@ -1,0 +1,295 @@
+{
+  "name": "TrialMatchAI",
+  "description": "An AI\u2011Enhanced Clinical Trial Recruiter that automatically parses trial eligibility criteria, queries EMR systems for matching patients, and contacts them through secure patient portals while maintaining audit logs and consent records.",
+  "tools": [
+    {
+      "name": "emr_query",
+      "description": "Searches an electronic medical record (EMR) database for patients that satisfy structured inclusion / exclusion criteria and returns a concise list of matching patient identifiers with key demographics.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "criteria": {
+            "type": "object",
+            "description": "Structured eligibility criteria (e.g., age_min, age_max, diagnosis, prior_treatment, ecog_max).",
+            "additionalProperties": true
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of patient records to return."
+          }
+        },
+        "required": [
+          "criteria"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "eligibility_parser",
+      "description": "Transforms free\u2011text clinical trial inclusion/exclusion criteria into a machine\u2011readable JSON schema that can be used by downstream tools.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "eligibility_text": {
+            "type": "string",
+            "description": "The raw eligibility description copied from the trial protocol or registry."
+          }
+        },
+        "required": [
+          "eligibility_text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "secure_message_send",
+      "description": "Delivers a secure portal message to a patient, optionally attaching trial information or consent forms, and returns a delivery receipt.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "patient_id": {
+            "type": "string",
+            "description": "Unique identifier of the patient in the EMR."
+          },
+          "subject": {
+            "type": "string",
+            "description": "Subject line of the portal message."
+          },
+          "body": {
+            "type": "string",
+            "description": "Full markdown\u2011formatted message body."
+          }
+        },
+        "required": [
+          "patient_id",
+          "subject",
+          "body"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "consent_capture",
+      "description": "Records a patient\u2019s consent (or decline) to be contacted for trial participation, timestamped for compliance audit.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "patient_id": {
+            "type": "string",
+            "description": "Unique identifier of the patient."
+          },
+          "consent_given": {
+            "type": "boolean",
+            "description": "True if patient agrees to be contacted, false otherwise."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO\u20118601 timestamp of the consent response."
+          }
+        },
+        "required": [
+          "patient_id",
+          "consent_given",
+          "timestamp"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "schedule_meeting",
+      "description": "Creates a virtual meeting (e.g., Zoom or Teams) between a patient and a study coordinator and returns a join link.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "patient_id": {
+            "type": "string",
+            "description": "Unique identifier of the patient."
+          },
+          "datetime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Proposed meeting start time in ISO\u20118601 format."
+          },
+          "meeting_type": {
+            "type": "string",
+            "enum": [
+              "video",
+              "phone"
+            ],
+            "description": "Type of meeting to schedule."
+          }
+        },
+        "required": [
+          "patient_id",
+          "datetime",
+          "meeting_type"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "Recruiter asks the system to find eligible lymphoma patients for the CAR\u2011T\u20112025 trial and send them an invitation.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are an AI\u2011Enhanced Clinical Trial Recruiter. Use the provided tools to parse eligibility, query the EMR, and communicate securely with patients while logging actions."
+        },
+        {
+          "role": "user",
+          "content": "Find patients eligible for the CAR\u2011T\u20112025 trial (inclusion: age 18\u201170, diagnosis: diffuse large B\u2011cell lymphoma, no prior CAR\u2011T, ECOG \u22642). Then send them an invitation to learn more."
+        },
+        {
+          "role": "assistant",
+          "content": "Parsing the free\u2011text eligibility criteria and then searching the EMR for matching patients.",
+          "tool_calls": [
+            {
+              "id": "eligibility_parser_1a2b3c",
+              "name": "eligibility_parser",
+              "arguments": {
+                "eligibility_text": "Inclusion: age 18-70; diagnosis: diffuse large B-cell lymphoma; no prior CAR-T therapy; ECOG performance status \u22642. Exclusion: active infection, uncontrolled cardiac disease."
+              }
+            },
+            {
+              "id": "emr_query_4d5e6f",
+              "name": "emr_query",
+              "arguments": {
+                "criteria": {
+                  "age_min": 18,
+                  "age_max": 70,
+                  "diagnosis": "diffuse large B-cell lymphoma",
+                  "prior_car_t": false,
+                  "ecog_max": 2
+                },
+                "limit": 20
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "eligibility_parser_1a2b3c",
+          "content": "{\"age_min\":18,\"age_max\":70,\"diagnosis\":\"diffuse large B-cell lymphoma\",\"prior_car_t\":false,\"ecog_max\":2}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "emr_query_4d5e6f",
+          "content": "[{\"patient_id\":\"patient_001\",\"age\":55,\"gender\":\"F\"},{\"patient_id\":\"patient_002\",\"age\":62,\"gender\":\"M\"},{\"patient_id\":\"patient_003\",\"age\":48,\"gender\":\"F\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "I identified three patients (patient_001, patient_002, patient_003) who meet the criteria. Sending them a secure invitation message.",
+          "tool_calls": [
+            {
+              "id": "secure_message_send_7g8h9i",
+              "name": "secure_message_send",
+              "arguments": {
+                "patient_id": "patient_001",
+                "subject": "Invitation: CAR\u2011T\u20112025 Clinical Trial",
+                "body": "Dear Patient,\n\nYou have been identified as a potential participant for the CAR\u2011T\u20112025 trial targeting diffuse large B\u2011cell lymphoma. Click [here](https://trialportal.example.com/consent) to review details and indicate your interest.\n\nThank you,\nStudy Team"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "secure_message_send_7g8h9i",
+          "content": "{\"status\":\"sent\",\"message_id\":\"msg_abc123\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Invitation sent to patient_001. I will repeat the same for patient_002 and patient_003.",
+          "tool_calls": [
+            {
+              "id": "secure_message_send_jk1l2m",
+              "name": "secure_message_send",
+              "arguments": {
+                "patient_id": "patient_002",
+                "subject": "Invitation: CAR\u2011T\u20112025 Clinical Trial",
+                "body": "Dear Patient,\n\nYou have been identified as a potential participant for the CAR\u2011T\u20112025 trial targeting diffuse large B\u2011cell lymphoma. Click [here](https://trialportal.example.com/consent) to review details and indicate your interest.\n\nThank you,\nStudy Team"
+              }
+            },
+            {
+              "id": "secure_message_send_nop3q4",
+              "name": "secure_message_send",
+              "arguments": {
+                "patient_id": "patient_003",
+                "subject": "Invitation: CAR\u2011T\u20112025 Clinical Trial",
+                "body": "Dear Patient,\n\nYou have been identified as a potential participant for the CAR\u2011T\u20112025 trial targeting diffuse large B\u2011cell lymphoma. Click [here](https://trialportal.example.com/consent) to review details and indicate your interest.\n\nThank you,\nStudy Team"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "secure_message_send_jk1l2m",
+          "content": "{\"status\":\"sent\",\"message_id\":\"msg_def456\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "secure_message_send_nop3q4",
+          "content": "{\"status\":\"sent\",\"message_id\":\"msg_ghi789\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Invitations successfully sent to all three patients. The actions have been logged for compliance.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "A patient replies wanting more information and a meeting; the system sends detailed trial info and schedules a video call.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are an AI\u2011Enhanced Clinical Trial Recruiter. Use the provided tools to communicate securely and schedule meetings."
+        },
+        {
+          "role": "user",
+          "content": "Patient patient_001 responded that they would like to learn more about CAR\u2011T\u20112025 and are available next Tuesday at 10\u202fAM."
+        },
+        {
+          "role": "assistant",
+          "content": "Sending a detailed trial overview to patient_001 and scheduling a video meeting.",
+          "tool_calls": [
+            {
+              "id": "secure_message_send_xyz123",
+              "name": "secure_message_send",
+              "arguments": {
+                "patient_id": "patient_001",
+                "subject": "CAR\u2011T\u20112025 Trial Details",
+                "body": "Dear Patient,\n\nThank you for your interest in the CAR\u2011T\u20112025 trial. Below is a brief overview:\n\n- **Objective:** Evaluate safety and efficacy of CAR\u2011T therapy in diffuse large B\u2011cell lymphoma.\n- **Duration:** Approximately 12 months.\n- **Visits:** Baseline, weekly for the first 4 weeks, then monthly.\n- **Potential Benefits:** Access to cutting\u2011edge therapy.\n- **Risks:** Cytokine release syndrome, neurotoxicity, etc.\n\nIf you would like to discuss further, please confirm the meeting time.\n\nBest regards,\nStudy Coordinator"
+              }
+            },
+            {
+              "id": "schedule_meeting_abc789",
+              "name": "schedule_meeting",
+              "arguments": {
+                "patient_id": "patient_001",
+                "datetime": "2025-02-12T10:00:00-05:00",
+                "meeting_type": "video"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "secure_message_send_xyz123",
+          "content": "{\"status\":\"sent\",\"message_id\":\"msg_jkl012\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "schedule_meeting_abc789",
+          "content": "{\"meeting_link\":\"https://zoom.us/j/987654321?pwd=example\",\"meeting_id\":\"987654321\",\"status\":\"scheduled\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "The trial overview has been sent to patient_001 and a video meeting has been scheduled for Tuesday, February 12 at 10\u202fAM (Eastern Time). The meeting link is https://zoom.us/j/987654321?pwd=example.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

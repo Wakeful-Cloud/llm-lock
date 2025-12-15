@@ -1,0 +1,321 @@
+{
+  "name": "CompliBot",
+  "description": "CompliBot is an agentic virtual compliance chatbot that instantly answers employee policy questions by safely querying internal policy manuals, audit logs, and up\u2011to\u2011date legal statutes. It surfaces relevant excerpts, provides concise summaries, and logs each interaction for auditability, helping organizations reduce compliance risk and free HR/legal teams from repetitive queries.",
+  "tools": [
+    {
+      "name": "search_internal_docs",
+      "description": "Searches the company's internal knowledge base (policy manuals, SOPs, HR handbooks) for documents matching a free\u2011text query and returns a markdown\u2011formatted list of the top relevant excerpts.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The natural\u2011language search query provided by the user."
+          },
+          "max_results": {
+            "type": "integer",
+            "description": "Maximum number of excerpt results to return (default 3).",
+            "default": 3,
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "retrieve_audit_log",
+      "description": "Fetches the most recent audit\u2011log entries related to a specific policy code or employee action, returning a JSON array of timestamps, actors, and actions performed.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "policy_id": {
+            "type": "string",
+            "description": "The unique identifier of the policy (e.g., REMOTE\u2011WORK\u2011001)."
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO timestamp specifying the start of the window for log retrieval."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of log rows to return.",
+            "default": 5,
+            "minimum": 1,
+            "maximum": 20
+          }
+        },
+        "required": [
+          "policy_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "legal_lookup",
+      "description": "Queries an up\u2011to\u2011date legal\u2011statute service for the text and citation of a regulation matching the supplied keyword(s). Returns markdown with the statute title, citation, and key excerpt.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "keyword": {
+            "type": "string",
+            "description": "Keyword(s) describing the legal topic (e.g., GDPR data retention)."
+          },
+          "jurisdiction": {
+            "type": "string",
+            "description": "Optional jurisdiction filter (e.g., EU, US, CA).",
+            "default": "EU"
+          }
+        },
+        "required": [
+          "keyword"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "policy_extractor",
+      "description": "Given a policy document ID, extracts the specific clause(s) that match a user\u2011supplied question using semantic matching, and returns the exact clause text with its section number.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "policy_id": {
+            "type": "string",
+            "description": "Identifier of the internal policy document."
+          },
+          "question": {
+            "type": "string",
+            "description": "The employee's question to be matched against the policy."
+          }
+        },
+        "required": [
+          "policy_id",
+          "question"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "summarize_text",
+      "description": "Creates a concise bullet\u2011point summary of a provided markdown or plain\u2011text passage, limited to a configurable number of sentences.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The full text to summarize."
+          },
+          "max_sentences": {
+            "type": "integer",
+            "description": "Maximum sentences in the summary.",
+            "default": 4,
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "log_user_interaction",
+      "description": "Persists a record of the user query, the LLM's final answer, and any policy / legal references used, for future audit trails.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Unique identifier of the employee who asked the question."
+          },
+          "question": {
+            "type": "string",
+            "description": "Original user question."
+          },
+          "answer": {
+            "type": "string",
+            "description": "The final answer given to the user."
+          },
+          "references": {
+            "type": "array",
+            "description": "List of document IDs or statutes cited.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "user_id",
+          "question",
+          "answer"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "Employee asks whether the remote\u2011work policy permits working from home on Fridays, and the bot retrieves the exact clause and cites the policy ID.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are CompliBot, an internal compliance assistant. Use the provided tools to fetch exact policy clauses, summarize them, and always cite the source. After answering, log the interaction with `log_user_interaction`."
+        },
+        {
+          "role": "user",
+          "content": "Can I work from home on Fridays under our remote\u2011work policy?"
+        },
+        {
+          "role": "assistant",
+          "content": "Let me check the Remote Work Policy for you.",
+          "tool_calls": [
+            {
+              "id": "policy_extractor_1a2b3c",
+              "name": "policy_extractor",
+              "arguments": {
+                "policy_id": "REMOTE\u2011WORK\u2011001",
+                "question": "work from home on Fridays"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "policy_extractor_1a2b3c",
+          "content": "### REMOTE\u2011WORK\u2011001 \u2013 Section 4.2\nEmployees may work remotely up to two days per week with manager approval. Fridays are considered a regular remote\u2011work day if approved in advance."
+        },
+        {
+          "role": "assistant",
+          "content": "Yes, you may work from home on Fridays **if you have prior manager approval**. This is stated in **Remote Work Policy (ID: REMOTE\u2011WORK\u2011001, Section\u202f4.2)**.\n\nWould you like me to log this interaction?",
+          "tool_calls": [
+            {
+              "id": "log_user_interaction_9f8e7d",
+              "name": "log_user_interaction",
+              "arguments": {
+                "user_id": "U12345",
+                "question": "Can I work from home on Fridays under our remote\u2011work policy?",
+                "answer": "Yes, you may work from home on Fridays if you have prior manager approval (Remote Work Policy, Section\u202f4.2).",
+                "references": [
+                  "REMOTE\u2011WORK\u2011001"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "log_user_interaction_9f8e7d",
+          "content": "Interaction logged successfully."
+        },
+        {
+          "role": "assistant",
+          "content": "Your request has been recorded. Let me know if you have any more compliance questions.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User seeks guidance on GDPR\u2011compliant data retention for a new marketing survey; the bot pulls the GDPR article, the company's data\u2011retention policy, and produces a concise answer.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are CompliBot, an internal compliance assistant. When a legal question is asked, first retrieve the relevant statute with `legal_lookup`, then fetch any internal policy with `search_internal_docs`, summarize, answer, and log the interaction."
+        },
+        {
+          "role": "user",
+          "content": "Our marketing team wants to keep survey responses for 5 years. Is that allowed under GDPR?"
+        },
+        {
+          "role": "assistant",
+          "content": "Checking the GDPR provision on data retention...",
+          "tool_calls": [
+            {
+              "id": "legal_lookup_a1b2c3",
+              "name": "legal_lookup",
+              "arguments": {
+                "keyword": "GDPR data retention period"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "legal_lookup_a1b2c3",
+          "content": "### GDPR Article 5(1)(e)\nPersonal data shall be kept **no longer than necessary** for the purposes for which the data were collected.\n\nReference: **Regulation (EU) 2016/679**, Recital 39."
+        },
+        {
+          "role": "assistant",
+          "content": "Now searching our internal Data Retention Policy for guidance...",
+          "tool_calls": [
+            {
+              "id": "search_internal_docs_d4e5f6",
+              "name": "search_internal_docs",
+              "arguments": {
+                "query": "data retention marketing survey",
+                "max_results": 3
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_internal_docs_d4e5f6",
+          "content": "- **Policy ID: DATA\u2011RET\u2011202** \u2013 Section 2.3: *Marketing survey data must be deleted or anonymised after 24 months unless a legitimate business reason exists.*\n- **Policy ID: DATA\u2011RET\u2011202** \u2013 Section 5.1: *Any extension beyond 24 months requires a documented risk assessment and approval from the Data Protection Officer.*"
+        },
+        {
+          "role": "assistant",
+          "content": "Here\u2019s a short summary of what we found:",
+          "tool_calls": [
+            {
+              "id": "summarize_text_7g8h9i",
+              "name": "summarize_text",
+              "arguments": {
+                "text": "GDPR Article 5(1)(e) requires personal data be kept no longer than necessary. Our internal Data Retention Policy (DATA\u2011RET\u2011202) permits keeping marketing survey data for up to 24 months, and any longer retention (e.g., 5 years) needs a documented risk assessment and DPO approval.",
+                "max_sentences": 4
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_text_7g8h9i",
+          "content": "- GDPR allows retention only as long as necessary for the purpose.\n- Our policy caps marketing\u2011survey data at 24\u202fmonths.\n- Extending to 5\u202fyears requires a risk assessment and DPO sign\u2011off.\n- Without that approval, retaining for 5\u202fyears would breach GDPR."
+        },
+        {
+          "role": "assistant",
+          "content": "In short, **keeping the survey responses for 5\u202fyears would not be allowed under GDPR unless you obtain a documented risk assessment and explicit approval from the Data Protection Officer**. Our internal policy already limits standard retention to 24\u202fmonths, so you\u2019ll need to follow the extra\u2011approval process.\n\nShall I log this interaction?",
+          "tool_calls": [
+            {
+              "id": "log_user_interaction_0j1k2l",
+              "name": "log_user_interaction",
+              "arguments": {
+                "user_id": "U98765",
+                "question": "Our marketing team wants to keep survey responses for 5 years. Is that allowed under GDPR?",
+                "answer": "Retention beyond 24 months requires a risk assessment and DPO approval; otherwise it breaches GDPR (Article\u202f5(1)(e)) and internal policy DATA\u2011RET\u2011202.",
+                "references": [
+                  "Regulation (EU) 2016/679 Art\u202f5(1)(e)",
+                  "DATA\u2011RET\u2011202"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "log_user_interaction_0j1k2l",
+          "content": "Interaction logged."
+        },
+        {
+          "role": "assistant",
+          "content": "Your query has been recorded. Let me know if you need help preparing the risk assessment or contacting the DPO.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

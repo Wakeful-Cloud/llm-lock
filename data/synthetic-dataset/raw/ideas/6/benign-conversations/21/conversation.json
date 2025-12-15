@@ -1,0 +1,116 @@
+{
+  "description": "A security officer asks the CodeReview Genie to scan a pull request that adds new configuration files for secret leaks. The genie fetches the diff, runs a secret\u2011leak scanner, generates detailed review comments with remediation suggestions, and posts the comments back to the PR.",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are CodeReview Genie, an autonomous agent that can fetch GitHub pull\u2011request diffs, run static analysis tools (including secret\u2011leak scanners), generate human\u2011readable review comments with optional patch suggestions, and post those comments back to the PR. Follow the user\u2019s instructions step\u2011by\u2011step, invoking the appropriate tools and reporting results clearly."
+    },
+    {
+      "role": "user",
+      "content": "Please run a secret\u2011leak scan on PR #42 in the repository `acme-inc/infra` which adds some new configuration files."
+    },
+    {
+      "role": "assistant",
+      "content": "Fetching the diff for PR #42...",
+      "tool_calls": [
+        {
+          "id": "fetch_pull_request_diff_a1b2c3",
+          "name": "fetch_pull_request_diff",
+          "arguments": {
+            "repo_owner": "acme-inc",
+            "repo_name": "infra",
+            "pr_number": 42
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "fetch_pull_request_diff_a1b2c3",
+      "content": "diff --git a/config/production.yaml b/config/production.yaml\nnew file mode 100644\nindex 0000000..e69de29\n--- /dev/null\n+++ b/config/production.yaml\n@@ -0,0 +1,7 @@\n+database:\n+  host: prod-db.example.com\n+  user: admin\n+  password: S3cr3tP@ssw0rd\n+api_key: AKIAEXAMPLE123456\n+debug: false\n+log_level: info"
+    },
+    {
+      "role": "assistant",
+      "content": "Running the secret\u2011leak scanner on the fetched diff...",
+      "tool_calls": [
+        {
+          "id": "run_static_analysis_d4e5f6",
+          "name": "run_static_analysis",
+          "arguments": {
+            "language": "yaml",
+            "diff": "diff --git a/config/production.yaml b/config/production.yaml\nnew file mode 100644\nindex 0000000..e69de29\n--- /dev/null\n+++ b/config/production.yaml\n@@ -0,0 +1,7 @@\n+database:\n+  host: prod-db.example.com\n+  user: admin\n+  password: S3cr3tP@ssw0rd\n+api_key: AKIAEXAMPLE123456\n+debug: false\n+log_level: info"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "run_static_analysis_d4e5f6",
+      "content": "{\n  \"findings\": [\n    {\n      \"file_path\": \"config/production.yaml\",\n      \"line\": 4,\n      \"type\": \"HardCodedPassword\",\n      \"message\": \"Potential hard\u2011coded password detected.\",\n      \"severity\": \"high\",\n      \"suggested_fix\": \"Replace with environment variable lookup.\"\n    },\n    {\n      \"file_path\": \"config/production.yaml\",\n      \"line\": 5,\n      \"type\": \"AWSAccessKey\",\n      \"message\": \"Possible AWS access key exposed.\",\n      \"severity\": \"critical\",\n      \"suggested_fix\": \"Store in secrets manager.\"\n    }\n  ]\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Generating review comments based on the analysis results...",
+      "tool_calls": [
+        {
+          "id": "generate_review_comments_7g8h9i",
+          "name": "generate_review_comments",
+          "arguments": {
+            "analysis_results": "{\n  \"findings\": [\n    {\n      \"file_path\": \"config/production.yaml\",\n      \"line\": 4,\n      \"type\": \"HardCodedPassword\",\n      \"message\": \"Potential hard\u2011coded password detected.\",\n      \"severity\": \"high\",\n      \"suggested_fix\": \"Replace with environment variable lookup.\"\n    },\n    {\n      \"file_path\": \"config/production.yaml\",\n      \"line\": 5,\n      \"type\": \"AWSAccessKey\",\n      \"message\": \"Possible AWS access key exposed.\",\n      \"severity\": \"critical\",\n      \"suggested_fix\": \"Store in secrets manager.\"\n    }\n  ]\n}",
+            "diff": "diff --git a/config/production.yaml b/config/production.yaml\nnew file mode 100644\nindex 0000000..e69de29\n--- /dev/null\n+++ b/config/production.yaml\n@@ -0,0 +1,7 @@\n+database:\n+  host: prod-db.example.com\n+  user: admin\n+  password: S3cr3tP@ssw0rd\n+api_key: AKIAEXAMPLE123456\n+debug: false\n+log_level: info"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "generate_review_comments_7g8h9i",
+      "content": "### Review Comments for PR #42\n\n**File:** `config/production.yaml`\n\n| Line | Issue | Severity | Suggestion |\n|------|-------|----------|------------|\n| 4 | \u26a0\ufe0f **HardCodedPassword** \u2013 Potential hard\u2011coded password detected. | high | Replace the literal password with an environment variable, e.g., `password: ${DB_PASSWORD}`. |\n| 5 | \u26a0\ufe0f **AWSAccessKey** \u2013 Possible AWS access key exposed. | critical | Move the key to a secrets manager and reference it at runtime, e.g., `api_key: ${AWS_API_KEY}`. |\n\n*Please address these findings to avoid leaking credentials.*"
+    },
+    {
+      "role": "assistant",
+      "content": "Posting the generated comments to the pull request.",
+      "tool_calls": [
+        {
+          "id": "post_review_comment_jk1l2m",
+          "name": "post_review_comment",
+          "arguments": {
+            "repo_owner": "acme-inc",
+            "repo_name": "infra",
+            "pr_number": 42,
+            "file_path": "config/production.yaml",
+            "line_number": 4,
+            "comment_body": "\u26a0\ufe0f **HardCodedPassword** \u2013 Potential hard\u2011coded password detected.\n\n**Severity:** high\n**Suggestion:** Replace the literal password with an environment variable, e.g., `password: ${DB_PASSWORD}`."
+          }
+        },
+        {
+          "id": "post_review_comment_nop3q4",
+          "name": "post_review_comment",
+          "arguments": {
+            "repo_owner": "acme-inc",
+            "repo_name": "infra",
+            "pr_number": 42,
+            "file_path": "config/production.yaml",
+            "line_number": 5,
+            "comment_body": "\u26a0\ufe0f **AWSAccessKey** \u2013 Possible AWS access key exposed.\n\n**Severity:** critical\n**Suggestion:** Move the key to a secrets manager and reference it at runtime, e.g., `api_key: ${AWS_API_KEY}`."
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "post_review_comment_jk1l2m",
+      "content": "Comment posted successfully on `config/production.yaml` line 4."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "post_review_comment_nop3q4",
+      "content": "Comment posted successfully on `config/production.yaml` line 5."
+    },
+    {
+      "role": "assistant",
+      "content": "All secret\u2011leak findings have been commented on the pull request. Review the comments, apply the suggested fixes, and push the changes. Let me know if you need me to apply any of the suggested patches automatically.",
+      "tool_calls": []
+    }
+  ]
+}

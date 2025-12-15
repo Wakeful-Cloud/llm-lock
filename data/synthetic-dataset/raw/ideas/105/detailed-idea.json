@@ -1,0 +1,378 @@
+{
+  "name": "BenefitWise Advisor",
+  "description": "An AI-powered Virtual HR Benefits Advisor that ingests employee demographic data, pulls current benefit\u2011plan catalogs, runs cost\u2011benefit analyses, and generates personalized recommendation reports, helping companies select the optimal benefits package for their workforce while staying within budget.",
+  "tools": [
+    {
+      "name": "fetch_employee_demographics",
+      "description": "Retrieves aggregated employee demographic information (age distribution, dependent count, locations, etc.) for a specified company.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Unique identifier of the company whose employee data is requested."
+          }
+        },
+        "required": [
+          "company_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_benefit_catalog",
+      "description": "Queries a benefits\u2011provider API to obtain the list of available plans, coverage details, and pricing for a given provider.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "provider_id": {
+            "type": "string",
+            "description": "Unique identifier of the benefits provider."
+          }
+        },
+        "required": [
+          "provider_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "run_cost_analysis",
+      "description": "Calculates estimated employer and employee costs for a set of benefit plans based on supplied demographic data and plan pricing.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "demographics": {
+            "type": "object",
+            "description": "Aggregated employee demographics as returned by fetch_employee_demographics."
+          },
+          "plans": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "A single benefit plan record from fetch_benefit_catalog."
+            },
+            "description": "List of benefit plans to evaluate."
+          }
+        },
+        "required": [
+          "demographics",
+          "plans"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_recommendation_report",
+      "description": "Creates a Markdown\u2011formatted report that summarizes the optimal benefits package, cost breakdowns, and rationale based on a cost\u2011analysis result.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "analysis_result": {
+            "type": "object",
+            "description": "The output JSON of run_cost_analysis containing cost figures for each plan."
+          },
+          "company_name": {
+            "type": "string",
+            "description": "Human\u2011readable name of the company (used for report header)."
+          }
+        },
+        "required": [
+          "analysis_result",
+          "company_name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "store_user_preferences",
+      "description": "Persists the selected recommendation and any user\u2011provided preferences to the internal HR database for future reference.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Identifier of the company."
+          },
+          "selected_plan_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Array of plan identifiers that the user chose."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional free\u2011text notes from the HR representative."
+          }
+        },
+        "required": [
+          "company_id",
+          "selected_plan_ids"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "HR manager asks for the best benefits mix for a mid\u2011size tech company; the assistant gathers data, runs analysis, and returns a markdown report.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are BenefitWise Advisor, a virtual HR benefits consultant. Use the provided tools to collect employee data, fetch plan catalogs, run cost analyses, and generate recommendation reports. Summarize the final recommendation in plain language for the user."
+        },
+        {
+          "role": "user",
+          "content": "We have 300 employees, ages 25\u201145, 120 of whom have dependents. Our current provider (provider_123) offers three medical plans: Plan A, Plan B, and Plan C. Which combination gives us the best coverage while keeping costs low?"
+        },
+        {
+          "role": "assistant",
+          "content": "Let me pull the employee demographics first.",
+          "tool_calls": [
+            {
+              "id": "fetch_employee_demographics_1a2b3c",
+              "name": "fetch_employee_demographics",
+              "arguments": {
+                "company_id": "company_789"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_employee_demographics_1a2b3c",
+          "content": "{\"total_employees\":300,\"age_distribution\":{\"25-30\":120,\"31-35\":100,\"36-40\":50,\"41-45\":30},\"dependents\":120}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now retrieving the benefit catalog from provider_123.",
+          "tool_calls": [
+            {
+              "id": "fetch_benefit_catalog_4d5e6f",
+              "name": "fetch_benefit_catalog",
+              "arguments": {
+                "provider_id": "provider_123"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_benefit_catalog_4d5e6f",
+          "content": "[{\"plan_id\":\"plan_A\",\"name\":\"Plan A\",\"monthly_premium\":200,\"deductible\":1500,\"out_of_pocket_max\":5000},{\"plan_id\":\"plan_B\",\"name\":\"Plan B\",\"monthly_premium\":250,\"deductible\":1000,\"out_of_pocket_max\":4000},{\"plan_id\":\"plan_C\",\"name\":\"Plan C\",\"monthly_premium\":300,\"deductible\":500,\"out_of_pocket_max\":3000}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Running a cost analysis based on the demographics and the three plans.",
+          "tool_calls": [
+            {
+              "id": "run_cost_analysis_7g8h9i",
+              "name": "run_cost_analysis",
+              "arguments": {
+                "demographics": {
+                  "total_employees": 300,
+                  "age_distribution": {
+                    "25-30": 120,
+                    "31-35": 100,
+                    "36-40": 50,
+                    "41-45": 30
+                  },
+                  "dependents": 120
+                },
+                "plans": [
+                  {
+                    "plan_id": "plan_A",
+                    "monthly_premium": 200,
+                    "deductible": 1500,
+                    "out_of_pocket_max": 5000
+                  },
+                  {
+                    "plan_id": "plan_B",
+                    "monthly_premium": 250,
+                    "deductible": 1000,
+                    "out_of_pocket_max": 4000
+                  },
+                  {
+                    "plan_id": "plan_C",
+                    "monthly_premium": 300,
+                    "deductible": 500,
+                    "out_of_pocket_max": 3000
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "run_cost_analysis_7g8h9i",
+          "content": "{\"analysis\":{ \"plan_A\":{\"employer_annual_cost\":720000,\"employee_average_cost\":1200}, \"plan_B\":{\"employer_annual_cost\":900000,\"employee_average_cost\":1100}, \"plan_C\":{\"employer_annual_cost\":1080000,\"employee_average_cost\":950}}}"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating a recommendation report for you.",
+          "tool_calls": [
+            {
+              "id": "generate_recommendation_report_ab12cd",
+              "name": "generate_recommendation_report",
+              "arguments": {
+                "analysis_result": {
+                  "plan_A": {
+                    "employer_annual_cost": 720000,
+                    "employee_average_cost": 1200
+                  },
+                  "plan_B": {
+                    "employer_annual_cost": 900000,
+                    "employee_average_cost": 1100
+                  },
+                  "plan_C": {
+                    "employer_annual_cost": 1080000,
+                    "employee_average_cost": 950
+                  }
+                },
+                "company_name": "Acme Tech"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_recommendation_report_ab12cd",
+          "content": "# Benefit Recommendation for Acme Tech\n\n**Recommended Plan:** **Plan C** (High\u2011deductible, lower premium) \n\n- **Employer annual cost:** $1,080,000\n- **Average employee cost:** $950 per year\n- **Why this plan?**\n  - Provides the lowest employee out\u2011of\u2011pocket maximum ($3,000) which is attractive for families with dependents.\n  - Although premium is higher, the reduced deductible and out\u2011of\u2011pocket max lead to lower total cost for employees, improving satisfaction.\n  - Fits within typical budget constraints for a tech firm of this size.\n\n**Alternative:** Plan B offers a balance of moderate premium and deductible, but its total employer cost is $180k higher than Plan C.\n\nFeel free to let me know if you\u2019d like to adjust the weighting between employer and employee cost."
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the recommendation report based on the analysis:\n\n# Benefit Recommendation for Acme Tech\n\n**Recommended Plan:** **Plan C** (High\u2011deductible, lower premium) \n\n- **Employer annual cost:** $1,080,000\n- **Average employee cost:** $950 per year\n- **Why this plan?**\n  - Provides the lowest employee out\u2011of\u2011pocket maximum ($3,000) which is attractive for families with dependents.\n  - Although premium is higher, the reduced deductible and out\u2011of\u2011pocket max lead to lower total cost for employees, improving satisfaction.\n  - Fits within typical budget constraints for a tech firm of this size.\n\n**Alternative:** Plan B offers a balance of moderate premium and deductible, but its total employer cost is $180k higher than Plan C.\n\nLet me know if you\u2019d like to store this recommendation or explore other weighting scenarios.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User wants to compare two providers and persist the chosen plan.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are BenefitWise Advisor. Use the tools to fetch data from multiple providers, run comparative cost analyses, and store the final selection when the user confirms."
+        },
+        {
+          "role": "user",
+          "content": "We are considering Provider X (provider_x) and Provider Y (provider_y). Both offer a basic medical plan and a premium plan. Show me a side\u2011by\u2011side cost comparison and then save whichever plan we pick."
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching benefit catalogs from both providers.",
+          "tool_calls": [
+            {
+              "id": "fetch_benefit_catalog_a1b2c3",
+              "name": "fetch_benefit_catalog",
+              "arguments": {
+                "provider_id": "provider_x"
+              }
+            },
+            {
+              "id": "fetch_benefit_catalog_d4e5f6",
+              "name": "fetch_benefit_catalog",
+              "arguments": {
+                "provider_id": "provider_y"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_benefit_catalog_a1b2c3",
+          "content": "[{\"plan_id\":\"x_basic\",\"name\":\"Basic\",\"monthly_premium\":180,\"deductible\":2000,\"out_of_pocket_max\":6000},{\"plan_id\":\"x_premium\",\"name\":\"Premium\",\"monthly_premium\":260,\"deductible\":800,\"out_of_pocket_max\":3500}]"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_benefit_catalog_d4e5f6",
+          "content": "[{\"plan_id\":\"y_basic\",\"name\":\"Basic\",\"monthly_premium\":190,\"deductible\":1800,\"out_of_pocket_max\":5500},{\"plan_id\":\"y_premium\",\"name\":\"Premium\",\"monthly_premium\":250,\"deductible\":900,\"out_of_pocket_max\":3400}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Running cost analysis for the four plans.",
+          "tool_calls": [
+            {
+              "id": "run_cost_analysis_zz99yy",
+              "name": "run_cost_analysis",
+              "arguments": {
+                "demographics": {
+                  "total_employees": 300,
+                  "dependents": 120
+                },
+                "plans": [
+                  {
+                    "plan_id": "x_basic",
+                    "monthly_premium": 180,
+                    "deductible": 2000,
+                    "out_of_pocket_max": 6000
+                  },
+                  {
+                    "plan_id": "x_premium",
+                    "monthly_premium": 260,
+                    "deductible": 800,
+                    "out_of_pocket_max": 3500
+                  },
+                  {
+                    "plan_id": "y_basic",
+                    "monthly_premium": 190,
+                    "deductible": 1800,
+                    "out_of_pocket_max": 5500
+                  },
+                  {
+                    "plan_id": "y_premium",
+                    "monthly_premium": 250,
+                    "deductible": 900,
+                    "out_of_pocket_max": 3400
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "run_cost_analysis_zz99yy",
+          "content": "{\"analysis\":{\"x_basic\":{\"employer_annual_cost\":648000,\"employee_average_cost\":1400},\"x_premium\":{\"employer_annual_cost\":936000,\"employee_average_cost\":1100},\"y_basic\":{\"employer_annual_cost\":684000,\"employee_average_cost\":1350},\"y_premium\":{\"employer_annual_cost\":900000,\"employee_average_cost\":1150}}}"
+        },
+        {
+          "role": "assistant",
+          "content": "### Side\u2011by\u2011Side Cost Comparison\n\n| Provider | Plan | Employer Annual Cost | Avg. Employee Cost |\n|----------|------|----------------------|--------------------|\n| X | Basic | $648,000 | $1,400 |\n| X | Premium | $936,000 | $1,100 |\n| Y | Basic | $684,000 | $1,350 |\n| Y | Premium | $900,000 | $1,150 |\n\nThe **Premium plan from Provider X** offers the lowest employee cost ($1,100) but the highest employer cost. If minimizing employer spend is the priority, the **Premium plan from Provider Y** gives a good balance with $900k employer cost and $1,150 employee cost.\n\nPlease tell me which plan you would like to select so I can store your preference.",
+          "tool_calls": []
+        },
+        {
+          "role": "user",
+          "content": "We\u2019ll go with Provider Y Premium."
+        },
+        {
+          "role": "assistant",
+          "content": "Storing your selection.",
+          "tool_calls": [
+            {
+              "id": "store_user_preferences_123abc",
+              "name": "store_user_preferences",
+              "arguments": {
+                "company_id": "company_789",
+                "selected_plan_ids": [
+                  "y_premium"
+                ],
+                "notes": "Chosen for balanced cost and coverage."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "store_user_preferences_123abc",
+          "content": "{\"status\":\"success\",\"message\":\"Preferences saved for company_789.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Your choice has been saved. Let me know if you need any further analysis or enrollment assistance.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

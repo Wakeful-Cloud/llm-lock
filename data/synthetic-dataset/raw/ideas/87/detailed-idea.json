@@ -1,0 +1,270 @@
+{
+  "name": "ClassPulse",
+  "description": "ClassPulse is an AI\u2011driven classroom participation tracker. It records student chat responses during lessons, calculates engagement metrics in real time, generates summary reports, and notifies teachers when learners appear disengaged or at\u2011risk.",
+  "tools": [
+    {
+      "name": "record_response",
+      "description": "Stores a single student's response to a classroom prompt, along with a timestamp and optional metadata.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "student_id": {
+            "type": "string",
+            "description": "Unique identifier for the student (e.g., database or LMS ID)."
+          },
+          "response_text": {
+            "type": "string",
+            "description": "The exact text the student submitted."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO\u20118601 timestamp of when the response was received."
+          },
+          "prompt_id": {
+            "type": "string",
+            "description": "Identifier of the question or poll the student answered."
+          }
+        },
+        "required": [
+          "student_id",
+          "response_text",
+          "timestamp",
+          "prompt_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "compute_engagement_metrics",
+      "description": "Analyzes all recorded responses for a given class and time window, returning quantitative engagement scores and participation breakdowns.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "class_id": {
+            "type": "string",
+            "description": "Identifier of the class (e.g., course\u2011section code)."
+          },
+          "time_window": {
+            "type": "string",
+            "description": "Human readable period such as \"today\", \"last 30 minutes\", or an ISO interval."
+          },
+          "student_id": {
+            "type": "string",
+            "description": "Optional \u2013 if supplied, metrics are computed only for this student."
+          }
+        },
+        "required": [
+          "class_id",
+          "time_window"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_student_profile",
+      "description": "Retrieves a student's demographic and academic profile from the integrated LMS, useful for contextualizing engagement data.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "student_id": {
+            "type": "string",
+            "description": "The unique identifier of the student whose profile is requested."
+          }
+        },
+        "required": [
+          "student_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "send_alert",
+      "description": "Sends a personalized notification (email, push, or in\u2011app) to a teacher about a specific student\u2019s engagement status.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "teacher_id": {
+            "type": "string",
+            "description": "Identifier of the teacher who should receive the alert."
+          },
+          "student_id": {
+            "type": "string",
+            "description": "Identifier of the student the alert concerns."
+          },
+          "message": {
+            "type": "string",
+            "description": "Full text of the alert message."
+          }
+        },
+        "required": [
+          "teacher_id",
+          "student_id",
+          "message"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_report",
+      "description": "Creates a formatted Markdown report from engagement metrics, ready to be shared with the class or uploaded to the LMS.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "class_id": {
+            "type": "string",
+            "description": "Class identifier for which the report is generated."
+          },
+          "metrics": {
+            "type": "object",
+            "description": "The engagement metrics object returned by compute_engagement_metrics."
+          }
+        },
+        "required": [
+          "class_id",
+          "metrics"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "Teacher asks for a daily engagement summary; the assistant calculates metrics, creates a report, and returns a concise overview.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are ClassPulse, an AI assistant that records student chat responses, computes engagement metrics, generates reports, and alerts teachers about at\u2011risk learners."
+        },
+        {
+          "role": "user",
+          "content": "Give me the participation summary for class BIO101 for today."
+        },
+        {
+          "role": "assistant",
+          "content": "Sure, I\u2019ll compute the engagement metrics for BIO101 and generate a brief report.",
+          "tool_calls": [
+            {
+              "id": "compute_engagement_metrics_1a2b3c",
+              "name": "compute_engagement_metrics",
+              "arguments": {
+                "class_id": "BIO101",
+                "time_window": "today"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "compute_engagement_metrics_1a2b3c",
+          "content": "{\"total_responses\": 78, \"unique_participants\": 28, \"average_responses_per_student\": 2.8, \"participation_rate\": 0.88}"
+        },
+        {
+          "role": "assistant",
+          "content": "Metrics calculated. I\u2019ll now draft a markdown report.",
+          "tool_calls": [
+            {
+              "id": "generate_report_4d5e6f",
+              "name": "generate_report",
+              "arguments": {
+                "class_id": "BIO101",
+                "metrics": {
+                  "total_responses": 78,
+                  "unique_participants": 28,
+                  "average_responses_per_student": 2.8,
+                  "participation_rate": 0.88
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_report_4d5e6f",
+          "content": "# BIO101 Participation Report (Today)\n\n- **Total Responses:** 78\n- **Students Who Participated:** 28 / 32 (88%)\n- **Average Responses per Student:** 2.8\n\nOverall engagement was strong today. Only four students did not submit any response.\n"
+        },
+        {
+          "role": "assistant",
+          "content": "Here\u2019s the summary:\n\n- Participation Rate: **88%** (28 of 32 students)\n- Total Responses: **78**\n- Avg. Responses per Student: **2.8**\n\nI\u2019ve also generated a detailed markdown report you can download or paste into the LMS.\n",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "Teacher wonders if a specific student is disengaged; the assistant checks the profile, computes individual metrics, and sends an alert if needed.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are ClassPulse, an AI assistant that tracks classroom participation and notifies teachers about disengagement."
+        },
+        {
+          "role": "user",
+          "content": "Student S123 hasn\u2019t answered any questions in today\u2019s session. Should I be concerned?"
+        },
+        {
+          "role": "assistant",
+          "content": "Let me retrieve S123\u2019s recent participation data.",
+          "tool_calls": [
+            {
+              "id": "compute_engagement_metrics_7g8h9i",
+              "name": "compute_engagement_metrics",
+              "arguments": {
+                "class_id": "BIO101",
+                "time_window": "today",
+                "student_id": "S123"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "compute_engagement_metrics_7g8h9i",
+          "content": "{\"student_id\":\"S123\",\"responses\":0,\"participation_rate\":0.0}"
+        },
+        {
+          "role": "assistant",
+          "content": "S123 has not submitted any response today (0% participation). I\u2019ll fetch the student\u2019s profile to give you more context.",
+          "tool_calls": [
+            {
+              "id": "fetch_student_profile_ab12cd",
+              "name": "fetch_student_profile",
+              "arguments": {
+                "student_id": "S123"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_student_profile_ab12cd",
+          "content": "{\"student_id\":\"S123\",\"name\":\"Alex Rivera\",\"enrollment_status\":\"active\",\"recent_grade\":72}"
+        },
+        {
+          "role": "assistant",
+          "content": "Alex Rivera (S123) is currently active in the course but has a recent grade of 72%, which is just above the passing threshold. Zero participation today is a warning sign.",
+          "tool_calls": [
+            {
+              "id": "send_alert_x1y2z3",
+              "name": "send_alert",
+              "arguments": {
+                "teacher_id": "T456",
+                "student_id": "S123",
+                "message": "Alert: Alex Rivera (S123) has not participated in today\u2019s BIO101 session. Consider reaching out to check for any issues."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_alert_x1y2z3",
+          "content": "Alert dispatched to teacher T456."
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ve sent you an alert about Alex\u2019s lack of participation. You might want to follow up with them after class.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

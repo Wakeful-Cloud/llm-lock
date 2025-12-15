@@ -1,0 +1,518 @@
+{
+  "name": "ComplianceSense",
+  "description": "ComplianceSense is an autonomous compliance\u2011monitoring assistant that continuously watches regulatory update feeds, parses new legislation, cross\u2011references the changes against a company\u2019s internal policy and control library, and automatically notifies compliance officers with concise impact summaries and recommended actions.",
+  "tools": [
+    {
+      "name": "fetch_feed",
+      "description": "Retrieves the latest items from a specified regulatory feed (RSS, Atom, or JSON) and returns a list of entries each containing title, link, published date and a short summary.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The full URL of the regulatory feed to query."
+          },
+          "max_items": {
+            "type": "integer",
+            "description": "Maximum number of recent items to return. Defaults to 10."
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "parse_regulation",
+      "description": "Takes the raw text (or HTML) of a regulation document and extracts a structured representation of its sections, clauses and effective dates using an LLM\u2011based extractor.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "The full text (or HTML) of the regulation to be parsed."
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "cross_reference",
+      "description": "Compares extracted regulation clauses against the organization\u2019s internal controls/policies and returns a list of matches, gaps and relevance scores.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "regulation_clauses": {
+            "type": "array",
+            "description": "List of clause objects extracted from the regulation.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Clause identifier (e.g., Art.5\u20111)."
+                },
+                "text": {
+                  "type": "string",
+                  "description": "Full clause text."
+                }
+              },
+              "required": [
+                "id",
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "internal_controls": {
+            "type": "array",
+            "description": "List of the organization\u2019s control objects to compare against.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Internal control identifier."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Brief description of the control."
+                }
+              },
+              "required": [
+                "id",
+                "description"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "regulation_clauses",
+          "internal_controls"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "summarize_change",
+      "description": "Generates a concise, business\u2011focused summary of the regulatory changes and their likely impact on existing processes.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "changes": {
+            "type": "array",
+            "description": "List of clause changes to be summarized.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "clause_id": {
+                  "type": "string",
+                  "description": "Identifier of the changed clause."
+                },
+                "text": {
+                  "type": "string",
+                  "description": "Full text of the changed clause."
+                }
+              },
+              "required": [
+                "clause_id",
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "changes"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_alert",
+      "description": "Formats and dispatches an alert (email or Slack) to the specified recipients with a title and body. Returns a confirmation string.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Subject line of the alert."
+          },
+          "body": {
+            "type": "string",
+            "description": "Markdown\u2011formatted alert body."
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Email address or Slack user ID."
+            },
+            "description": "List of people to notify."
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "email",
+              "slack"
+            ],
+            "description": "Delivery channel for the alert."
+          }
+        },
+        "required": [
+          "title",
+          "body",
+          "recipients",
+          "channel"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "store_update",
+      "description": "Persists a regulation update record into the compliance database for audit purposes and returns the new record ID.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "regulation_id": {
+            "type": "string",
+            "description": "Unique identifier of the regulation (e.g., GDPR-2023-04)."
+          },
+          "version": {
+            "type": "string",
+            "description": "Version or amendment number."
+          },
+          "effective_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Date when the change becomes effective."
+          },
+          "content": {
+            "type": "string",
+            "description": "Full text of the regulation or amendment."
+          }
+        },
+        "required": [
+          "regulation_id",
+          "version",
+          "effective_date",
+          "content"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks for recent GDPR data\u2011retention updates; the assistant fetches the feed, parses the relevant article, cross\u2011references internal data\u2011retention controls, summarizes the impact and sends a Slack alert.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are ComplianceSense, an autonomous compliance\u2011monitoring assistant. Use the provided tools to fetch regulatory updates, extract relevant clauses, compare them with internal controls, summarize the impact and notify the compliance team via the appropriate channel."
+        },
+        {
+          "role": "user",
+          "content": "Please let me know if there have been any recent changes to the EU GDPR data\u2011retention requirements."
+        },
+        {
+          "role": "assistant",
+          "content": "Checking the EU GDPR regulatory feed for the latest items related to data retention...",
+          "tool_calls": [
+            {
+              "id": "fetch_feed_1a2b3c",
+              "name": "fetch_feed",
+              "arguments": {
+                "url": "https://eur-lex.europa.eu/rss/gdpr-updates.xml",
+                "max_items": 5
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_feed_1a2b3c",
+          "content": "[{\"title\":\"Amendment to Article 5 \u2013 Retention Periods\",\"link\":\"https://eur-lex.europa.eu/ams/2024/05/01\",\"published\":\"2024-05-01\",\"summary\":\"The European Commission has published a draft amendment that shortens the mandatory storage period for personal data from 5 years to 3 years in certain contexts.\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Parsing the amendment text to extract the exact clause details...",
+          "tool_calls": [
+            {
+              "id": "parse_regulation_4d5e6f",
+              "name": "parse_regulation",
+              "arguments": {
+                "content": "The European Commission has published a draft amendment that shortens the mandatory storage period for personal data from 5 years to 3 years in certain contexts."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "parse_regulation_4d5e6f",
+          "content": "{\"clauses\":[{\"id\":\"Art5\u20111\",\"text\":\"Personal data shall not be kept longer than necessary for the purposes for which it is processed. The maximum retention period is reduced from five (5) years to three (3) years for marketing databases.\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Cross\u2011referencing the new clause with our internal data\u2011retention controls...",
+          "tool_calls": [
+            {
+              "id": "cross_reference_7g8h9i",
+              "name": "cross_reference",
+              "arguments": {
+                "regulation_clauses": [
+                  {
+                    "id": "Art5\u20111",
+                    "text": "Personal data shall not be kept longer than necessary for the purposes for which it is processed. The maximum retention period is reduced from five (5) years to three (3) years for marketing databases."
+                  }
+                ],
+                "internal_controls": [
+                  {
+                    "id": "CTRL-DR-001",
+                    "description": "Retention of marketing data \u2013 retain for up to 5 years."
+                  },
+                  {
+                    "id": "CTRL-DR-002",
+                    "description": "Retention of customer support logs \u2013 retain for 2 years."
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "cross_reference_7g8h9i",
+          "content": "{\"matches\":[{\"reg_clause_id\":\"Art5-1\",\"control_id\":\"CTRL-DR-001\",\"relevance\":0.92,\"gap\":\"Retention period needs to be reduced to 3 years for marketing data.\"}],\"gaps\":[]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Creating a concise summary of the change for the compliance team...",
+          "tool_calls": [
+            {
+              "id": "summarize_change_a1b2c3",
+              "name": "summarize_change",
+              "arguments": {
+                "changes": [
+                  {
+                    "clause_id": "Art5-1",
+                    "text": "Retention period reduced from 5 years to 3 years for marketing databases."
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_change_a1b2c3",
+          "content": "The draft amendment to GDPR Article\u202f5 now limits the maximum retention of marketing\u2011related personal data to **3 years** (down from 5 years). This requires an update to our internal control **CTRL\u2011DR\u2011001**."
+        },
+        {
+          "role": "assistant",
+          "content": "Sending a Slack alert to the compliance officers with the impact summary...",
+          "tool_calls": [
+            {
+              "id": "generate_alert_d4e5f6",
+              "name": "generate_alert",
+              "arguments": {
+                "title": "GDPR Draft Amendment \u2013 Marketing Data Retention Reduced to 3 Years",
+                "body": "The European Commission has issued a draft amendment to Article\u202f5 that shortens the mandatory retention period for marketing\u2011related personal data from **5\u202fyears** to **3\u202fyears**. \\n\\n**Impact:** Our internal control *CTRL\u2011DR\u2011001* must be updated accordingly. \\n\\n**Recommended Action:** Review the amendment, assess any ongoing marketing campaigns, and adjust retention policies by 2024\u201109\u201130.",
+                "recipients": [
+                  "compliance@company.com",
+                  "U01SLACKUSER1"
+                ],
+                "channel": "slack"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_alert_d4e5f6",
+          "content": "Alert sent successfully via Slack to 2 recipients."
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 I have sent a Slack alert to the compliance team with a summary of the GDPR amendment and the recommended next steps. Let me know if you need help updating the internal control or drafting a formal response.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User requests an impact assessment of the new FDA guidance on software as a medical device; the assistant pulls the FDA feed, parses the guidance, cross\u2011references internal SOPs, summarises the major changes, stores the update and emails the quality assurance lead.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are ComplianceSense, an autonomous compliance\u2011monitoring assistant. Use the provided tools to retrieve regulatory guidance, extract key clauses, compare them with internal SOPs, summarise impacts, persist the update, and notify the responsible team."
+        },
+        {
+          "role": "user",
+          "content": "Give me an impact assessment for the latest FDA guidance on Software as a Medical Device (SaMD)."
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching the most recent FDA SaMD guidance from the agency\u2019s feed...",
+          "tool_calls": [
+            {
+              "id": "fetch_feed_f7g8h9",
+              "name": "fetch_feed",
+              "arguments": {
+                "url": "https://www.fda.gov/news-events/fda-newsroom/press-announcements/rss.xml",
+                "max_items": 3
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_feed_f7g8h9",
+          "content": "[{\"title\":\"Final Guidance for Industry and FDA Staff: Software as a Medical Device (SaMD)\",\"link\":\"https://www.fda.gov/regulatory-information/search-fda-guidance-documents/software-medical-device-samd\",\"published\":\"2024-04-15\",\"summary\":\"The FDA releases its final guidance outlining classification, risk management, and lifecycle requirements for SaMD products.\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Parsing the FDA guidance document to extract the relevant sections...",
+          "tool_calls": [
+            {
+              "id": "parse_regulation_j1k2l3",
+              "name": "parse_regulation",
+              "arguments": {
+                "content": "The FDA final guidance for SaMD defines three risk categories (low, moderate, high), mandates a pre\u2011market submission for moderate\u2011and\u2011high risk products, and requires continuous post\u2011market performance monitoring."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "parse_regulation_j1k2l3",
+          "content": "{\"clauses\":[{\"id\":\"Sec2\u2011RiskCat\",\"text\":\"Defines three risk categories (low, moderate, high) for SaMD.\"},{\"id\":\"Sec3\u2011Premarket\",\"text\":\"Requires a pre\u2011market submission for moderate\u2011and\u2011high risk SaMD.\"},{\"id\":\"Sec4\u2011PostMarket\",\"text\":\"Mandates continuous performance monitoring after market entry.\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Cross\u2011referencing the extracted clauses with our internal SOPs for medical device software...",
+          "tool_calls": [
+            {
+              "id": "cross_reference_m4n5o6",
+              "name": "cross_reference",
+              "arguments": {
+                "regulation_clauses": [
+                  {
+                    "id": "Sec2\u2011RiskCat",
+                    "text": "Defines three risk categories (low, moderate, high) for SaMD."
+                  },
+                  {
+                    "id": "Sec3\u2011Premarket",
+                    "text": "Requires a pre\u2011market submission for moderate\u2011and\u2011high risk SaMD."
+                  },
+                  {
+                    "id": "Sec4\u2011PostMarket",
+                    "text": "Mandates continuous performance monitoring after market entry."
+                  }
+                ],
+                "internal_controls": [
+                  {
+                    "id": "SOP\u2011SW\u2011001",
+                    "description": "Risk classification process for software products."
+                  },
+                  {
+                    "id": "SOP\u2011SW\u2011002",
+                    "description": "Pre\u2011market submission checklist for regulated software."
+                  },
+                  {
+                    "id": "SOP\u2011SW\u2011003",
+                    "description": "Post\u2011market surveillance plan for medical devices."
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "cross_reference_m4n5o6",
+          "content": "{\"matches\":[{\"reg_clause_id\":\"Sec2\u2011RiskCat\",\"control_id\":\"SOP\u2011SW\u2011001\",\"relevance\":0.95,\"gap\":\"None\"},{\"reg_clause_id\":\"Sec3\u2011Premarket\",\"control_id\":\"SOP\u2011SW\u2011002\",\"relevance\":0.88,\"gap\":\"Checklist does not currently require a separate submission for moderate\u2011risk SaMD.\"},{\"reg_clause_id\":\"Sec4\u2011PostMarket\",\"control_id\":\"SOP\u2011SW\u2011003\",\"relevance\":0.92,\"gap\":\"Post\u2011market monitoring frequency needs to be increased for high\u2011risk SaMD.\"}],\"gaps\":[]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Summarising the major regulatory changes and their impact on our processes...",
+          "tool_calls": [
+            {
+              "id": "summarize_change_p7q8r9",
+              "name": "summarize_change",
+              "arguments": {
+                "changes": [
+                  {
+                    "clause_id": "Sec3\u2011Premarket",
+                    "text": "Pre\u2011market submission is now mandatory for moderate\u2011risk SaMD, which our current SOP\u2011SW\u2011002 does not explicitly require."
+                  },
+                  {
+                    "clause_id": "Sec4\u2011PostMarket",
+                    "text": "Continuous performance monitoring must be expanded for high\u2011risk SaMD, exceeding the scope of SOP\u2011SW\u2011003."
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_change_p7q8r9",
+          "content": "The FDA\u2019s final SaMD guidance introduces two key actions for us: (1) Update SOP\u2011SW\u2011002 to require a pre\u2011market submission for *moderate\u2011risk* SaMD; (2) Enhance SOP\u2011SW\u2011003 to include more frequent post\u2011market performance checks for *high\u2011risk* SaMD."
+        },
+        {
+          "role": "assistant",
+          "content": "Storing the regulatory update in the compliance database for audit purposes...",
+          "tool_calls": [
+            {
+              "id": "store_update_s1t2u3",
+              "name": "store_update",
+              "arguments": {
+                "regulation_id": "FDA-SaMD-2024-04",
+                "version": "final",
+                "effective_date": "2024-05-01",
+                "content": "Final FDA guidance on Software as a Medical Device \u2013 risk categories, pre\u2011market submission requirements, and post\u2011market monitoring obligations."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "store_update_s1t2u3",
+          "content": "{\"record_id\":\"COMPL-20240415-001\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Emailing the Quality Assurance lead with the impact assessment and next steps...",
+          "tool_calls": [
+            {
+              "id": "generate_alert_v4w5x6",
+              "name": "generate_alert",
+              "arguments": {
+                "title": "FDA SaMD Guidance \u2013 Required SOP Updates",
+                "body": "The FDA\u2019s final guidance (effective 2024\u201105\u201101) adds two obligations: \\n\\n1. **Pre\u2011market submission for moderate\u2011risk SaMD** \u2013 our SOP\u2011SW\u2011002 must be revised to reflect this. \\n2. **Enhanced post\u2011market monitoring for high\u2011risk SaMD** \u2013 SOP\u2011SW\u2011003 needs additional monitoring activities. \\n\\n**Action Required:** Review the attached summary and update the SOPs by 2024\u201109\u201130. The regulatory update has been logged under record ID **COMPL-20240415-001**.",
+                "recipients": [
+                  "qa_lead@company.com"
+                ],
+                "channel": "email"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_alert_v4w5x6",
+          "content": "Email sent successfully to qa_lead@company.com."
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 The impact assessment has been emailed to the QA lead, and the guidance has been recorded in our compliance system (record ID COMPL-20240415-001). Let me know if you\u2019d like help drafting the SOP revisions or scheduling a review meeting.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,300 @@
+{
+  "name": "LexiLegal AI",
+  "description": "An AI\u2011powered legal chatbot that answers client questions by dynamically retrieving statutes, case law, and a firm's internal precedent library. It provides concise, citation\u2011ready answers, flags issues that require attorney supervision, and can schedule a review with a qualified lawyer.",
+  "tools": [
+    {
+      "name": "fetch_statute",
+      "description": "Retrieves the full text of a statutory provision from a public legal database given jurisdiction, code name, and section number.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "jurisdiction": {
+            "type": "string",
+            "description": "The geographic jurisdiction, e.g., \"California\", \"US Federal\"."
+          },
+          "code_name": {
+            "type": "string",
+            "description": "The name of the statutory code, e.g., \"California Civil Code\"."
+          },
+          "section": {
+            "type": "string",
+            "description": "The specific section or article identifier, e.g., \"1940.2\"."
+          }
+        },
+        "required": [
+          "jurisdiction",
+          "code_name",
+          "section"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "search_case_law",
+      "description": "Searches a curated case\u2011law repository for cases matching a natural\u2011language query, returning markdown\u2011formatted citations and brief holdings.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "jurisdiction": {
+            "type": "string",
+            "description": "The jurisdiction to limit the search, e.g., \"California\"."
+          },
+          "query": {
+            "type": "string",
+            "description": "A concise description of the legal issue to search for."
+          },
+          "max_results": {
+            "type": "integer",
+            "description": "Maximum number of case results to return.",
+            "minimum": 1,
+            "maximum": 20
+          }
+        },
+        "required": [
+          "jurisdiction",
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "retrieve_firm_precedent",
+      "description": "Looks up the firm\u2019s internal precedent library for documents that match a supplied topic or keyword.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "topic": {
+            "type": "string",
+            "description": "A short phrase describing the legal issue, e.g., \"lease termination\"."
+          }
+        },
+        "required": [
+          "topic"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "summarize_text",
+      "description": "Generates a concise, plain\u2011English summary of a longer legal text, respecting a maximum length in words.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The legal text to be summarized."
+          },
+          "max_words": {
+            "type": "integer",
+            "description": "Maximum number of words for the summary.",
+            "minimum": 20,
+            "maximum": 200
+          }
+        },
+        "required": [
+          "text",
+          "max_words"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "flag_complexity",
+      "description": "Analyzes a legal issue summary and returns a severity flag indicating whether a qualified attorney should review the matter.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "issue_summary": {
+            "type": "string",
+            "description": "A brief description of the client\u2019s legal question or situation."
+          }
+        },
+        "required": [
+          "issue_summary"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "schedule_attorney_review",
+      "description": "Creates a temporary appointment for a human attorney to review the flagged issue and notifies the client.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "description": "Unique identifier for the client in the system."
+          },
+          "issue_summary": {
+            "type": "string",
+            "description": "One\u2011sentence summary of the legal problem."
+          },
+          "preferred_time": {
+            "type": "string",
+            "description": "ISO\u20118601 datetime string indicating the client\u2019s preferred review time."
+          }
+        },
+        "required": [
+          "client_id",
+          "issue_summary"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_citation",
+      "description": "Formats a case identifier into a proper Bluebook citation string.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "description": "Internal identifier of the case returned by search_case_law."
+          }
+        },
+        "required": [
+          "case_id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks about a landlord\u2019s right to enter a rental unit in California; the bot pulls the relevant statute, finds a supporting case, and returns a concise answer without flagging for attorney review.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LexiLegal, an AI legal assistant for a California law firm. Retrieve statutes, case law, and internal precedents as needed, cite sources in markdown, and only flag issues that require a licensed attorney."
+        },
+        {
+          "role": "user",
+          "content": "Can my landlord enter my apartment without notice if they suspect a nuisance?"
+        },
+        {
+          "role": "assistant",
+          "content": "Let me look up the relevant California statutes and case law.",
+          "tool_calls": [
+            {
+              "id": "fetch_statute_1a2b3c",
+              "name": "fetch_statute",
+              "arguments": {
+                "jurisdiction": "California",
+                "code_name": "California Civil Code",
+                "section": "1940.2"
+              }
+            },
+            {
+              "id": "search_case_law_4d5e6f",
+              "name": "search_case_law",
+              "arguments": {
+                "jurisdiction": "California",
+                "query": "landlord entry without notice nuisance",
+                "max_results": 3
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_statute_1a2b3c",
+          "content": "California Civil Code \u00a7 1940.2:\n\"A landlord may enter the dwelling unit in order to make necessary or lawful repairs, supply essential services, or exhibit the dwelling unit to prospective purchasers or tenants. Entry must be preceded by reasonable notice, usually 24 hours, except in emergencies.\"\n"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_case_law_4d5e6f",
+          "content": "- **Lazar v. City of West Covina**, 2015 Cal. App. LEXIS 1234 (Cal. Ct. App. 2015): The court held that a landlord's entry without notice is permissible only in true emergencies; a suspected nuisance does not qualify.\n- **Doe v. Smith**, 2018 Cal. Super. LEXIS 5678: The court reaffirmed the 24\u2011hour notice requirement for non\u2011emergency entries.\n"
+        },
+        {
+          "role": "assistant",
+          "content": "In California, a landlord **must give reasonable notice (typically 24\u202fhours)** before entering a rental unit for reasons that are not emergencies, such as inspecting for a nuisance. The statute you asked about (Cal. Civ. Code \u00a7\u202f1940.2) explicitly requires notice, and California case law (e.g., *Lazar v. City of West Covina*, 2015) confirms that a suspected nuisance **does not constitute an emergency**.\n\n**Answer:** Your landlord cannot enter without notice in this situation. They must provide at least 24\u2011hour notice unless there is an actual emergency like a fire or flood.\n\n*Sources:*\n- California Civil Code \u00a7\u202f1940.2 (statute)\n- *Lazar v. City of West Covina*, 2015 Cal. App. LEXIS 1234\n- *Doe v. Smith*, 2018 Cal. Super. LEXIS 5678",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User asks about potential patent infringement on a novel AI algorithm. The bot retrieves relevant statutes and cases, determines the issue is complex, flags it, and schedules an attorney review.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LexiLegal, a legal AI for a national IP firm. Provide statutory and case citations, summarize key points, and defer to a human attorney when the issue is beyond the scope of a non\u2011lawyer AI."
+        },
+        {
+          "role": "user",
+          "content": "I developed an AI model that generates code snippets. Could a competitor who uses a similar model be infringing my US patent?"
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll gather the relevant US patent statutes and recent case law on AI\u2011generated inventions.",
+          "tool_calls": [
+            {
+              "id": "fetch_statute_a1b2c3",
+              "name": "fetch_statute",
+              "arguments": {
+                "jurisdiction": "United States",
+                "code_name": "35 U.S.C.",
+                "section": "101"
+              }
+            },
+            {
+              "id": "search_case_law_d4e5f6",
+              "name": "search_case_law",
+              "arguments": {
+                "jurisdiction": "United States",
+                "query": "AI generated code patent infringement",
+                "max_results": 5
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_statute_a1b2c3",
+          "content": "35 U.S.C. \u00a7\u202f101:\n\"Whoever invents or discovers any new and useful process, machine, manufacture, or composition of matter, or any new and useful improvement thereof, may obtain a patent ...\"\nInterpretation of \u00a7\u202f101 excludes abstract ideas unless they contain an 'inventive concept' (see *Alice Corp. v. CLS Bank International*).\n"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_case_law_d4e5f6",
+          "content": "- **Alice Corp. v. CLS Bank International**, 573 U.S. 208 (2014): Established the two\u2011step test for patent\u2011eligible subject matter.\n- **Google LLC v. Oracle America, Inc.**, 593 U.S. ___ (2021): Discussed software\u2011related patents and the abstract idea doctrine.\n- **Thaler v. USPTO**, 2021 WL 1158625: Explored patentability of AI\u2011generated inventions.\n- **Enfish LLC v. Microsoft Corp.**, 822 F.3d 1327 (Fed. Cir. 2016): Emphasized 'inventive concept' in software patents.\n"
+        },
+        {
+          "role": "assistant",
+          "content": "The key issues are whether the AI\u2011generated code is considered a patent\u2011eligible *process* under \u00a7\u202f101 and whether a competitor\u2019s use would constitute infringement under 35\u202fU.S.C. \u00a7\u202f271.\n\nGiven the complexity\u2014especially the evolving jurisprudence on AI\u2011created works\u2014I recommend a detailed analysis by a qualified IP attorney.",
+          "tool_calls": [
+            {
+              "id": "flag_complexity_7g8h9i",
+              "name": "flag_complexity",
+              "arguments": {
+                "issue_summary": "Potential patent infringement involving AI\u2011generated code snippets"
+              }
+            },
+            {
+              "id": "schedule_attorney_review_j0k1l2",
+              "name": "schedule_attorney_review",
+              "arguments": {
+                "client_id": "client_789",
+                "issue_summary": "Potential patent infringement involving AI\u2011generated code snippets",
+                "preferred_time": "2025-12-14T10:00:00Z"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "flag_complexity_7g8h9i",
+          "content": "ComplexityFlag: HIGH"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "schedule_attorney_review_j0k1l2",
+          "content": "Appointment scheduled with senior IP attorney for 2025-12-14 10:00\u202fUTC. Confirmation ID: appt_456."
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ve flagged this matter as **highly complex** and scheduled a review with one of our senior IP attorneys. You\u2019ll receive a calendar invitation shortly (Confirmation ID: appt_456). In the meantime, I can provide a brief summary of the relevant statutory framework if you\u2019d like.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

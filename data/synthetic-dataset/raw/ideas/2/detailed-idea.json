@@ -1,0 +1,457 @@
+{
+  "name": "SupplyChain Optimizer AI",
+  "description": "An AI\u2011driven agent that continuously monitors inventory databases, supplier APIs, demand forecasts, and shipping logs. It automatically calculates optimal reorder points, suggests alternative suppliers when risks arise, generates purchase orders, and can place orders or trigger notifications, helping manufacturers and distributors keep stock levels healthy while minimizing costs and interruptions.",
+  "tools": [
+    {
+      "name": "fetch_inventory",
+      "description": "Retrieves the current inventory level for a given SKU from the company's ERP or inventory database.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string",
+            "description": "The stock keeping unit identifier."
+          },
+          "location_id": {
+            "type": "string",
+            "description": "Optional warehouse/location identifier. If omitted, aggregates across all locations."
+          }
+        },
+        "required": [
+          "sku"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_demand_forecast",
+      "description": "Pulls the demand forecast for a SKU for a specified future period from the demand\u2011planning system.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string",
+            "description": "The SKU to forecast."
+          },
+          "forecast_horizon_days": {
+            "type": "integer",
+            "description": "Number of days into the future for which the forecast is requested."
+          }
+        },
+        "required": [
+          "sku",
+          "forecast_horizon_days"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "calculate_reorder_point",
+      "description": "Computes the reorder point using the classic ROP formula (lead time demand + safety stock).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "average_daily_demand": {
+            "type": "number",
+            "description": "Average demand per day for the SKU."
+          },
+          "lead_time_days": {
+            "type": "integer",
+            "description": "Supplier lead time in days."
+          },
+          "safety_stock": {
+            "type": "integer",
+            "description": "Desired safety stock quantity."
+          },
+          "current_inventory": {
+            "type": "integer",
+            "description": "Current on\u2011hand inventory for the SKU."
+          }
+        },
+        "required": [
+          "average_daily_demand",
+          "lead_time_days",
+          "safety_stock",
+          "current_inventory"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_supplier_status",
+      "description": "Queries a supplier's API to obtain the latest on\u2011time performance, capacity, and any known disruptions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "supplier_id": {
+            "type": "string",
+            "description": "Unique identifier of the supplier."
+          },
+          "sku": {
+            "type": "string",
+            "description": "SKU for which status is required."
+          }
+        },
+        "required": [
+          "supplier_id",
+          "sku"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_alternative_suppliers",
+      "description": "Returns a ranked list of alternative suppliers for a SKU based on price, lead time, reliability, and capacity.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string",
+            "description": "The SKU that needs an alternative source."
+          },
+          "max_results": {
+            "type": "integer",
+            "description": "Maximum number of alternatives to return."
+          }
+        },
+        "required": [
+          "sku"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_purchase_order",
+      "description": "Creates a purchase order document (JSON) given supplier, SKU, quantity, and price details.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "supplier_id": {
+            "type": "string",
+            "description": "ID of the supplier to order from."
+          },
+          "sku": {
+            "type": "string",
+            "description": "SKU being ordered."
+          },
+          "quantity": {
+            "type": "integer",
+            "description": "Number of units to order."
+          },
+          "unit_price": {
+            "type": "number",
+            "description": "Agreed unit price."
+          },
+          "delivery_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Expected delivery date."
+          }
+        },
+        "required": [
+          "supplier_id",
+          "sku",
+          "quantity",
+          "unit_price",
+          "delivery_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "place_order",
+      "description": "Sends a generated purchase order to the supplier's ordering endpoint and returns a confirmation number.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "purchase_order": {
+            "type": "object",
+            "description": "The purchase order JSON produced by generate_purchase_order."
+          }
+        },
+        "required": [
+          "purchase_order"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "send_notification",
+      "description": "Emails or messages a stakeholder with a free\u2011form text, optionally attaching a PDF/CSV summary.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "recipient_email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email address of the notification recipient."
+          },
+          "subject": {
+            "type": "string",
+            "description": "Email subject line."
+          },
+          "body": {
+            "type": "string",
+            "description": "Plain\u2011text body of the email."
+          },
+          "attachment_base64": {
+            "type": "string",
+            "description": "Optional base64\u2011encoded attachment (e.g., PDF report)."
+          }
+        },
+        "required": [
+          "recipient_email",
+          "subject",
+          "body"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_shipping_status",
+      "description": "Looks up the real\u2011time shipping status for a given purchase order or shipment tracking number.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "shipping_id": {
+            "type": "string",
+            "description": "Tracking number or internal shipment identifier."
+          }
+        },
+        "required": [
+          "shipping_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "update_inventory",
+      "description": "Updates the inventory system after a receipt or adjustment, adding or subtracting a quantity for a SKU.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string",
+            "description": "The SKU to update."
+          },
+          "quantity_change": {
+            "type": "integer",
+            "description": "Positive for receipts, negative for withdrawals."
+          },
+          "location_id": {
+            "type": "string",
+            "description": "Warehouse/location where the change occurs."
+          },
+          "reference": {
+            "type": "string",
+            "description": "Reference such as PO number or adjustment ID."
+          }
+        },
+        "required": [
+          "sku",
+          "quantity_change",
+          "location_id",
+          "reference"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks for an optimal reorder point for a specific SKU; the assistant gathers inventory and demand data, computes the ROP, and returns the recommendation.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are SupplyChain Optimizer AI. Use the provided tools to answer supply\u2011chain queries, always show intermediate data to the user."
+        },
+        {
+          "role": "user",
+          "content": "We have SKU1234 in stock. What should be our reorder point for the next month?"
+        },
+        {
+          "role": "assistant",
+          "content": "Let me retrieve the current inventory and the forecasted demand for SKU1234.",
+          "tool_calls": [
+            {
+              "id": "fetch_inventory_9f1a2b",
+              "name": "fetch_inventory",
+              "arguments": {
+                "sku": "SKU1234"
+              }
+            },
+            {
+              "id": "fetch_demand_forecast_a3c4d5",
+              "name": "fetch_demand_forecast",
+              "arguments": {
+                "sku": "SKU1234",
+                "forecast_horizon_days": 30
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_inventory_9f1a2b",
+          "content": "{\"sku\":\"SKU1234\",\"current_inventory\":520,\"location_id\":\"WH01\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_demand_forecast_a3c4d5",
+          "content": "{\"sku\":\"SKU1234\",\"average_daily_demand\":18.7,\"total_demand_30d\":561}"
+        },
+        {
+          "role": "assistant",
+          "content": "The inventory system reports 520 units on hand. The demand forecast for the next 30 days averages 18.7 units per day (\u2248 561 units total). Using a lead time of 12 days and a safety stock of 100 units, I will calculate the reorder point.",
+          "tool_calls": [
+            {
+              "id": "calculate_reorder_point_b7e8f9",
+              "name": "calculate_reorder_point",
+              "arguments": {
+                "average_daily_demand": 18.7,
+                "lead_time_days": 12,
+                "safety_stock": 100,
+                "current_inventory": 520
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "calculate_reorder_point_b7e8f9",
+          "content": "{\"reorder_point\": 324,\"recommended_order_quantity\": 236}"
+        },
+        {
+          "role": "assistant",
+          "content": "Based on the numbers, the reorder point is **324 units**. Since you currently have 520 units, you are above the point, but to cover the forecasted demand you should place an order for **236 units** to maintain safety stock after the lead time.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "Supplier X reports a delay; the assistant finds an alternative supplier, generates a PO, places the order, and notifies the procurement manager.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are SupplyChain Optimizer AI. Help the procurement team react to supplier disruptions using available tools."
+        },
+        {
+          "role": "user",
+          "content": "Supplier S001 says the next shipment of SKU9876 will be delayed by two weeks. Find a backup supplier and place an order for 1,000 units, then email the procurement lead."
+        },
+        {
+          "role": "assistant",
+          "content": "I will first check the status of Supplier S001 for SKU9876, then look for alternatives.",
+          "tool_calls": [
+            {
+              "id": "fetch_supplier_status_c1d2e3",
+              "name": "fetch_supplier_status",
+              "arguments": {
+                "supplier_id": "S001",
+                "sku": "SKU9876"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_supplier_status_c1d2e3",
+          "content": "{\"supplier_id\":\"S001\",\"sku\":\"SKU9876\",\"on_time_rate\":0.78,\"capacity_remaining\":200,\"delay_days\":14}"
+        },
+        {
+          "role": "assistant",
+          "content": "S001 can only supply 200 units on time and will be 14 days late. Let me search for alternative suppliers.",
+          "tool_calls": [
+            {
+              "id": "fetch_alternative_suppliers_f4g5h6",
+              "name": "fetch_alternative_suppliers",
+              "arguments": {
+                "sku": "SKU9876",
+                "max_results": 3
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_alternative_suppliers_f4g5h6",
+          "content": "[{\"supplier_id\":\"S045\",\"price_per_unit\":12.5,\"lead_time_days\":7,\"reliability\":0.96},{\"supplier_id\":\"S078\",\"price_per_unit\":13.0,\"lead_time_days\":5,\"reliability\":0.93}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Two viable alternatives were found:\n1. **S045** \u2013 $12.50/unit, 7\u2011day lead time, 96% reliability.\n2. **S078** \u2013 $13.00/unit, 5\u2011day lead time, 93% reliability.\nI recommend S045 for the fastest reliable delivery.\nI will now generate a purchase order for 1,000 units with S045.",
+          "tool_calls": [
+            {
+              "id": "generate_purchase_order_i7j8k9",
+              "name": "generate_purchase_order",
+              "arguments": {
+                "supplier_id": "S045",
+                "sku": "SKU9876",
+                "quantity": 1000,
+                "unit_price": 12.5,
+                "delivery_date": "2025-12-20"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_purchase_order_i7j8k9",
+          "content": "{\"po_number\":\"PO-2025-1123\",\"supplier_id\":\"S045\",\"sku\":\"SKU9876\",\"quantity\":1000,\"unit_price\":12.5,\"total_price\":12500,\"delivery_date\":\"2025-12-20\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Purchase order generated. I will now place the order with S045.",
+          "tool_calls": [
+            {
+              "id": "place_order_l0m1n2",
+              "name": "place_order",
+              "arguments": {
+                "purchase_order": {
+                  "po_number": "PO-2025-1123",
+                  "supplier_id": "S045",
+                  "sku": "SKU9876",
+                  "quantity": 1000,
+                  "unit_price": 12.5,
+                  "total_price": 12500,
+                  "delivery_date": "2025-12-20"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "place_order_l0m1n2",
+          "content": "{\"confirmation_id\":\"CONF-987654\",\"status\":\"submitted\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Order placed successfully. Confirmation ID: **CONF-987654**.\nNow I will send an email to the procurement lead with the PO details.",
+          "tool_calls": [
+            {
+              "id": "send_notification_o3p4q5",
+              "name": "send_notification",
+              "arguments": {
+                "recipient_email": "procurement.lead@example.com",
+                "subject": "Backup Purchase Order Submitted for SKU9876",
+                "body": "Supplier S045 has been selected as a backup. PO Number: PO-2025-1123\\nQuantity: 1,000 units\\nUnit Price: $12.50\\nDelivery Date: 2025-12-20\\nConfirmation ID: CONF-987654\\n\\nPlease review the attached PO document.",
+                "attachment_base64": "eyJwb19udW1iZXIiOiAiUE8tMjAyNS0xMTIzIiwgInN1cHBsaWVyX2lkIjogIlMwNDUiLCAic2t1IjogIlNLSTk4NzYiLCAicXVhbnRpdHkiOiAxMDAwLCAidW5pdF9wcmljZSI6IDEyLjUsICJ0b3RhbF9wcmljZSI6IDEyNTAwLCAiZGVsaXZlcnlfZGF0ZSI6ICIyMDI1LTEyLTIwIn0="
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_notification_o3p4q5",
+          "content": "{\"email_id\":\"MAIL-555321\",\"status\":\"sent\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "The email has been sent (Mail ID: MAIL-555321). Let me know if there is anything else you need.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

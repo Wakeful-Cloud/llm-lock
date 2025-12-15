@@ -1,0 +1,578 @@
+{
+  "name": "TuneCraft AI Playlist Generator",
+  "description": "An agentic LLM service that creates personalized music playlists by analyzing a user's listening history, mood tags, and current chart trends across major streaming platforms (Spotify, Apple Music, YouTube Music). The assistant synthesizes these signals, generates a cohesive track list matching the requested mood and duration, and can push the finished playlist directly to the user's chosen service.",
+  "tools": [
+    {
+      "name": "fetch_user_history",
+      "description": "Retrieves the most recent tracks a user has played on a given streaming service. Returns an array of track identifiers and basic metadata.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "service": {
+            "type": "string",
+            "description": "The streaming platform, e.g., 'spotify', 'apple_music', or 'youtube_music'.",
+            "enum": [
+              "spotify",
+              "apple_music",
+              "youtube_music"
+            ]
+          },
+          "user_id": {
+            "type": "string",
+            "description": "The unique identifier of the user on the chosen service."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of recent tracks to return (default 50).",
+            "minimum": 1,
+            "default": 50
+          }
+        },
+        "required": [
+          "service",
+          "user_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_user_mood_tags",
+      "description": "Analyzes a user's recent listening sessions to infer mood tags such as 'energetic', 'relaxed', or 'melancholic'. Returns a weighted list of moods.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "The unique identifier of the user."
+          },
+          "recent_tracks": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Track identifier from the user's history."
+            },
+            "description": "Optional list of track IDs to focus the analysis on; if omitted the service will use the last 30 tracks."
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_trending_charts",
+      "description": "Pulls the current top\u2011N tracks from a streaming service's public charts for a given region and optional genre.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "service": {
+            "type": "string",
+            "description": "Streaming platform to query.",
+            "enum": [
+              "spotify",
+              "apple_music",
+              "youtube_music"
+            ]
+          },
+          "region": {
+            "type": "string",
+            "description": "Two\u2011letter country code, e.g., 'US', 'GB'."
+          },
+          "genre": {
+            "type": "string",
+            "description": "Optional genre filter, e.g., 'pop', 'hiphop'.",
+            "default": null
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Number of top tracks to return (max 100).",
+            "minimum": 1,
+            "default": 20
+          }
+        },
+        "required": [
+          "service",
+          "region"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_audio_features",
+      "description": "Retrieves detailed audio characteristics (energy, danceability, valence, tempo, etc.) for a list of track IDs from the specified service.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "service": {
+            "type": "string",
+            "description": "Streaming platform.",
+            "enum": [
+              "spotify",
+              "apple_music",
+              "youtube_music"
+            ]
+          },
+          "track_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Track identifier on the service."
+            },
+            "description": "Array of track IDs to fetch features for.",
+            "minItems": 1
+          }
+        },
+        "required": [
+          "service",
+          "track_ids"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_playlist",
+      "description": "Creates a playlist composition by selecting tracks that match the supplied seed tracks, desired mood, target energy level, and total duration.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "seed_track_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Track IDs that serve as stylistic anchors.",
+            "minItems": 1
+          },
+          "mood": {
+            "type": "string",
+            "description": "Target mood for the playlist, e.g., 'energetic', 'chill', 'focus'."
+          },
+          "target_energy": {
+            "type": "number",
+            "description": "Desired average energy (0.0\u20111.0).",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "default": 0.5
+          },
+          "length_minutes": {
+            "type": "integer",
+            "description": "Approximate total length of the playlist in minutes.",
+            "minimum": 5
+          },
+          "candidate_pool": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "track_id": {
+                  "type": "string"
+                },
+                "energy": {
+                  "type": "number"
+                },
+                "duration_ms": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "track_id",
+                "energy",
+                "duration_ms"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Optional pre\u2011filtered list of tracks (with audio features) that the algorithm may draw from. If omitted, the service will use the union of the user's history and trending chart tracks."
+          }
+        },
+        "required": [
+          "seed_track_ids",
+          "mood",
+          "length_minutes"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "add_playlist_to_service",
+      "description": "Creates a new playlist on the chosen streaming platform, populates it with the supplied track IDs, and returns a shareable URL.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "service": {
+            "type": "string",
+            "description": "Streaming platform.",
+            "enum": [
+              "spotify",
+              "apple_music",
+              "youtube_music"
+            ]
+          },
+          "user_id": {
+            "type": "string",
+            "description": "Identifier of the user who will own the playlist."
+          },
+          "playlist_name": {
+            "type": "string",
+            "description": "Desired name for the new playlist."
+          },
+          "track_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Ordered list of track IDs to add."
+          }
+        },
+        "required": [
+          "service",
+          "user_id",
+          "playlist_name",
+          "track_ids"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_user_preferences",
+      "description": "Fetches explicit user preferences such as favorite genres, disallowed explicit content, and preferred streaming service.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "The unique identifier of the user."
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User requests a 30\u2011minute upbeat playlist for a morning run. The assistant pulls recent history, mood inference, current pop charts, generates a suitable list, and adds it to the user's Spotify account.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are TuneCraft, an AI playlist curator. Use the provided tools to gather user data, analyze mood, fetch trends, synthesize a playlist, and create it on the user's chosen platform."
+        },
+        {
+          "role": "user",
+          "content": "Hey TuneCraft, I need a 30\u2011minute high\u2011energy playlist for my morning run. Please add it to my Spotify account."
+        },
+        {
+          "role": "assistant",
+          "content": "Got it! Let me pull your recent listening history, infer your current mood, and look at what's trending in pop right now.",
+          "tool_calls": [
+            {
+              "id": "fetch_user_history_1a2b3c",
+              "name": "fetch_user_history",
+              "arguments": {
+                "service": "spotify",
+                "user_id": "user_98765",
+                "limit": 50
+              }
+            },
+            {
+              "id": "fetch_user_mood_tags_4d5e6f",
+              "name": "fetch_user_mood_tags",
+              "arguments": {
+                "user_id": "user_98765"
+              }
+            },
+            {
+              "id": "fetch_trending_charts_7g8h9i",
+              "name": "fetch_trending_charts",
+              "arguments": {
+                "service": "spotify",
+                "region": "US",
+                "genre": "pop",
+                "limit": 30
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_user_history_1a2b3c",
+          "content": "{\"tracks\":[{\"track_id\":\"sp_1\",\"name\":\"Song A\"},{\"track_id\":\"sp_2\",\"name\":\"Song B\"}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_user_mood_tags_4d5e6f",
+          "content": "{\"moods\":[{\"tag\":\"energetic\",\"score\":0.78},{\"tag\":\"happy\",\"score\":0.62}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_trending_charts_7g8h9i",
+          "content": "{\"charts\":[{\"track_id\":\"sp_101\",\"name\":\"Hit 1\"},{\"track_id\":\"sp_102\",\"name\":\"Hit 2\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Great, I have your recent tracks, a strong energetic vibe, and the current pop hits. I\u2019ll now fetch audio features for these candidates so I can select the right mix.",
+          "tool_calls": [
+            {
+              "id": "get_audio_features_aa1bb2",
+              "name": "get_audio_features",
+              "arguments": {
+                "service": "spotify",
+                "track_ids": [
+                  "sp_1",
+                  "sp_2",
+                  "sp_101",
+                  "sp_102"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_audio_features_aa1bb2",
+          "content": "{\"features\":[{\"track_id\":\"sp_1\",\"energy\":0.65,\"duration_ms\":210000},{\"track_id\":\"sp_2\",\"energy\":0.58,\"duration_ms\":195000},{\"track_id\":\"sp_101\",\"energy\":0.78,\"duration_ms\":180000},{\"track_id\":\"sp_102\",\"energy\":0.81,\"duration_ms\":200000}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Using those features, I\u2019ll generate a 30\u2011minute playlist focused on high energy.",
+          "tool_calls": [
+            {
+              "id": "generate_playlist_bb2cc3",
+              "name": "generate_playlist",
+              "arguments": {
+                "seed_track_ids": [
+                  "sp_101",
+                  "sp_102"
+                ],
+                "mood": "energetic",
+                "target_energy": 0.75,
+                "length_minutes": 30,
+                "candidate_pool": [
+                  {
+                    "track_id": "sp_1",
+                    "energy": 0.65,
+                    "duration_ms": 210000
+                  },
+                  {
+                    "track_id": "sp_2",
+                    "energy": 0.58,
+                    "duration_ms": 195000
+                  },
+                  {
+                    "track_id": "sp_101",
+                    "energy": 0.78,
+                    "duration_ms": 180000
+                  },
+                  {
+                    "track_id": "sp_102",
+                    "energy": 0.81,
+                    "duration_ms": 200000
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_playlist_bb2cc3",
+          "content": "{\"playlist\":[\"sp_101\",\"sp_102\",\"sp_1\",\"sp_2\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Your high\u2011energy run playlist is ready! I\u2019ll now create it in your Spotify library.",
+          "tool_calls": [
+            {
+              "id": "add_playlist_to_service_cc3dd4",
+              "name": "add_playlist_to_service",
+              "arguments": {
+                "service": "spotify",
+                "user_id": "user_98765",
+                "playlist_name": "Morning Run \u2013 30 min",
+                "track_ids": [
+                  "sp_101",
+                  "sp_102",
+                  "sp_1",
+                  "sp_2"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "add_playlist_to_service_cc3dd4",
+          "content": "{\"playlist_url\":\"https://open.spotify.com/playlist/xyz123\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "All set! Your new playlist is live: https://open.spotify.com/playlist/xyz123. Enjoy your run!",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User wants a relaxed, instrumental playlist for studying. The assistant pulls preferences, filters out vocal tracks, and creates a Spotify playlist.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are TuneCraft, an AI that builds custom playlists using the available toolset."
+        },
+        {
+          "role": "user",
+          "content": "Can you make a 45\u2011minute instrumental study playlist? Put it on my Spotify."
+        },
+        {
+          "role": "assistant",
+          "content": "Sure! I\u2019ll fetch your preferences, recent listening, and the current instrumental charts.",
+          "tool_calls": [
+            {
+              "id": "get_user_preferences_dd4ee5",
+              "name": "get_user_preferences",
+              "arguments": {
+                "user_id": "user_98765"
+              }
+            },
+            {
+              "id": "fetch_user_history_ee5ff6",
+              "name": "fetch_user_history",
+              "arguments": {
+                "service": "spotify",
+                "user_id": "user_98765",
+                "limit": 40
+              }
+            },
+            {
+              "id": "fetch_trending_charts_ff6gg7",
+              "name": "fetch_trending_charts",
+              "arguments": {
+                "service": "spotify",
+                "region": "US",
+                "genre": "instrumental",
+                "limit": 30
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_user_preferences_dd4ee5",
+          "content": "{\"preferences\":{\"favorite_genres\":[\"ambient\",\"classical\"],\"allow_explicit\":false}}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_user_history_ee5ff6",
+          "content": "{\"tracks\":[{\"track_id\":\"sp_a1\",\"name\":\"Ambient Track 1\"},{\"track_id\":\"sp_b2\",\"name\":\"Piano Piece\"}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_trending_charts_ff6gg7",
+          "content": "{\"charts\":[{\"track_id\":\"sp_c3\",\"name\":\"Chillhop Beat\"},{\"track_id\":\"sp_d4\",\"name\":\"Piano Loops\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll now retrieve audio features so I can filter for low vocal presence and appropriate tempo.",
+          "tool_calls": [
+            {
+              "id": "get_audio_features_gg7hh8",
+              "name": "get_audio_features",
+              "arguments": {
+                "service": "spotify",
+                "track_ids": [
+                  "sp_a1",
+                  "sp_b2",
+                  "sp_c3",
+                  "sp_d4"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_audio_features_gg7hh8",
+          "content": "{\"features\":[{\"track_id\":\"sp_a1\",\"energy\":0.35,\"duration_ms\":240000,\"instrumental\":true},{\"track_id\":\"sp_b2\",\"energy\":0.25,\"duration_ms\":210000,\"instrumental\":true},{\"track_id\":\"sp_c3\",\"energy\":0.45,\"duration_ms\":180000,\"instrumental\":true},{\"track_id\":\"sp_d4\",\"energy\":0.30,\"duration_ms\":200000,\"instrumental\":true}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating a 45\u2011minute instrumental mix that matches your ambient and classical tastes.",
+          "tool_calls": [
+            {
+              "id": "generate_playlist_hh8ii9",
+              "name": "generate_playlist",
+              "arguments": {
+                "seed_track_ids": [
+                  "sp_a1",
+                  "sp_b2"
+                ],
+                "mood": "calm",
+                "target_energy": 0.35,
+                "length_minutes": 45,
+                "candidate_pool": [
+                  {
+                    "track_id": "sp_a1",
+                    "energy": 0.35,
+                    "duration_ms": 240000
+                  },
+                  {
+                    "track_id": "sp_b2",
+                    "energy": 0.25,
+                    "duration_ms": 210000
+                  },
+                  {
+                    "track_id": "sp_c3",
+                    "energy": 0.45,
+                    "duration_ms": 180000
+                  },
+                  {
+                    "track_id": "sp_d4",
+                    "energy": 0.3,
+                    "duration_ms": 200000
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_playlist_hh8ii9",
+          "content": "{\"playlist\":[\"sp_a1\",\"sp_b2\",\"sp_d4\",\"sp_c3\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "All set! I\u2019ll create the playlist in your Spotify account.",
+          "tool_calls": [
+            {
+              "id": "add_playlist_to_service_ii9jj0",
+              "name": "add_playlist_to_service",
+              "arguments": {
+                "service": "spotify",
+                "user_id": "user_98765",
+                "playlist_name": "Study Focus \u2013 45 min",
+                "track_ids": [
+                  "sp_a1",
+                  "sp_b2",
+                  "sp_d4",
+                  "sp_c3"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "add_playlist_to_service_ii9jj0",
+          "content": "{\"playlist_url\":\"https://open.spotify.com/playlist/abc789\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Your study playlist is ready: https://open.spotify.com/playlist/abc789. Happy studying!",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

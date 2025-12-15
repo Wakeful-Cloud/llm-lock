@@ -1,0 +1,314 @@
+{
+  "name": "SmartHome Orchestrator",
+  "description": "An agentic LLM that orchestrates IoT devices, weather forecasts, energy pricing, and user routines to automatically schedule lighting, HVAC, and security settings for a personalized, energy\u2011efficient smart home experience.",
+  "tools": [
+    {
+      "name": "device_control",
+      "description": "Send a command to a specific IoT device (e.g., turn on/off, set brightness, set temperature, arm/disarm).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "description": "The unique identifier of the target device (e.g., \"light_living_room_1\")."
+          },
+          "command": {
+            "type": "string",
+            "description": "The action to perform (e.g., \"set_state\", \"arm\", \"disarm\")."
+          },
+          "parameters": {
+            "type": "object",
+            "description": "Optional key\u2011value arguments required by the command (e.g., {\"brightness\":30,\"color\":\"warm\"}).",
+            "additionalProperties": true
+          },
+          "schedule": {
+            "type": "string",
+            "description": "ISO\u20118601 timestamp or cron expression indicating when the command should be executed. Omit for immediate execution."
+          }
+        },
+        "required": [
+          "device_id",
+          "command"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_weather",
+      "description": "Fetch current and forecasted weather data for a given location.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "type": "string",
+            "description": "Human\u2011readable location (city, address, or coordinates)."
+          },
+          "date": {
+            "type": "string",
+            "description": "Optional ISO\u20118601 date for which forecast is required (defaults to today).",
+            "format": "date"
+          }
+        },
+        "required": [
+          "location"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_user_schedule",
+      "description": "Retrieve the user's calendar events and predefined routines for a specific date.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "ISO\u20118601 date for which the schedule is requested.",
+            "format": "date"
+          }
+        },
+        "required": [
+          "date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_energy_prices",
+      "description": "Obtain time\u2011of\u2011use electricity price data for the user's utility region.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "description": "Utility region or zip code."
+          },
+          "date": {
+            "type": "string",
+            "description": "ISO\u20118601 date for which price data is needed.",
+            "format": "date"
+          }
+        },
+        "required": [
+          "region",
+          "date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_device_status",
+      "description": "Query the current state of a specific IoT device (on/off, temperature, battery, etc.).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "description": "The unique identifier of the device."
+          }
+        },
+        "required": [
+          "device_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "set_routine",
+      "description": "Create or update a named automation routine that can be triggered later.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "routine_name": {
+            "type": "string",
+            "description": "A human\u2011friendly name for the routine."
+          },
+          "actions": {
+            "type": "array",
+            "description": "Ordered list of device actions that constitute the routine.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "device_id": {
+                  "type": "string",
+                  "description": "Target device identifier."
+                },
+                "command": {
+                  "type": "string",
+                  "description": "Command to execute."
+                },
+                "parameters": {
+                  "type": "object",
+                  "description": "Command\u2011specific arguments.",
+                  "additionalProperties": true
+                }
+              },
+              "required": [
+                "device_id",
+                "command"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "schedule": {
+            "type": "string",
+            "description": "ISO\u20118601 timestamp or cron expression for automatic triggering."
+          }
+        },
+        "required": [
+          "routine_name",
+          "actions",
+          "schedule"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks the system to turn on the living\u2011room lights with a warm dim glow at sunset.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are SmartHome Orchestrator, an agentic LLM that coordinates IoT devices, weather data, user routines, and energy pricing to manage a smart home. Use the provided tools to fetch information and issue device commands. Respond politely and confirm actions to the user."
+        },
+        {
+          "role": "user",
+          "content": "Turn on the living room lights to a warm dim glow at sunset."
+        },
+        {
+          "role": "assistant",
+          "content": "Give me a moment while I check today\u2019s sunset time for your location.",
+          "tool_calls": [
+            {
+              "id": "get_weather_01",
+              "name": "get_weather",
+              "arguments": {
+                "location": "Seattle, WA"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_weather_01",
+          "content": "{ \"sunset\": \"2023-10-09T18:45:00-07:00\", \"description\": \"Sunset today at 6:45\u202fPM Pacific time.\" }"
+        },
+        {
+          "role": "assistant",
+          "content": "Great, sunset is at 6:45\u202fPM. I\u2019ll schedule the lights now.",
+          "tool_calls": [
+            {
+              "id": "device_control_01",
+              "name": "device_control",
+              "arguments": {
+                "device_id": "light_living_room_1",
+                "command": "set_state",
+                "parameters": {
+                  "brightness": 30,
+                  "color": "warm"
+                },
+                "schedule": "2023-10-09T18:45:00-07:00"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "device_control_01",
+          "content": "{ \"status\": \"scheduled\", \"device_id\": \"light_living_room_1\", \"scheduled_time\": \"2023-10-09T18:45:00-07:00\" }"
+        },
+        {
+          "role": "assistant",
+          "content": "Your living\u2011room lights are scheduled to turn on at sunset with a warm, dim glow. Let me know if you\u2019d like any other adjustments.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User wants the HVAC to pre\u2011cool the bedroom for a good night\u2019s sleep based on tomorrow\u2019s forecast and cheap electricity periods.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are SmartHome Orchestrator, an agentic LLM that intelligently coordinates home devices, weather, user calendars, and utility rates. Use the tools to gather data, compute optimal settings, and issue commands."
+        },
+        {
+          "role": "user",
+          "content": "Prepare the bedroom for sleep tomorrow night. I want it cool, but only use cheap electricity."
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll gather tomorrow\u2019s weather, your sleep schedule, and the time\u2011of\u2011use rates.",
+          "tool_calls": [
+            {
+              "id": "get_weather_02",
+              "name": "get_weather",
+              "arguments": {
+                "location": "Seattle, WA",
+                "date": "2023-10-10"
+              }
+            },
+            {
+              "id": "get_user_schedule_02",
+              "name": "get_user_schedule",
+              "arguments": {
+                "date": "2023-10-10"
+              }
+            },
+            {
+              "id": "get_energy_prices_02",
+              "name": "get_energy_prices",
+              "arguments": {
+                "region": "98101",
+                "date": "2023-10-10"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_weather_02",
+          "content": "{ \"forecast\": [{\"hour\":\"22:00\",\"temperature\":15},{\"hour\":\"23:00\",\"temperature\":14}], \"description\":\"Cool night expected.\" }"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_user_schedule_02",
+          "content": "{ \"events\": [{\"title\":\"Sleep\",\"start\":\"2023-10-10T22:00:00-07:00\",\"end\":\"2023-10-11T06:00:00-07:00\"}] }"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_energy_prices_02",
+          "content": "{ \"rates\": [{\"hour\":\"22:00\",\"price\":0.08},{\"hour\":\"23:00\",\"price\":0.07}], \"currency\":\"USD/kWh\" }"
+        },
+        {
+          "role": "assistant",
+          "content": "Based on the forecast (15\u201114\u202f\u00b0C), your sleep window (10\u202fPM\u20116\u202fAM), and the low\u2011price period (10\u202fPM\u201112\u202fAM), I\u2019ll set the bedroom thermostat to 20\u202f\u00b0C starting at 9:30\u202fPM so the room reaches the target comfortably using cheap electricity.",
+          "tool_calls": [
+            {
+              "id": "device_control_02",
+              "name": "device_control",
+              "arguments": {
+                "device_id": "thermostat_bedroom_1",
+                "command": "set_temperature",
+                "parameters": {
+                  "target_temperature": 20
+                },
+                "schedule": "2023-10-10T21:30:00-07:00"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "device_control_02",
+          "content": "{ \"status\":\"scheduled\",\"device_id\":\"thermostat_bedroom_1\",\"scheduled_time\":\"2023-10-10T21:30:00-07:00\" }"
+        },
+        {
+          "role": "assistant",
+          "content": "Your bedroom thermostat is scheduled to start cooling at 9:30\u202fPM tomorrow, using the cheap electricity window. I\u2019ll make sure it reaches 20\u202f\u00b0C by bedtime. Let me know if you\u2019d like any changes.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,478 @@
+{
+  "name": "PressMate AI",
+  "description": "PressMate AI is an agentic LLM that transforms internal briefings, corporate style guides, and SEO keywords into fully\u2011drafted, brand\u2011compliant press releases ready for distribution. The system extracts event details, applies tone and formatting rules, optimises for search, and can even generate media lists and schedule publication, delivering a turnkey solution for PR teams and marketers.",
+  "tools": [
+    {
+      "name": "extract_brief",
+      "description": "Extracts the core event details (who, what, when, where, why) from a raw internal briefing document supplied as plain text.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "briefing_text": {
+            "type": "string",
+            "description": "The full text of the internal briefing or memo."
+          }
+        },
+        "required": [
+          "briefing_text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_style_guide",
+      "description": "Retrieves the company's press\u2011release style guide (JSON format) from a given URL or file path so the LLM can enforce brand tone, headline rules, and formatting conventions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "guide_url": {
+            "type": "string",
+            "description": "HTTPS URL or local file path pointing to the JSON style guide."
+          }
+        },
+        "required": [
+          "guide_url"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_seo_keywords",
+      "description": "Generates a list of SEO\u2011optimized keywords based on a short product or event description and optional language/region settings.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "topic": {
+            "type": "string",
+            "description": "Brief description of the product, service, or event."
+          },
+          "language": {
+            "type": "string",
+            "description": "Target language for the keywords (e.g., \"en\", \"es\")."
+          }
+        },
+        "required": [
+          "topic"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "draft_release",
+      "description": "Creates a first\u2011draft press release using extracted event details, the corporate style guide, and the SEO keyword list.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "event_details": {
+            "type": "object",
+            "description": "Key\u2011value pairs describing the event (e.g., title, date, location, quote)."
+          },
+          "style_guide": {
+            "type": "object",
+            "description": "Parsed style\u2011guide JSON that defines tone, headline caps, etc."
+          },
+          "seo_keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Array of SEO keywords to sprinkle into the draft."
+          }
+        },
+        "required": [
+          "event_details",
+          "style_guide",
+          "seo_keywords"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "proofread_release",
+      "description": "Runs grammar, spelling, brand\u2011tone, and readability checks on a draft and returns an annotated, corrected version.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "draft_text": {
+            "type": "string",
+            "description": "The raw press\u2011release draft produced by draft_release."
+          }
+        },
+        "required": [
+          "draft_text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "format_release",
+      "description": "Applies final formatting (HTML, Markdown, or plain\u2011text) according to the style guide and returns the release ready for publishing or distribution.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "proofread_text": {
+            "type": "string",
+            "description": "The corrected press\u2011release text after proofreading."
+          },
+          "format_type": {
+            "type": "string",
+            "enum": [
+              "html",
+              "markdown",
+              "plain"
+            ],
+            "description": "Desired output format."
+          }
+        },
+        "required": [
+          "proofread_text",
+          "format_type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "distribution_list_generator",
+      "description": "Generates a CSV\u2011formatted media contact list based on industry, region, and outlet type to accelerate distribution.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "industry": {
+            "type": "string",
+            "description": "Target industry for the press release (e.g., \"consumer\u2011tech\")."
+          },
+          "region": {
+            "type": "string",
+            "description": "Geographic region for the distribution (e.g., \"North America\")."
+          },
+          "max_contacts": {
+            "type": "integer",
+            "description": "Maximum number of contacts to return."
+          }
+        },
+        "required": [
+          "industry",
+          "region"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "schedule_publication",
+      "description": "Posts the formatted press release to a specified distribution platform via its API and returns a confirmation identifier.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "The final formatted press release (HTML/Markdown/Plain)."
+          },
+          "platform": {
+            "type": "string",
+            "description": "Name of the distribution service (e.g., \"PRNewswire\", \"BusinessWire\")."
+          },
+          "scheduled_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO\u20118601 timestamp for when the release should go live."
+          }
+        },
+        "required": [
+          "content",
+          "platform",
+          "scheduled_time"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User requests a brand\u2011new press release for the launch of the EcoFit smartwatch; the assistant extracts details, pulls the style guide, generates SEO keywords, drafts, proofreads, formats, and returns the final HTML release.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are PressMate AI, an expert PR\u2011assistant. Use any tools needed to turn internal briefings, style guides, and SEO keywords into a distribution\u2011ready press release."
+        },
+        {
+          "role": "user",
+          "content": "We need a press release announcing EcoFit's new fitness smartwatch. I have uploaded the internal briefing (see attached) and our style guide lives at https://company.com/styleguide.json. Make it SEO\u2011optimized for \"fitness smartwatch\" and output HTML."
+        },
+        {
+          "role": "assistant",
+          "content": "Got it. I\u2019ll start by extracting the core event details from the briefing you provided.",
+          "tool_calls": [
+            {
+              "id": "extract_brief_1a2b3c",
+              "name": "extract_brief",
+              "arguments": {
+                "briefing_text": "EcoFit is launching the EcoFit Pro smartwatch on March 15, 2025 in San Francisco. The device tracks heart rate, sleep, and offers a new AI\u2011coach. CEO Maya Patel says, \"Our goal is to empower everyone to live healthier lives.\""
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_brief_1a2b3c",
+          "content": "{\"title\":\"EcoFit Pro smartwatch launch\",\"date\":\"2025-03-15\",\"location\":\"San Francisco\",\"product_name\":\"EcoFit Pro\",\"features\":[\"heart\u2011rate monitoring\",\"sleep analysis\",\"AI\u2011coach\"],\"quote\":\"Our goal is to empower everyone to live healthier lives.\",\"executive\":\"Maya Patel\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Next I\u2019ll fetch the corporate style guide.",
+          "tool_calls": [
+            {
+              "id": "fetch_style_guide_4d5e6f",
+              "name": "fetch_style_guide",
+              "arguments": {
+                "guide_url": "https://company.com/styleguide.json"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_style_guide_4d5e6f",
+          "content": "{\"headline_caps\":\"title\",\"body_font\":\"Arial\",\"font_size\":12,\"tone\":\"professional\",\"max_length\":800}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I\u2019ll generate a short list of SEO keywords for the topic.",
+          "tool_calls": [
+            {
+              "id": "get_seo_keywords_7g8h9i",
+              "name": "get_seo_keywords",
+              "arguments": {
+                "topic": "EcoFit Pro fitness smartwatch launch",
+                "language": "en"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_seo_keywords_7g8h9i",
+          "content": "[\"fitness smartwatch\",\"eco-friendly wearable\",\"AI fitness coach\",\"EcoFit Pro\",\"smartwatch launch 2025\"]"
+        },
+        {
+          "role": "assistant",
+          "content": "With the event details, style guide, and SEO keywords I can draft the release.",
+          "tool_calls": [
+            {
+              "id": "draft_release_ab12cd",
+              "name": "draft_release",
+              "arguments": {
+                "event_details": {
+                  "title": "EcoFit Pro smartwatch launch",
+                  "date": "2025-03-15",
+                  "location": "San Francisco",
+                  "product_name": "EcoFit Pro",
+                  "features": [
+                    "heart\u2011rate monitoring",
+                    "sleep analysis",
+                    "AI\u2011coach"
+                  ],
+                  "quote": "Our goal is to empower everyone to live healthier lives.",
+                  "executive": "Maya Patel"
+                },
+                "style_guide": {
+                  "headline_caps": "title",
+                  "tone": "professional",
+                  "max_length": 800
+                },
+                "seo_keywords": [
+                  "fitness smartwatch",
+                  "eco-friendly wearable",
+                  "AI fitness coach",
+                  "EcoFit Pro",
+                  "smartwatch launch 2025"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "draft_release_ab12cd",
+          "content": "EcoFit Unveils EcoFit Pro \u2013 A Fitness Smartwatch Designed for a Healthier Future\n\nSan\u202fFrancisco, March\u202f15\u202f2025 \u2013 EcoFit, a leader in sustainable wearables, today announced the launch of EcoFit Pro, a next\u2011generation fitness smartwatch that combines heart\u2011rate monitoring, advanced sleep analysis, and an AI\u2011powered fitness coach. \\\"Our goal is to empower everyone to live healthier lives,\\\" said Maya Patel, CEO of EcoFit. The EcoFit Pro is built with recycled aluminum and a solar\u2011assist battery, positioning it as the most eco\u2011friendly smartwatch on the market.\n\nKey features include:\n- Continuous heart\u2011rate monitoring with medical\u2011grade accuracy\n- Sleep analysis with personalized recommendations\n- AI\u2011coach that creates adaptive workout plans\n- Ultra\u2011durable, recycled\u2011material chassis\n\nEcoFit Pro will be available worldwide beginning April\u202f1\u202f2025 at major retailers and via ecofit.com.\n\nFor media inquiries, contact:\nJane Doe, Public Relations\njane.doe@eco\u2011fit.com\n+1\u2011555\u2011123\u20114567\n\n###\n\nKeywords: fitness smartwatch, eco\u2011friendly wearable, AI fitness coach, EcoFit Pro, smartwatch launch 2025"
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll now run a proofreading pass to correct any grammar issues and verify brand tone.",
+          "tool_calls": [
+            {
+              "id": "proofread_release_ef34gh",
+              "name": "proofread_release",
+              "arguments": {
+                "draft_text": "EcoFit Unveils EcoFit Pro \u2013 A Fitness Smartwatch Designed for a Healthier Future\n\nSan\u202fFrancisco, March\u202f15\u202f2025 \u2013 EcoFit, a leader in sustainable wearables, today announced the launch of EcoFit Pro, a next\u2011generation fitness smartwatch that combines heart\u2011rate monitoring, advanced sleep analysis, and an AI\u2011powered fitness coach. \"Our goal is to empower everyone to live healthier lives,\" said Maya Patel, CEO of EcoFit. The EcoFit Pro is built with recycled aluminum and a solar\u2011assist battery, positioning it as the most eco\u2011friendly smartwatch on the market.\n\nKey features include:\n- Continuous heart\u2011rate monitoring with medical\u2011grade accuracy\n- Sleep analysis with personalized recommendations\n- AI\u2011coach that creates adaptive workout plans\n- Ultra\u2011durable, recycled\u2011material chassis\n\nEcoFit Pro will be available worldwide beginning April\u202f1\u202f2025 at major retailers and via ecofit.com.\n\nFor media inquiries, contact:\nJane Doe, Public Relations\njane.doe@eco\u2011fit.com\n+1\u2011555\u2011123\u20114567\n\n###\n\nKeywords: fitness smartwatch, eco\u2011friendly wearable, AI fitness coach, EcoFit Pro, smartwatch launch 2025"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "proofread_release_ef34gh",
+          "content": "EcoFit Unveils EcoFit Pro \u2013 A Fitness Smartwatch Designed for a Healthier Future\n\nSan\u202fFrancisco, March\u202f15\u202f2025 \u2013 EcoFit, a leader in sustainable wearables, today announced the launch of EcoFit Pro, a next\u2011generation fitness smartwatch that combines heart\u2011rate monitoring, advanced sleep analysis, and an AI\u2011powered fitness coach. \"Our goal is to empower everyone to live healthier lives,\" said Maya Patel, CEO of EcoFit. The EcoFit Pro is built with recycled aluminum and a solar\u2011assist battery, positioning it as the most eco\u2011friendly smartwatch on the market.\n\nKey features include:\n- Continuous heart\u2011rate monitoring with medical\u2011grade accuracy\n- Sleep analysis with personalized recommendations\n- AI\u2011coach that creates adaptive workout plans\n- Ultra\u2011durable, recycled\u2011material chassis\n\nEcoFit Pro will be available worldwide beginning April\u202f1\u202f2025 at major retailers and via ecofit.com.\n\nFor media inquiries, contact:\nJane Doe, Public Relations\njane.doe@eco\u2011fit.com\n+1\u2011555\u2011123\u20114567\n\n###\n\nKeywords: fitness smartwatch, eco\u2011friendly wearable, AI fitness coach, EcoFit Pro, smartwatch launch 2025"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I\u2019ll format the proofread text as HTML, respecting the headline caps and body font from the style guide.",
+          "tool_calls": [
+            {
+              "id": "format_release_ij56kl",
+              "name": "format_release",
+              "arguments": {
+                "proofread_text": "EcoFit Unveils EcoFit Pro \u2013 A Fitness Smartwatch Designed for a Healthier Future\n\nSan\u202fFrancisco, March\u202f15\u202f2025 \u2013 EcoFit, a leader in sustainable wearables, today announced the launch of EcoFit Pro, a next\u2011generation fitness smartwatch that combines heart\u2011rate monitoring, advanced sleep analysis, and an AI\u2011powered fitness coach. \"Our goal is to empower everyone to live healthier lives,\" said Maya Patel, CEO of EcoFit. The EcoFit Pro is built with recycled aluminum and a solar\u2011assist battery, positioning it as the most eco\u2011friendly smartwatch on the market.\n\nKey features include:\n- Continuous heart\u2011rate monitoring with medical\u2011grade accuracy\n- Sleep analysis with personalized recommendations\n- AI\u2011coach that creates adaptive workout plans\n- Ultra\u2011durable, recycled\u2011material chassis\n\nEcoFit Pro will be available worldwide beginning April\u202f1\u202f2025 at major retailers and via ecofit.com.\n\nFor media inquiries, contact:\nJane Doe, Public Relations\njane.doe@eco\u2011fit.com\n+1\u2011555\u2011123\u20114567\n\n###\n\nKeywords: fitness smartwatch, eco\u2011friendly wearable, AI fitness coach, EcoFit Pro, smartwatch launch 2025",
+                "format_type": "html"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "format_release_ij56kl",
+          "content": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<title>EcoFit Unveils EcoFit Pro \u2013 A Fitness Smartwatch Designed for a Healthier Future</title>\n<style>\nbody {font-family: Arial, sans-serif; font-size: 12pt;}\nh1 {text-transform: capitalize;}\n</style>\n</head>\n<body>\n<h1>EcoFit Unveils EcoFit Pro \u2013 A Fitness Smartwatch Designed for a Healthier Future</h1>\n<p><strong>San\u202fFrancisco, March\u202f15\u202f2025</strong> \u2013 EcoFit, a leader in sustainable wearables, today announced the launch of EcoFit Pro, a next\u2011generation fitness smartwatch that combines heart\u2011rate monitoring, advanced sleep analysis, and an AI\u2011powered fitness coach. \"Our goal is to empower everyone to live healthier lives,\" said Maya Patel, CEO of EcoFit. The EcoFit Pro is built with recycled aluminum and a solar\u2011assist battery, positioning it as the most eco\u2011friendly smartwatch on the market.</p>\n<h2>Key Features</h2>\n<ul>\n<li>Continuous heart\u2011rate monitoring with medical\u2011grade accuracy</li>\n<li>Sleep analysis with personalized recommendations</li>\n<li>AI\u2011coach that creates adaptive workout plans</li>\n<li>Ultra\u2011durable, recycled\u2011material chassis</li>\n</ul>\n<p>EcoFit Pro will be available worldwide beginning April\u202f1\u202f2025 at major retailers and via <a href=\"https://eco\u2011fit.com\">eco\u2011fit.com</a>.</p>\n<h3>Media Contact</h3>\n<p>Jane Doe, Public Relations<br>\n<a href=\"mailto:jane.doe@eco-fit.com\">jane.doe@eco-fit.com</a><br>\n+1\u2011555\u2011123\u20114567</p>\n<hr>\n<p><em>Keywords:</em> fitness smartwatch, eco\u2011friendly wearable, AI fitness coach, EcoFit Pro, smartwatch launch 2025</p>\n</body>\n</html>"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the final, distribution\u2011ready press release in HTML format. Let me know if you\u2019d like a media contact list or to schedule this release on a distribution platform.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User asks to update an existing release with the latest sales figures and add a quote from the CFO; the assistant pulls the original release, extracts the new KPI, revises the draft, proofreads, and returns the updated HTML version.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are PressMate AI, an autonomous PR author. Use the available tools to modify existing releases, incorporate new data, and keep brand standards."
+        },
+        {
+          "role": "user",
+          "content": "We have already published the launch release for EcoFit Pro (see attached). Since then we sold 12,000 units in the first week and our CFO, Raj Patel, wants to add this line: \"The early adoption underscores strong market demand for sustainable tech.\" Update the release with these numbers and the new quote, keep the same style, and give me the revised HTML."
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll first retrieve the original press release you attached.",
+          "tool_calls": [
+            {
+              "id": "extract_brief_9z8y7x",
+              "name": "extract_brief",
+              "arguments": {
+                "briefing_text": "EcoFit Unveils EcoFit Pro \u2013 A Fitness Smartwatch Designed for a Healthier Future\n\nSan\u202fFrancisco, March\u202f15\u202f2025 \u2013 EcoFit, a leader in sustainable wearables, today announced the launch of EcoFit Pro, a next\u2011generation fitness smartwatch..."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_brief_9z8y7x",
+          "content": "{\"title\":\"EcoFit Unveils EcoFit Pro \u2013 A Fitness Smartwatch Designed for a Healthier Future\",\"date\":\"2025-03-15\",\"location\":\"San Francisco\",\"product_name\":\"EcoFit Pro\",\"features\":[\"heart\u2011rate monitoring\",\"sleep analysis\",\"AI\u2011coach\"],\"quote\":\"Our goal is to empower everyone to live healthier lives.\",\"executive\":\"Maya Patel\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I\u2019ll fetch the style guide again to make sure formatting stays consistent.",
+          "tool_calls": [
+            {
+              "id": "fetch_style_guide_mn12op",
+              "name": "fetch_style_guide",
+              "arguments": {
+                "guide_url": "https://company.com/styleguide.json"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_style_guide_mn12op",
+          "content": "{\"headline_caps\":\"title\",\"body_font\":\"Arial\",\"font_size\":12,\"tone\":\"professional\",\"max_length\":800}"
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll incorporate the new sales figure and CFO quote into the existing draft.",
+          "tool_calls": [
+            {
+              "id": "draft_release_qr34st",
+              "name": "draft_release",
+              "arguments": {
+                "event_details": {
+                  "title": "EcoFit Unveils EcoFit Pro \u2013 A Fitness Smartwatch Designed for a Healthier Future",
+                  "date": "2025-03-15",
+                  "location": "San Francisco",
+                  "product_name": "EcoFit Pro",
+                  "features": [
+                    "heart\u2011rate monitoring",
+                    "sleep analysis",
+                    "AI\u2011coach"
+                  ],
+                  "quote": "Our goal is to empower everyone to live healthier lives.",
+                  "executive": "Maya Patel",
+                  "sales_first_week": "12,000 units",
+                  "cfo_quote": "The early adoption underscores strong market demand for sustainable tech."
+                },
+                "style_guide": {
+                  "headline_caps": "title",
+                  "tone": "professional",
+                  "max_length": 800
+                },
+                "seo_keywords": [
+                  "fitness smartwatch",
+                  "eco-friendly wearable",
+                  "AI fitness coach",
+                  "EcoFit Pro",
+                  "smartwatch launch 2025"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "draft_release_qr34st",
+          "content": "EcoFit Unveils EcoFit Pro \u2013 A Fitness Smartwatch Designed for a Healthier Future\n\nSan\u202fFrancisco, March\u202f15\u202f2025 \u2013 EcoFit, a leader in sustainable wearables, today announced the launch of EcoFit Pro, a next\u2011generation fitness smartwatch that combines heart\u2011rate monitoring, advanced sleep analysis, and an AI\u2011powered fitness coach. \"Our goal is to empower everyone to live healthier lives,\" said Maya Patel, CEO of EcoFit. The EcoFit Pro is built with recycled aluminum and a solar\u2011assist battery, positioning it as the most eco\u2011friendly smartwatch on the market.\n\nKey features include:\n- Continuous heart\u2011rate monitoring with medical\u2011grade accuracy\n- Sleep analysis with personalized recommendations\n- AI\u2011coach that creates adaptive workout plans\n- Ultra\u2011durable, recycled\u2011material chassis\n\nIn its first week, EcoFit Pro sold 12,000 units, a strong start for the sustainable\u2011tech segment. \"The early adoption underscores strong market demand for sustainable tech,\" added Raj Patel, CFO of EcoFit.\n\nEcoFit Pro will be available worldwide beginning April\u202f1\u202f2025 at major retailers and via ecofit.com.\n\nFor media inquiries, contact:\nJane Doe, Public Relations\njane.doe@eco\u2011fit.com\n+1\u2011555\u2011123\u20114567\n\n###\n\nKeywords: fitness smartwatch, eco\u2011friendly wearable, AI fitness coach, EcoFit Pro, smartwatch launch 2025"
+        },
+        {
+          "role": "assistant",
+          "content": "Proofreading the updated draft.",
+          "tool_calls": [
+            {
+              "id": "proofread_release_uv78wx",
+              "name": "proofread_release",
+              "arguments": {
+                "draft_text": "EcoFit Unveils EcoFit Pro \u2013 A Fitness Smartwatch Designed for a Healthier Future\n\nSan\u202fFrancisco, March\u202f15\u202f2025 \u2013 EcoFit, a leader in sustainable wearables, today announced the launch of EcoFit Pro, a next\u2011generation fitness smartwatch that combines heart\u2011rate monitoring, advanced sleep analysis, and an AI\u2011powered fitness coach. \"Our goal is to empower everyone to live healthier lives,\" said Maya Patel, CEO of EcoFit. The EcoFit Pro is built with recycled aluminum and a solar\u2011assist battery, positioning it as the most eco\u2011friendly smartwatch on the market.\n\nKey features include:\n- Continuous heart\u2011rate monitoring with medical\u2011grade accuracy\n- Sleep analysis with personalized recommendations\n- AI\u2011coach that creates adaptive workout plans\n- Ultra\u2011durable, recycled\u2011material chassis\n\nIn its first week, EcoFit Pro sold 12,000 units, a strong start for the sustainable\u2011tech segment. \"The early adoption underscores strong market demand for sustainable tech,\" added Raj Patel, CFO of EcoFit.\n\nEcoFit Pro will be available worldwide beginning April\u202f1\u202f2025 at major retailers and via ecofit.com.\n\nFor media inquiries, contact:\nJane Doe, Public Relations\njane.doe@eco\u2011fit.com\n+1\u2011555\u2011123\u20114567\n\n###\n\nKeywords: fitness smartwatch, eco\u2011friendly wearable, AI fitness coach, EcoFit Pro, smartwatch launch 2025"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "proofread_release_uv78wx",
+          "content": "EcoFit Unveils EcoFit Pro \u2013 A Fitness Smartwatch Designed for a Healthier Future\n\nSan\u202fFrancisco, March\u202f15\u202f2025 \u2013 EcoFit, a leader in sustainable wearables, today announced the launch of EcoFit Pro, a next\u2011generation fitness smartwatch that combines heart\u2011rate monitoring, advanced sleep analysis, and an AI\u2011powered fitness coach. \"Our goal is to empower everyone to live healthier lives,\" said Maya Patel, CEO of EcoFit. The EcoFit Pro is built with recycled aluminum and a solar\u2011assist battery, positioning it as the most eco\u2011friendly smartwatch on the market.\n\nKey features include:\n- Continuous heart\u2011rate monitoring with medical\u2011grade accuracy\n- Sleep analysis with personalized recommendations\n- AI\u2011coach that creates adaptive workout plans\n- Ultra\u2011durable, recycled\u2011material chassis\n\nIn its first week, EcoFit Pro sold 12,000 units, a strong start for the sustainable\u2011tech segment. \"The early adoption underscores strong market demand for sustainable tech,\" added Raj Patel, CFO of EcoFit.\n\nEcoFit Pro will be available worldwide beginning April\u202f1\u202f2025 at major retailers and via ecofit.com.\n\nFor media inquiries, contact:\nJane Doe, Public Relations\njane.doe@eco\u2011fit.com\n+1\u2011555\u2011123\u20114567\n\n###\n\nKeywords: fitness smartwatch, eco\u2011friendly wearable, AI fitness coach, EcoFit Pro, smartwatch launch 2025"
+        },
+        {
+          "role": "assistant",
+          "content": "Formatting the revised release as HTML.",
+          "tool_calls": [
+            {
+              "id": "format_release_z9y0ab",
+              "name": "format_release",
+              "arguments": {
+                "proofread_text": "EcoFit Unveils EcoFit Pro \u2013 A Fitness Smartwatch Designed for a Healthier Future\n\nSan\u202fFrancisco, March\u202f15\u202f2025 \u2013 EcoFit, a leader in sustainable wearables, today announced the launch of EcoFit Pro, a next\u2011generation fitness smartwatch that combines heart\u2011rate monitoring, advanced sleep analysis, and an AI\u2011powered fitness coach. \"Our goal is to empower everyone to live healthier lives,\" said Maya Patel, CEO of EcoFit. The EcoFit Pro is built with recycled aluminum and a solar\u2011assist battery, positioning it as the most eco\u2011friendly smartwatch on the market.\n\nKey features include:\n- Continuous heart\u2011rate monitoring with medical\u2011grade accuracy\n- Sleep analysis with personalized recommendations\n- AI\u2011coach that creates adaptive workout plans\n- Ultra\u2011durable, recycled\u2011material chassis\n\nIn its first week, EcoFit Pro sold 12,000 units, a strong start for the sustainable\u2011tech segment. \"The early adoption underscores strong market demand for sustainable tech,\" added Raj Patel, CFO of EcoFit.\n\nEcoFit Pro will be available worldwide beginning April\u202f1\u202f2025 at major retailers and via ecofit.com.\n\nFor media inquiries, contact:\nJane Doe, Public Relations\njane.doe@eco\u2011fit.com\n+1\u2011555\u2011123\u20114567\n\n###\n\nKeywords: fitness smartwatch, eco\u2011friendly wearable, AI fitness coach, EcoFit Pro, smartwatch launch 2025",
+                "format_type": "html"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "format_release_z9y0ab",
+          "content": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<title>EcoFit Unveils EcoFit Pro \u2013 A Fitness Smartwatch Designed for a Healthier Future</title>\n<style>\nbody {font-family: Arial, sans-serif; font-size: 12pt;}\nh1 {text-transform: capitalize;}\n</style>\n</head>\n<body>\n<h1>EcoFit Unveils EcoFit Pro \u2013 A Fitness Smartwatch Designed for a Healthier Future</h1>\n<p><strong>San\u202fFrancisco, March\u202f15\u202f2025</strong> \u2013 EcoFit, a leader in sustainable wearables, today announced the launch of EcoFit Pro, a next\u2011generation fitness smartwatch that combines heart\u2011rate monitoring, advanced sleep analysis, and an AI\u2011powered fitness coach. \"Our goal is to empower everyone to live healthier lives,\" said Maya Patel, CEO of EcoFit. The EcoFit Pro is built with recycled aluminum and a solar\u2011assist battery, positioning it as the most eco\u2011friendly smartwatch on the market.</p>\n<h2>Key Features</h2>\n<ul>\n<li>Continuous heart\u2011rate monitoring with medical\u2011grade accuracy</li>\n<li>Sleep analysis with personalized recommendations</li>\n<li>AI\u2011coach that creates adaptive workout plans</li>\n<li>Ultra\u2011durable, recycled\u2011material chassis</li>\n</ul>\n<p>In its first week, EcoFit Pro sold <strong>12,000 units</strong>, a strong start for the sustainable\u2011tech segment. \"The early adoption underscores strong market demand for sustainable tech,\" added Raj Patel, CFO of EcoFit.</p>\n<p>EcoFit Pro will be available worldwide beginning April\u202f1\u202f2025 at major retailers and via <a href=\"https://eco\u2011fit.com\">eco\u2011fit.com</a>.</p>\n<h3>Media Contact</h3>\n<p>Jane Doe, Public Relations<br>\n<a href=\"mailto:jane.doe@eco\u2011fit.com\">jane.doe@eco\u2011fit.com</a><br>\n+1\u2011555\u2011123\u20114567</p>\n<hr>\n<p><em>Keywords:</em> fitness smartwatch, eco\u2011friendly wearable, AI fitness coach, EcoFit Pro, smartwatch launch 2025</p>\n</body>\n</html>"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the updated press release with the sales figures and CFO quote, formatted in HTML. Let me know if you need the media list or want to schedule distribution.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

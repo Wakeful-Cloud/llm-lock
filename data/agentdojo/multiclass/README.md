@@ -1,0 +1,32 @@
+# AgentDojo Run
+
+- Defense: multiclass
+  - Embedding model: [sentence-transformers/all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)
+  - Embedding classifier minimum benign threshold: `0.4`
+  - Embedding classifier minimum malicious threshold: `0.6`
+  - LLM model: [hf.co/unsloth/Qwen3-8B-GGUF:Q5_K_XL](https://huggingface.co/unsloth/Qwen3-8B-GGUF)
+- Environments
+  - ICRN
+    - System: [Illinois Computes Research Notebook (ICRN)](https://computes.illinois.edu/resources/icrn/)
+    - Hardware
+      - CPU: AMD EPYC 7413
+      - Memory: 32 GiB DDR4
+      - GPU: 1x NVIDIA A100 (80 GB VRAM, SXM4 form factor)
+      - Storage: [NCSA Harbor](https://docs.ncsa.illinois.edu/systems/harbor/en/latest/index.html)
+    - Software
+      - OS: Ubuntu 22.04.3 LTS
+      - Kernel: 5.15.0-156-generic
+      - Python: 3.12.12
+  - Campus Cluster
+    - System: [Illinois Campus Cluster](https://campuscluster.illinois.edu/)
+    - Hardware
+      - CPU: AMD EPYC 7763
+      - Memory: 96 GiB DDR4
+      - GPU: 1x NVIDIA A100 (80 GB VRAM, SXM4 form factor)
+      - Storage: [NCSA Harbor](https://docs.ncsa.illinois.edu/systems/harbor/en/latest/index.html) + [NCSA Taiga](https://docs.ncsa.illinois.edu/systems/taiga/en/latest/index.html)
+    - Software
+      - OS: RHEL 9.4
+      - Kernel: 5.14.0-427.94.1.el9_4.x86_64
+      - Python: 3.12.12
+- Notes
+  - To meet a submission deadline, the `none` and `direct` attack types were run on ICRN, while `ignore_previous`, `system_message`, `injecagent`, `important_instructions`, `tool_knowledge`, and `dos` were run concurrently on the Campus Cluster. Because the ICRN and CC nodes have nearly identical hardware (i.e., same GPU model and similar CPU), we do not expect significant performance differences between the two systems.

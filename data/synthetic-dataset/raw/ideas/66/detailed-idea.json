@@ -1,0 +1,288 @@
+{
+  "name": "LexRiskScorer",
+  "description": "An AI\u2011powered legal risk scoring platform that analyses contract clauses, compares them against a curated database of litigation outcomes, assigns quantitative risk scores, and recommends mitigation language to reduce exposure.",
+  "tools": [
+    {
+      "name": "upload_contract",
+      "description": "Accepts a PDF or DOCX contract file, extracts raw text via OCR/ parsers, stores it in the system, and returns a unique contract identifier for later queries.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "description": "Local path, URL, or cloud storage URI pointing to the contract document."
+          }
+        },
+        "required": [
+          "file_path"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "extract_clause",
+      "description": "Retrieves the full text of a specific clause from a stored contract using the contract ID and a clause title or keyword.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "contract_id": {
+            "type": "string",
+            "description": "Identifier returned by upload_contract."
+          },
+          "clause_title": {
+            "type": "string",
+            "description": "Exact title of the clause (e.g., \"Confidentiality\")."
+          },
+          "keyword": {
+            "type": "string",
+            "description": "Fallback keyword search if the title is not known."
+          }
+        },
+        "required": [
+          "contract_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "retrieve_litigation_outcomes",
+      "description": "Queries the internal litigation database for cases that are factually or legally similar to the supplied clause text and returns a concise list of outcomes, jurisdictions, and monetary impacts.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "clause_text": {
+            "type": "string",
+            "description": "The full text of the clause to be compared."
+          },
+          "jurisdiction": {
+            "type": "string",
+            "description": "Optional jurisdiction filter (e.g., \"CA\", \"NY\")."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of similar cases to return."
+          }
+        },
+        "required": [
+          "clause_text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "calculate_risk_score",
+      "description": "Computes a numeric risk score (0\u2011100) for a clause based on the clause text and the retrieved litigation case data using a weighted statistical model.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "clause_text": {
+            "type": "string",
+            "description": "The clause whose risk is being evaluated."
+          },
+          "case_summaries": {
+            "type": "string",
+            "description": "JSON\u2011encoded array of case objects returned by retrieve_litigation_outcomes."
+          }
+        },
+        "required": [
+          "clause_text",
+          "case_summaries"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "suggest_mitigation",
+      "description": "Generates recommended revised clause language or additional protective provisions aimed at lowering the identified risk.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "clause_text": {
+            "type": "string",
+            "description": "Original clause text."
+          },
+          "risk_factors": {
+            "type": "string",
+            "description": "Short description of the main risk drivers identified (e.g., \"broad indemnity language\")."
+          }
+        },
+        "required": [
+          "clause_text",
+          "risk_factors"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_report",
+      "description": "Compiles all clause\u2011level risk scores, case references, and mitigation suggestions into a formatted PDF report and returns a downloadable URL.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "contract_id": {
+            "type": "string",
+            "description": "Identifier of the contract to be reported on."
+          },
+          "include_raw_cases": {
+            "type": "boolean",
+            "description": "If true, embed the full case summaries in the report."
+          }
+        },
+        "required": [
+          "contract_id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks for a risk assessment of a specific clause (Confidentiality) after uploading a contract.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LexRiskScorer, an AI legal analyst that evaluates contract clauses, fetches relevant litigation data, calculates risk scores, and proposes mitigations using the available tools."
+        },
+        {
+          "role": "user",
+          "content": "I have uploaded my NDA as file path `/tmp/nda.pdf`. Please assess the Confidentiality clause."
+        },
+        {
+          "role": "assistant",
+          "content": "First I will store the contract and then pull out the Confidentiality clause.",
+          "tool_calls": [
+            {
+              "id": "upload_contract_1a2b3c",
+              "name": "upload_contract",
+              "arguments": {
+                "file_path": "/tmp/nda.pdf"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "upload_contract_1a2b3c",
+          "content": "{\"contract_id\": \"contract_20231207_001\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I will extract the Confidentiality clause.",
+          "tool_calls": [
+            {
+              "id": "extract_clause_4d5e6f",
+              "name": "extract_clause",
+              "arguments": {
+                "contract_id": "contract_20231207_001",
+                "clause_title": "Confidentiality"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_clause_4d5e6f",
+          "content": "{\"clause_text\": \"The Receiving Party shall keep all Confidential Information ...\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching similar litigation outcomes for this clause.",
+          "tool_calls": [
+            {
+              "id": "retrieve_litigation_outcomes_7g8h9i",
+              "name": "retrieve_litigation_outcomes",
+              "arguments": {
+                "clause_text": "The Receiving Party shall keep all Confidential Information ..."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "retrieve_litigation_outcomes_7g8h9i",
+          "content": "{\"cases\": [{\"case_id\": \"C123\", \"jurisdiction\": \"CA\", \"outcome\": \"settled\", \"settlement\": 250000, \"summary\": \"Breach of confidentiality resulted in $250k settlement.\"}, {\"case_id\": \"C456\", \"jurisdiction\": \"NY\", \"outcome\": \"judgment\", \"settlement\": 500000, \"summary\": \"Court awarded $500k for loss of trade secrets.\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Calculating the risk score based on the retrieved cases.",
+          "tool_calls": [
+            {
+              "id": "calculate_risk_score_0j1k2l",
+              "name": "calculate_risk_score",
+              "arguments": {
+                "clause_text": "The Receiving Party shall keep all Confidential Information ...",
+                "case_summaries": "[{\"case_id\":\"C123\",\"settlement\":250000},{\"case_id\":\"C456\",\"settlement\":500000}]"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "calculate_risk_score_0j1k2l",
+          "content": "{\"risk_score\": 78}"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating mitigation language to lower the risk.",
+          "tool_calls": [
+            {
+              "id": "suggest_mitigation_3m4n5o",
+              "name": "suggest_mitigation",
+              "arguments": {
+                "clause_text": "The Receiving Party shall keep all Confidential Information ...",
+                "risk_factors": "Broad definition of \"Confidential Information\" and no carve\u2011out for publicly known data."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "suggest_mitigation_3m4n5o",
+          "content": "{\"mitigation\": \"Limit the definition of Confidential Information to information expressly marked as confidential and add a clause exempting information already in the public domain.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the analysis of the Confidentiality clause:\n- **Risk Score:** 78 / 100 (high risk)\n- **Key Risk Drivers:** Broad definition of \"Confidential Information\" with no public\u2011domain carve\u2011out.\n- **Relevant Cases:**\n  1. Case C123 (CA) \u2013 $250k settlement for breach.\n  2. Case C456 (NY) \u2013 $500k judgment for loss of trade secrets.\n- **Suggested Mitigation:** Limit the definition of Confidential Information to information expressly marked as confidential and add a carve\u2011out for publicly known data.\nLet me know if you would like me to apply this mitigation to the contract or generate a full report.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User requests a full risk report for the entire uploaded contract.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LexRiskScorer, an AI legal analyst that can produce a PDF risk report for a contract."
+        },
+        {
+          "role": "user",
+          "content": "Please give me a complete risk report for the contract I just uploaded (contract_id: contract_20231207_001)."
+        },
+        {
+          "role": "assistant",
+          "content": "Generating the full risk report now. This will analyze every clause, compute scores, and bundle the results into a PDF.",
+          "tool_calls": [
+            {
+              "id": "generate_report_9p0q1r",
+              "name": "generate_report",
+              "arguments": {
+                "contract_id": "contract_20231207_001",
+                "include_raw_cases": true
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_report_9p0q1r",
+          "content": "{\"report_url\": \"https://files.lexriskscorer.com/reports/contract_20231207_001_report.pdf\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Your complete risk report is ready. You can download it here: https://files.lexriskscorer.com/reports/contract_20231207_001_report.pdf\nThe report includes clause\u2011level risk scores, case references, and mitigation suggestions for each clause.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

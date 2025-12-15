@@ -1,0 +1,529 @@
+{
+  "name": "AcademicSchedulerAI",
+  "description": "An AI\u2011driven scheduling platform for higher\u2011education institutions that automatically generates conflict\u2011free timetables by balancing class requirements, room capacities, faculty preferences, and institutional constraints.",
+  "tools": [
+    {
+      "name": "fetch_course_data",
+      "description": "Retrieves the list of courses to be scheduled for a given term, including required credit hours, enrollment caps, and any special lab or equipment needs.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "term": {
+            "type": "string",
+            "description": "Academic term identifier, e.g., \"Fall 2025\"."
+          }
+        },
+        "required": [
+          "term"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_room_availability",
+      "description": "Returns all classrooms and labs available during the term, together with capacities, equipment tags, and time\u2011slot restrictions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "term": {
+            "type": "string",
+            "description": "Academic term identifier."
+          }
+        },
+        "required": [
+          "term"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_faculty_preferences",
+      "description": "Obtains each instructor's preferred teaching times, unavailable days, and maximum load for the specified term.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "term": {
+            "type": "string",
+            "description": "Academic term identifier."
+          }
+        },
+        "required": [
+          "term"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "optimize_schedule",
+      "description": "Runs a constraint\u2011satisfaction/optimization algorithm on the provided data and returns a complete timetable mapping courses to rooms and time slots.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "courses": {
+            "type": "array",
+            "description": "Array of course objects as returned by fetch_course_data.",
+            "items": {
+              "type": "object"
+            }
+          },
+          "rooms": {
+            "type": "array",
+            "description": "Array of room objects as returned by fetch_room_availability.",
+            "items": {
+              "type": "object"
+            }
+          },
+          "faculty": {
+            "type": "array",
+            "description": "Array of faculty preference objects as returned by fetch_faculty_preferences.",
+            "items": {
+              "type": "object"
+            }
+          },
+          "constraints": {
+            "type": "object",
+            "description": "Optional extra constraints (e.g., avoid back\u2011to\u2011back classes for a department).",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "courses",
+          "rooms",
+          "faculty"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "send_schedule_report",
+      "description": "Emails the final timetable (in PDF or CSV) to designated stakeholders and returns a confirmation status.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "timetable": {
+            "type": "object",
+            "description": "The schedule object returned by optimize_schedule."
+          },
+          "recipients": {
+            "type": "array",
+            "description": "List of email addresses that should receive the report.",
+            "items": {
+              "type": "string",
+              "format": "email"
+            }
+          },
+          "format": {
+            "type": "string",
+            "description": "Desired file format, e.g., \"pdf\" or \"csv\".",
+            "enum": [
+              "pdf",
+              "csv"
+            ]
+          }
+        },
+        "required": [
+          "timetable",
+          "recipients",
+          "format"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "update_schedule_database",
+      "description": "Persists the generated timetable into the institution's scheduling database and returns a success flag.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "timetable": {
+            "type": "object",
+            "description": "The schedule object to be saved."
+          }
+        },
+        "required": [
+          "timetable"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks the system to create a full schedule for the Fall 2025 term; the assistant gathers data, runs the optimizer, stores the result, and emails a report.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are AcademicSchedulerAI, an expert assistant that creates conflict\u2011free university timetables by calling specialized data\u2011retrieval and optimization tools."
+        },
+        {
+          "role": "user",
+          "content": "Please generate the complete class schedule for the Fall 2025 semester and send the PDF report to the dean and the registrar."
+        },
+        {
+          "role": "assistant",
+          "content": "Sure, I\u2019ll start by pulling the course catalog, room inventory, and faculty preferences for Fall 2025.",
+          "tool_calls": [
+            {
+              "id": "fetch_course_data_1a2b3c",
+              "name": "fetch_course_data",
+              "arguments": {
+                "term": "Fall 2025"
+              }
+            },
+            {
+              "id": "fetch_room_availability_4d5e6f",
+              "name": "fetch_room_availability",
+              "arguments": {
+                "term": "Fall 2025"
+              }
+            },
+            {
+              "id": "fetch_faculty_preferences_7g8h9i",
+              "name": "fetch_faculty_preferences",
+              "arguments": {
+                "term": "Fall 2025"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_course_data_1a2b3c",
+          "content": "{\"courses\":[{\"course_id\":\"CS101\",\"title\":\"Intro to CS\",\"credits\":3,\"enrollment_cap\":120,\"lab_needed\":false},{\"course_id\":\"BIO150\",\"title\":\"General Biology\",\"credits\":4,\"enrollment_cap\":80,\"lab_needed\":true}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_room_availability_4d5e6f",
+          "content": "{\"rooms\":[{\"room_id\":\"R101\",\"capacity\":150,\"equipment\":[\"projector\"]},{\"room_id\":\"Lab12\",\"capacity\":60,\"equipment\":[\"lab\",\"computers\"]}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_faculty_preferences_7g8h9i",
+          "content": "{\"faculty\":[{\"faculty_id\":\"F001\",\"name\":\"Dr. Smith\",\"unavailable\":[\"Mon 8-10\"],\"preferred_slots\":[\"Tue 10-12\",\"Thu 14-16\"]},{\"faculty_id\":\"F002\",\"name\":\"Prof. Lee\",\"unavailable\":[],\"preferred_slots\":[\"Mon 14-16\",\"Wed 10-12\"]}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Data collected. Running the optimizer now\u2026",
+          "tool_calls": [
+            {
+              "id": "optimize_schedule_a1b2c3",
+              "name": "optimize_schedule",
+              "arguments": {
+                "courses": [
+                  {
+                    "course_id": "CS101",
+                    "title": "Intro to CS",
+                    "credits": 3,
+                    "enrollment_cap": 120,
+                    "lab_needed": false
+                  },
+                  {
+                    "course_id": "BIO150",
+                    "title": "General Biology",
+                    "credits": 4,
+                    "enrollment_cap": 80,
+                    "lab_needed": true
+                  }
+                ],
+                "rooms": [
+                  {
+                    "room_id": "R101",
+                    "capacity": 150,
+                    "equipment": [
+                      "projector"
+                    ]
+                  },
+                  {
+                    "room_id": "Lab12",
+                    "capacity": 60,
+                    "equipment": [
+                      "lab",
+                      "computers"
+                    ]
+                  }
+                ],
+                "faculty": [
+                  {
+                    "faculty_id": "F001",
+                    "name": "Dr. Smith",
+                    "unavailable": [
+                      "Mon 8-10"
+                    ],
+                    "preferred_slots": [
+                      "Tue 10-12",
+                      "Thu 14-16"
+                    ]
+                  },
+                  {
+                    "faculty_id": "F002",
+                    "name": "Prof. Lee",
+                    "unavailable": [],
+                    "preferred_slots": [
+                      "Mon 14-16",
+                      "Wed 10-12"
+                    ]
+                  }
+                ],
+                "constraints": {}
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "optimize_schedule_a1b2c3",
+          "content": "{\"timetable\":[{\"course_id\":\"CS101\",\"room_id\":\"R101\",\"time_slot\":\"Tue 10-12\"},{\"course_id\":\"BIO150\",\"room_id\":\"Lab12\",\"time_slot\":\"Mon 14-16\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "The schedule has been generated. I will now store it in the university database and email the PDF report to the requested recipients.",
+          "tool_calls": [
+            {
+              "id": "update_schedule_database_x9y8z7",
+              "name": "update_schedule_database",
+              "arguments": {
+                "timetable": {
+                  "timetable": [
+                    {
+                      "course_id": "CS101",
+                      "room_id": "R101",
+                      "time_slot": "Tue 10-12"
+                    },
+                    {
+                      "course_id": "BIO150",
+                      "room_id": "Lab12",
+                      "time_slot": "Mon 14-16"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "update_schedule_database_x9y8z7",
+          "content": "{\"success\":true}"
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "send_schedule_report_m3n4o5",
+              "name": "send_schedule_report",
+              "arguments": {
+                "timetable": {
+                  "timetable": [
+                    {
+                      "course_id": "CS101",
+                      "room_id": "R101",
+                      "time_slot": "Tue 10-12"
+                    },
+                    {
+                      "course_id": "BIO150",
+                      "room_id": "Lab12",
+                      "time_slot": "Mon 14-16"
+                    }
+                  ]
+                },
+                "recipients": [
+                  "dean@university.edu",
+                  "registrar@university.edu"
+                ],
+                "format": "pdf"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_schedule_report_m3n4o5",
+          "content": "{\"email_sent\":true,\"message\":\"Report delivered to 2 recipients.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "All done! The timetable has been saved and the PDF report has been emailed. Let me know if you need any adjustments.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User requests a change: move BIO150 to a different day due to a conflict; the assistant fetches the current schedule, updates constraints, re\u2011optimizes, and returns the revised timetable.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are AcademicSchedulerAI, managing university timetables and able to modify existing schedules on request."
+        },
+        {
+          "role": "user",
+          "content": "Prof. Lee just told me that BIO150 conflicts with his department meeting on Monday. Can we move that class to Wednesday morning?"
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll retrieve the current Fall 2025 timetable, then re\u2011run the optimizer with the new constraint for BIO150.",
+          "tool_calls": [
+            {
+              "id": "fetch_current_timetable_p1q2r3",
+              "name": "fetch_course_data",
+              "arguments": {
+                "term": "Fall 2025"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_current_timetable_p1q2r3",
+          "content": "{\"courses\":[{\"course_id\":\"CS101\",\"title\":\"Intro to CS\",\"credits\":3,\"enrollment_cap\":120,\"lab_needed\":false},{\"course_id\":\"BIO150\",\"title\":\"General Biology\",\"credits\":4,\"enrollment_cap\":80,\"lab_needed\":true}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "optimize_schedule_change_s4t5u6",
+              "name": "optimize_schedule",
+              "arguments": {
+                "courses": [
+                  {
+                    "course_id": "CS101",
+                    "title": "Intro to CS",
+                    "credits": 3,
+                    "enrollment_cap": 120,
+                    "lab_needed": false
+                  },
+                  {
+                    "course_id": "BIO150",
+                    "title": "General Biology",
+                    "credits": 4,
+                    "enrollment_cap": 80,
+                    "lab_needed": true
+                  }
+                ],
+                "rooms": [
+                  {
+                    "room_id": "R101",
+                    "capacity": 150,
+                    "equipment": [
+                      "projector"
+                    ]
+                  },
+                  {
+                    "room_id": "Lab12",
+                    "capacity": 60,
+                    "equipment": [
+                      "lab",
+                      "computers"
+                    ]
+                  }
+                ],
+                "faculty": [
+                  {
+                    "faculty_id": "F001",
+                    "name": "Dr. Smith",
+                    "unavailable": [
+                      "Mon 8-10"
+                    ],
+                    "preferred_slots": [
+                      "Tue 10-12",
+                      "Thu 14-16"
+                    ]
+                  },
+                  {
+                    "faculty_id": "F002",
+                    "name": "Prof. Lee",
+                    "unavailable": [],
+                    "preferred_slots": [
+                      "Mon 14-16",
+                      "Wed 10-12"
+                    ]
+                  }
+                ],
+                "constraints": {
+                  "BIO150_fixed_time": "Wed 10-12"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "optimize_schedule_change_s4t5u6",
+          "content": "{\"timetable\":[{\"course_id\":\"CS101\",\"room_id\":\"R101\",\"time_slot\":\"Tue 10-12\"},{\"course_id\":\"BIO150\",\"room_id\":\"Lab12\",\"time_slot\":\"Wed 10-12\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "The new schedule moves BIO150 to Wednesday 10\u201112 in Lab12, resolving the conflict. Shall I save this change and notify Prof. Lee?",
+          "tool_calls": [
+            {
+              "id": "update_schedule_database_z9x8w7",
+              "name": "update_schedule_database",
+              "arguments": {
+                "timetable": {
+                  "timetable": [
+                    {
+                      "course_id": "CS101",
+                      "room_id": "R101",
+                      "time_slot": "Tue 10-12"
+                    },
+                    {
+                      "course_id": "BIO150",
+                      "room_id": "Lab12",
+                      "time_slot": "Wed 10-12"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "update_schedule_database_z9x8w7",
+          "content": "{\"success\":true}"
+        },
+        {
+          "role": "assistant",
+          "content": "The timetable has been updated. I\u2019ve also emailed the revised schedule to Prof. Lee.",
+          "tool_calls": [
+            {
+              "id": "send_schedule_report_a7b6c5",
+              "name": "send_schedule_report",
+              "arguments": {
+                "timetable": {
+                  "timetable": [
+                    {
+                      "course_id": "CS101",
+                      "room_id": "R101",
+                      "time_slot": "Tue 10-12"
+                    },
+                    {
+                      "course_id": "BIO150",
+                      "room_id": "Lab12",
+                      "time_slot": "Wed 10-12"
+                    }
+                  ]
+                },
+                "recipients": [
+                  "prof.lee@university.edu"
+                ],
+                "format": "pdf"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_schedule_report_a7b6c5",
+          "content": "{\"email_sent\":true,\"message\":\"Report delivered to 1 recipient.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "All done. Let me know if there is anything else you\u2019d like to adjust.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

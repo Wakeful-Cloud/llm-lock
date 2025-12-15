@@ -1,0 +1,661 @@
+{
+  "name": "SmartInventoryForecaster",
+  "description": "An agentic LLM that ingests sales history, promotional calendars, and seasonality indexes to produce accurate short\u2011term inventory forecasts, generate a visual report, and notify stakeholders of potential stock shortages.",
+  "tools": [
+    {
+      "name": "load_sales_data",
+      "description": "Retrieves historic sales quantities for a given product between two dates from the ERP database.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "description": "Unique identifier of the product (SKU)."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Start of the sales history window (inclusive)."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "End of the sales history window (inclusive)."
+          }
+        },
+        "required": [
+          "product_id",
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "load_promotions_calendar",
+      "description": "Pulls all promotions scheduled for a product within a date range, including discount depth and promotion type.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "description": "The product SKU to query."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Start of the calendar window (inclusive)."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "End of the calendar window (inclusive)."
+          }
+        },
+        "required": [
+          "product_id",
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "load_seasonality_index",
+      "description": "Fetches a numeric seasonality index (e.g., multiplier) for the product's category over the requested period.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "product_category": {
+            "type": "string",
+            "description": "Category name or code."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Start of the period."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "End of the period."
+          }
+        },
+        "required": [
+          "product_category",
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "forecast_inventory",
+      "description": "Runs a time\u2011series model using sales history, promotion schedule, and seasonality to predict daily inventory demand for a future horizon.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "description": "SKU of the product."
+          },
+          "horizon_days": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of future days to forecast."
+          },
+          "sales_data": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "Historical daily sales quantities (ordered by date)."
+          },
+          "promotion_data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "format": "date",
+                  "description": "Date of the promotion."
+                },
+                "discount_pct": {
+                  "type": "number",
+                  "description": "Percentage discount applied that day."
+                }
+              },
+              "required": [
+                "date",
+                "discount_pct"
+              ],
+              "additionalProperties": false
+            },
+            "description": "List of promotions affecting demand."
+          },
+          "seasonality_data": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "Daily seasonality multipliers for the forecast horizon."
+          }
+        },
+        "required": [
+          "product_id",
+          "horizon_days",
+          "sales_data",
+          "promotion_data",
+          "seasonality_data"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_report",
+      "description": "Creates a PDF/HTML report that visualises the forecast, confidence bands and recommended reorder quantities.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "description": "SKU of the product."
+          },
+          "forecast": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "Predicted daily demand for the horizon."
+          },
+          "horizon_days": {
+            "type": "integer",
+            "description": "Length of the forecast window."
+          }
+        },
+        "required": [
+          "product_id",
+          "forecast",
+          "horizon_days"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "send_alert",
+      "description": "Sends an email or Slack message to a stakeholder with a custom subject and body.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "recipient": {
+            "type": "string",
+            "description": "Email address or Slack channel identifier."
+          },
+          "subject": {
+            "type": "string",
+            "description": "Short title of the alert."
+          },
+          "body": {
+            "type": "string",
+            "description": "Full message body, may contain links to the report."
+          }
+        },
+        "required": [
+          "recipient",
+          "subject",
+          "body"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User requests a 30\u2011day forecast for a single SKU; the assistant gathers data, runs the model, creates a report and notifies the supply\u2011chain manager.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are InventoryForecastBot, an expert assistant that forecasts product demand, creates reports and alerts stakeholders."
+        },
+        {
+          "role": "user",
+          "content": "Please forecast the inventory needs for product SKU-001 for the next 30 days."
+        },
+        {
+          "role": "assistant",
+          "content": "Sure, I\u2019ll collect the required data first.",
+          "tool_calls": [
+            {
+              "id": "load_sales_data_1a2b",
+              "name": "load_sales_data",
+              "arguments": {
+                "product_id": "SKU-001",
+                "start_date": "2024-01-01",
+                "end_date": "2024-12-31"
+              }
+            },
+            {
+              "id": "load_promotions_calendar_3c4d",
+              "name": "load_promotions_calendar",
+              "arguments": {
+                "product_id": "SKU-001",
+                "start_date": "2024-01-01",
+                "end_date": "2025-01-31"
+              }
+            },
+            {
+              "id": "load_seasonality_index_5e6f",
+              "name": "load_seasonality_index",
+              "arguments": {
+                "product_category": "Beverages",
+                "start_date": "2024-01-01",
+                "end_date": "2025-01-31"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "load_sales_data_1a2b",
+          "content": "{\"sales_data\": [12,15,13,16,14,18,20,19,22,21,20,23,25,24,26,28,27,30,29,31,33,32,35,34,36,38,37,40,39,42]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "load_promotions_calendar_3c4d",
+          "content": "{\"promotions\": [{\"date\": \"2024-11-25\", \"discount_pct\": 10}, {\"date\": \"2024-12-20\", \"discount_pct\": 15}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "load_seasonality_index_5e6f",
+          "content": "{\"seasonality\": [1.0,1.02,0.98,1.05,0.97,1.10,1.15,0.95,1.00,1.03,0.99,1.08,1.12,0.94,1.07,1.09,0.96,1.04,1.01,1.05,0.92,1.13,1.00,1.06,0.98,1.02,1.03,0.97,1.08,1.00,1.04]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Data gathered. Running the forecast model now.",
+          "tool_calls": [
+            {
+              "id": "forecast_inventory_7g8h",
+              "name": "forecast_inventory",
+              "arguments": {
+                "product_id": "SKU-001",
+                "horizon_days": 30,
+                "sales_data": [
+                  12,
+                  15,
+                  13,
+                  16,
+                  14,
+                  18,
+                  20,
+                  19,
+                  22,
+                  21,
+                  20,
+                  23,
+                  25,
+                  24,
+                  26,
+                  28,
+                  27,
+                  30,
+                  29,
+                  31,
+                  33,
+                  32,
+                  35,
+                  34,
+                  36,
+                  38,
+                  37,
+                  40,
+                  39,
+                  42
+                ],
+                "promotion_data": [
+                  {
+                    "date": "2024-11-25",
+                    "discount_pct": 10
+                  },
+                  {
+                    "date": "2024-12-20",
+                    "discount_pct": 15
+                  }
+                ],
+                "seasonality_data": [
+                  1.0,
+                  1.02,
+                  0.98,
+                  1.05,
+                  0.97,
+                  1.1,
+                  1.15,
+                  0.95,
+                  1.0,
+                  1.03,
+                  0.99,
+                  1.08,
+                  1.12,
+                  0.94,
+                  1.07,
+                  1.09,
+                  0.96,
+                  1.04,
+                  1.01,
+                  1.05,
+                  0.92,
+                  1.13,
+                  1.0,
+                  1.06,
+                  0.98,
+                  1.02,
+                  1.03,
+                  0.97,
+                  1.08,
+                  1.0,
+                  1.04
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "forecast_inventory_7g8h",
+          "content": "{\"forecast\": [45,48,46,50,49,52,55,54,58,57,56,60,62,61,64,66,65,68,70,69,71,73,75,74,77,79,78,80,82,84]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Forecast completed. Generating a report for you.",
+          "tool_calls": [
+            {
+              "id": "generate_report_9i0j",
+              "name": "generate_report",
+              "arguments": {
+                "product_id": "SKU-001",
+                "forecast": [
+                  45,
+                  48,
+                  46,
+                  50,
+                  49,
+                  52,
+                  55,
+                  54,
+                  58,
+                  57,
+                  56,
+                  60,
+                  62,
+                  61,
+                  64,
+                  66,
+                  65,
+                  68,
+                  70,
+                  69,
+                  71,
+                  73,
+                  75,
+                  74,
+                  77,
+                  79,
+                  78,
+                  80,
+                  82,
+                  84
+                ],
+                "horizon_days": 30
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_report_9i0j",
+          "content": "{\"report_url\": \"https://reports.company.com/inventory/SKU-001-2025-01.pdf\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Report is ready. I\u2019ll also notify the supply\u2011chain manager.",
+          "tool_calls": [
+            {
+              "id": "send_alert_1k2l",
+              "name": "send_alert",
+              "arguments": {
+                "recipient": "supply.chain@company.com",
+                "subject": "30\u2011Day Inventory Forecast for SKU-001",
+                "body": "The forecast report is available here: https://reports.company.com/inventory/SKU-001-2025-01.pdf"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_alert_1k2l",
+          "content": "Alert sent to supply.chain@company.com"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 Your 30\u2011day inventory forecast report for **SKU-001** is ready: https://reports.company.com/inventory/SKU-001-2025-01.pdf. I\u2019ve emailed the supply\u2011chain manager as well.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User adds a new flash\u2011sale promotion and asks the assistant to re\u2011forecast with the updated schedule.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are InventoryForecastBot, specialized in dynamic demand forecasting."
+        },
+        {
+          "role": "user",
+          "content": "We are planning a flash sale on 2025-01-15 with a 20% discount for SKU-001. Please re\u2011forecast the next 30 days including this promotion."
+        },
+        {
+          "role": "assistant",
+          "content": "Got it. I\u2019ll pull the latest data and inject the new flash\u2011sale into the promotion schedule.",
+          "tool_calls": [
+            {
+              "id": "load_sales_data_a1b2",
+              "name": "load_sales_data",
+              "arguments": {
+                "product_id": "SKU-001",
+                "start_date": "2024-01-01",
+                "end_date": "2024-12-31"
+              }
+            },
+            {
+              "id": "load_promotions_calendar_a3b4",
+              "name": "load_promotions_calendar",
+              "arguments": {
+                "product_id": "SKU-001",
+                "start_date": "2024-01-01",
+                "end_date": "2025-02-01"
+              }
+            },
+            {
+              "id": "load_seasonality_index_a5b6",
+              "name": "load_seasonality_index",
+              "arguments": {
+                "product_category": "Beverages",
+                "start_date": "2024-01-01",
+                "end_date": "2025-02-01"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "load_sales_data_a1b2",
+          "content": "{\"sales_data\": [12,15,13,16,14,18,20,19,22,21,20,23,25,24,26,28,27,30,29,31,33,32,35,34,36,38,37,40,39,42]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "load_promotions_calendar_a3b4",
+          "content": "{\"promotions\": [{\"date\": \"2024-11-25\", \"discount_pct\": 10}, {\"date\": \"2024-12-20\", \"discount_pct\": 15}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "load_seasonality_index_a5b6",
+          "content": "{\"seasonality\": [1.0,1.02,0.98,1.05,0.97,1.10,1.15,0.95,1.00,1.03,0.99,1.08,1.12,0.94,1.07,1.09,0.96,1.04,1.01,1.05,0.92,1.13,1.00,1.06,0.98,1.02,1.03,0.97,1.08,1.00,1.04]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Adding the flash\u2011sale to the promotion list and running the updated forecast.",
+          "tool_calls": [
+            {
+              "id": "forecast_inventory_c7d8",
+              "name": "forecast_inventory",
+              "arguments": {
+                "product_id": "SKU-001",
+                "horizon_days": 30,
+                "sales_data": [
+                  12,
+                  15,
+                  13,
+                  16,
+                  14,
+                  18,
+                  20,
+                  19,
+                  22,
+                  21,
+                  20,
+                  23,
+                  25,
+                  24,
+                  26,
+                  28,
+                  27,
+                  30,
+                  29,
+                  31,
+                  33,
+                  32,
+                  35,
+                  34,
+                  36,
+                  38,
+                  37,
+                  40,
+                  39,
+                  42
+                ],
+                "promotion_data": [
+                  {
+                    "date": "2024-11-25",
+                    "discount_pct": 10
+                  },
+                  {
+                    "date": "2024-12-20",
+                    "discount_pct": 15
+                  },
+                  {
+                    "date": "2025-01-15",
+                    "discount_pct": 20
+                  }
+                ],
+                "seasonality_data": [
+                  1.0,
+                  1.02,
+                  0.98,
+                  1.05,
+                  0.97,
+                  1.1,
+                  1.15,
+                  0.95,
+                  1.0,
+                  1.03,
+                  0.99,
+                  1.08,
+                  1.12,
+                  0.94,
+                  1.07,
+                  1.09,
+                  0.96,
+                  1.04,
+                  1.01,
+                  1.05,
+                  0.92,
+                  1.13,
+                  1.0,
+                  1.06,
+                  0.98,
+                  1.02,
+                  1.03,
+                  0.97,
+                  1.08,
+                  1.0,
+                  1.04
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "forecast_inventory_c7d8",
+          "content": "{\"forecast\": [46,49,47,51,50,53,56,55,59,58,57,61,63,62,65,67,66,70,72,71,73,75,77,76,79,81,80,83,85,87]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Here\u2019s the updated forecast reflecting the flash\u2011sale on Jan\u202f15. I\u2019ll produce a new report and send it to you.",
+          "tool_calls": [
+            {
+              "id": "generate_report_e9f0",
+              "name": "generate_report",
+              "arguments": {
+                "product_id": "SKU-001",
+                "forecast": [
+                  46,
+                  49,
+                  47,
+                  51,
+                  50,
+                  53,
+                  56,
+                  55,
+                  59,
+                  58,
+                  57,
+                  61,
+                  63,
+                  62,
+                  65,
+                  67,
+                  66,
+                  70,
+                  72,
+                  71,
+                  73,
+                  75,
+                  77,
+                  76,
+                  79,
+                  81,
+                  80,
+                  83,
+                  85,
+                  87
+                ],
+                "horizon_days": 30
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_report_e9f0",
+          "content": "{\"report_url\": \"https://reports.company.com/inventory/SKU-001-2025-01-flash.pdf\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 Updated forecast report is ready: https://reports.company.com/inventory/SKU-001-2025-01-flash.pdf",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

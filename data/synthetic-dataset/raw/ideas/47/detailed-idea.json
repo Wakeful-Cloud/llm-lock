@@ -1,0 +1,288 @@
+{
+  "name": "Solidity Sentinel",
+  "description": "An agentic LLM that automatically fetches Solidity smart\u2011contract source code, runs static analysis tools, cross\u2011references known vulnerability databases, and generates detailed audit reports with remediation recommendations for developers and auditors.",
+  "tools": [
+    {
+      "name": "fetch_contract",
+      "description": "Retrieves Solidity source code from a public URL (GitHub, raw file link, etc.) and returns the raw source as a string.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Fully qualified HTTP(S) URL pointing to the Solidity file."
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "run_static_analysis",
+      "description": "Executes the Slither static analysis engine on the provided Solidity source code and returns a structured list of findings (severity, issue type, description, line numbers).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source_code": {
+            "type": "string",
+            "description": "The full Solidity contract source code to analyze."
+          }
+        },
+        "required": [
+          "source_code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "lookup_vulnerability_db",
+      "description": "Looks up a known vulnerability identifier (e.g., CVE\u20112022\u2011XYZ) in an internal vulnerability database and returns a short description, known exploit patterns, and recommended mitigations.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "vuln_id": {
+            "type": "string",
+            "description": "Identifier of the vulnerability (CVE, SWC, or custom ID)."
+          }
+        },
+        "required": [
+          "vuln_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_audit_report",
+      "description": "Creates a markdown\u2011formatted audit report that includes an executive summary, detailed findings with severity rankings, cross\u2011referenced vulnerability data, and concrete remediation steps.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "findings": {
+            "type": "array",
+            "description": "Array of finding objects returned by run_static_analysis.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "severity": {
+                  "type": "string"
+                },
+                "issue_type": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "line_numbers": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                "vuln_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "severity",
+                "issue_type",
+                "description",
+                "line_numbers"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "source_code": {
+            "type": "string",
+            "description": "Original Solidity source code (used for context and line number referencing)."
+          }
+        },
+        "required": [
+          "findings",
+          "source_code"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User supplies a GitHub URL; the agent fetches the contract, runs static analysis, enriches findings with vulnerability data, and returns a full audit report.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are Solidity Sentinel, an autonomous smart\u2011contract auditor. Use the provided tools to fetch code, analyse it, enrich findings, and generate a professional markdown audit report."
+        },
+        {
+          "role": "user",
+          "content": "Please audit the contract at https://raw.githubusercontent.com/example/Token/main/Token.sol"
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching the contract source code from the supplied URL.",
+          "tool_calls": [
+            {
+              "id": "fetch_contract_a1b2c3",
+              "name": "fetch_contract",
+              "arguments": {
+                "url": "https://raw.githubusercontent.com/example/Token/main/Token.sol"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_contract_a1b2c3",
+          "content": "pragma solidity ^0.8.0;\n\ncontract Token { /* ... source omitted for brevity ... */ }"
+        },
+        {
+          "role": "assistant",
+          "content": "Running Slither static analysis on the retrieved source code.",
+          "tool_calls": [
+            {
+              "id": "run_static_analysis_d4e5f6",
+              "name": "run_static_analysis",
+              "arguments": {
+                "source_code": "pragma solidity ^0.8.0;\n\ncontract Token { /* ... source omitted for brevity ... */ }"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "run_static_analysis_d4e5f6",
+          "content": "[{\"severity\":\"High\",\"issue_type\":\"reentrancy\",\"description\":\"Potential re\u2011entrancy in withdraw()\",\"line_numbers\":[45,46],\"vuln_id\":\"SWC-107\"},{\"severity\":\"Medium\",\"issue_type\":\"integer_overflow\",\"description\":\"Unchecked arithmetic in transfer()\",\"line_numbers\":[78],\"vuln_id\":\"SWC-101\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Enriching each finding with known vulnerability details.",
+          "tool_calls": [
+            {
+              "id": "lookup_vulnerability_db_g7h8i9",
+              "name": "lookup_vulnerability_db",
+              "arguments": {
+                "vuln_id": "SWC-107"
+              }
+            },
+            {
+              "id": "lookup_vulnerability_db_j0k1l2",
+              "name": "lookup_vulnerability_db",
+              "arguments": {
+                "vuln_id": "SWC-101"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "lookup_vulnerability_db_g7h8i9",
+          "content": "{\"vuln_id\":\"SWC-107\",\"description\":\"Re\u2011entrancy attacks allow an attacker to repeatedly call a vulnerable function before state changes are persisted.\",\"remediation\":\"Use the Checks\u2011Effects\u2011Interactions pattern or a re\u2011entrancy guard.\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "lookup_vulnerability_db_j0k1l2",
+          "content": "{\"vuln_id\":\"SWC-101\",\"description\":\"Integer overflow/underflow can be exploited to manipulate token balances.\",\"remediation\":\"Leverage SafeMath or built\u2011in overflow checks (Solidity ^0.8).*\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Compiling all findings into a markdown audit report.",
+          "tool_calls": [
+            {
+              "id": "generate_audit_report_m3n4o5",
+              "name": "generate_audit_report",
+              "arguments": {
+                "findings": [
+                  {
+                    "severity": "High",
+                    "issue_type": "reentrancy",
+                    "description": "Potential re\u2011entrancy in withdraw()",
+                    "line_numbers": [
+                      45,
+                      46
+                    ],
+                    "vuln_id": "SWC-107"
+                  },
+                  {
+                    "severity": "Medium",
+                    "issue_type": "integer_overflow",
+                    "description": "Unchecked arithmetic in transfer()",
+                    "line_numbers": [
+                      78
+                    ],
+                    "vuln_id": "SWC-101"
+                  }
+                ],
+                "source_code": "pragma solidity ^0.8.0;\n\ncontract Token { /* ... source omitted for brevity ... */ }"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_audit_report_m3n4o5",
+          "content": "# Audit Report \u2013 Token.sol\n\n**Executive Summary**\n- Overall risk: **Medium**\n- Critical findings: 1 High severity issue, 1 Medium severity issue.\n\n---\n\n## Findings\n\n### 1. Re\u2011entrancy (SWC\u2011107) \u2013 High\n- **Description**: Potential re\u2011entrancy in `withdraw()` at lines 45\u201146.\n- **Impact**: An attacker could repeatedly call `withdraw()` and drain funds before balances are updated.\n- **Remediation**: Implement a re\u2011entrancy guard (`nonReentrant` modifier) or follow the Checks\u2011Effects\u2011Interactions pattern.\n\n### 2. Integer Overflow (SWC\u2011101) \u2013 Medium\n- **Description**: Unchecked arithmetic in `transfer()` at line 78.\n- **Impact**: Token balances could be manipulated via overflow/underflow.\n- **Remediation**: Use Solidity ^0.8 built\u2011in overflow checks or import OpenZeppelin's `SafeMath`.\n\n---\n\n**Conclusion**\nAddress the high\u2011severity re\u2011entrancy issue immediately. The overflow issue, while less critical, should also be fixed before mainnet deployment.\n"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the complete audit report for the contract you provided:\n\n---\n\n# Audit Report \u2013 Token.sol\n\n**Executive Summary**\n- Overall risk: **Medium**\n- Critical findings: 1 High severity issue, 1 Medium severity issue.\n\n---\n\n## Findings\n\n### 1. Re\u2011entrancy (SWC\u2011107) \u2013 High\n- **Description**: Potential re\u2011entrancy in `withdraw()` at lines 45\u201146.\n- **Impact**: An attacker could repeatedly call `withdraw()` and drain funds before balances are updated.\n- **Remediation**: Implement a re\u2011entrancy guard (`nonReentrant` modifier) or follow the Checks\u2011Effects\u2011Interactions pattern.\n\n### 2. Integer Overflow (SWC\u2011101) \u2013 Medium\n- **Description**: Unchecked arithmetic in `transfer()` at line 78.\n- **Impact**: Token balances could be manipulated via overflow/underflow.\n- **Remediation**: Use Solidity ^0.8 built\u2011in overflow checks or import OpenZeppelin's `SafeMath`.\n\n---\n\n**Conclusion**\nAddress the high\u2011severity re\u2011entrancy issue immediately. The overflow issue, while less critical, should also be fixed before mainnet deployment.\n",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User pastes Solidity code directly and asks for a concise list of high\u2011severity issues only.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are Solidity Sentinel, an autonomous smart\u2011contract auditor. For this conversation you only need to produce a short list of high\u2011severity findings."
+        },
+        {
+          "role": "user",
+          "content": "```solidity\npragma solidity ^0.8.0;\ncontract Vault {\n    mapping(address => uint256) balances;\n    function withdraw(uint256 amount) external {\n        require(balances[msg.sender] >= amount);\n        (bool sent,) = msg.sender.call{value: amount}();\n        require(sent);\n        balances[msg.sender] -= amount;\n    }\n    receive() external payable {}\n}\n```"
+        },
+        {
+          "role": "assistant",
+          "content": "Running static analysis on the supplied contract.",
+          "tool_calls": [
+            {
+              "id": "run_static_analysis_p6q7r8",
+              "name": "run_static_analysis",
+              "arguments": {
+                "source_code": "pragma solidity ^0.8.0;\ncontract Vault {\n    mapping(address => uint256) balances;\n    function withdraw(uint256 amount) external {\n        require(balances[msg.sender] >= amount);\n        (bool sent,) = msg.sender.call{value: amount}();\n        require(sent);\n        balances[msg.sender] -= amount;\n    }\n    receive() external payable {}\n}\n"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "run_static_analysis_p6q7r8",
+          "content": "[{\"severity\":\"High\",\"issue_type\":\"reentrancy\",\"description\":\"Use of low\u2011level call in withdraw() may enable re\u2011entrancy.\",\"line_numbers\":[7,8],\"vuln_id\":\"SWC-107\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Enriching the re\u2011entrancy finding with vulnerability details.",
+          "tool_calls": [
+            {
+              "id": "lookup_vulnerability_db_s9t0u1",
+              "name": "lookup_vulnerability_db",
+              "arguments": {
+                "vuln_id": "SWC-107"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "lookup_vulnerability_db_s9t0u1",
+          "content": "{\"vuln_id\":\"SWC-107\",\"description\":\"Re\u2011entrancy attacks allow an attacker to repeatedly call a vulnerable function before state changes are persisted.\",\"remediation\":\"Use a re\u2011entrancy guard or the Checks\u2011Effects\u2011Interactions pattern.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "### High\u2011Severity Findings\n\n1. **Re\u2011entrancy (SWC\u2011107)** \u2013 Lines 7\u20118\n   - **Description**: The contract uses a low\u2011level `call` to send Ether in `withdraw()`, which can be re\u2011entered before the balance is updated.\n   - **Remediation**: Apply a re\u2011entrancy guard (`nonReentrant` modifier) or restructure the function to follow the Checks\u2011Effects\u2011Interactions pattern.\n\nNo other high\u2011severity issues were detected.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

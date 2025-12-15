@@ -1,0 +1,510 @@
+{
+  "name": "DynamicPriceMaster",
+  "description": "An autonomous dynamic pricing engine that continuously monitors competitor prices, inventory levels, and demand forecasts, then computes and applies optimal e\u2011commerce prices while respecting margin constraints and logging all changes for auditability.",
+  "tools": [
+    {
+      "name": "fetch_competitor_prices",
+      "description": "Retrieves the current selling prices of a given product from listed competitor marketplaces or websites.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "description": "The internal SKU or product identifier for which competitor prices are required."
+          },
+          "competitor_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "A list of competitor identifiers (e.g., marketplace IDs or store names)."
+          },
+          "region": {
+            "type": "string",
+            "description": "Geographic region or market segment (optional, defaults to global)."
+          }
+        },
+        "required": [
+          "product_id",
+          "competitor_ids"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_inventory_levels",
+      "description": "Queries the warehouse management system for the current on\u2011hand quantity of a specific product.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "description": "The SKU whose inventory count is requested."
+          }
+        },
+        "required": [
+          "product_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_demand_forecast",
+      "description": "Provides a short\u2011term demand forecast score for a product based on historical sales, seasonality and trending signals.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "description": "The SKU to forecast."
+          },
+          "horizon_days": {
+            "type": "integer",
+            "description": "Number of days ahead for which the forecast is needed."
+          }
+        },
+        "required": [
+          "product_id",
+          "horizon_days"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "calculate_optimal_price",
+      "description": "Computes a recommended selling price using competitor price data, inventory, demand forecast, cost base and minimum margin requirements.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "competitor_prices": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "List of competitor prices (in the same currency)."
+          },
+          "inventory": {
+            "type": "integer",
+            "description": "Current on\u2011hand quantity."
+          },
+          "demand_score": {
+            "type": "number",
+            "description": "Forecasted demand intensity (0\u202f=\u202flow, 1\u202f=\u202fhigh)."
+          },
+          "cost_price": {
+            "type": "number",
+            "description": "The internal cost of the product."
+          },
+          "min_margin_percent": {
+            "type": "number",
+            "description": "Minimum required gross margin expressed as a percent (e.g., 15 for 15%)."
+          }
+        },
+        "required": [
+          "competitor_prices",
+          "inventory",
+          "demand_score",
+          "cost_price",
+          "min_margin_percent"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "update_product_price",
+      "description": "Writes a new selling price for a product into the e\u2011commerce platform's catalogue.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "description": "SKU to be updated."
+          },
+          "new_price": {
+            "type": "number",
+            "description": "The price that should be set (in the store's primary currency)."
+          }
+        },
+        "required": [
+          "product_id",
+          "new_price"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "log_price_change",
+      "description": "Appends an audit record for a price modification, capturing old and new values and the business rationale.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "description": "SKU whose price was changed."
+          },
+          "old_price": {
+            "type": "number",
+            "description": "Previous selling price."
+          },
+          "new_price": {
+            "type": "number",
+            "description": "Newly set selling price."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Human\u2011readable explanation for the change (e.g., 'Competitor price shift', 'Low inventory', etc.)."
+          }
+        },
+        "required": [
+          "product_id",
+          "old_price",
+          "new_price",
+          "reason"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks to adjust the price for a single SKU; the agent gathers competitor, inventory and demand data, computes a new price, updates the store and logs the change.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are DynamicPriceMaster, an autonomous pricing agent that can fetch competitor prices, inventory levels, demand forecasts, calculate optimal prices, update the e\u2011commerce catalog and log every price change."
+        },
+        {
+          "role": "user",
+          "content": "Please update the price for SKU123 based on current competitor prices, our inventory, and demand forecast. Keep a minimum margin of 15%."
+        },
+        {
+          "role": "assistant",
+          "content": "Gathering the required data...",
+          "tool_calls": [
+            {
+              "id": "fetch_competitor_prices_1a2b",
+              "name": "fetch_competitor_prices",
+              "arguments": {
+                "product_id": "SKU123",
+                "competitor_ids": [
+                  "COMP_A",
+                  "COMP_B"
+                ]
+              }
+            },
+            {
+              "id": "get_inventory_levels_3c4d",
+              "name": "get_inventory_levels",
+              "arguments": {
+                "product_id": "SKU123"
+              }
+            },
+            {
+              "id": "get_demand_forecast_5e6f",
+              "name": "get_demand_forecast",
+              "arguments": {
+                "product_id": "SKU123",
+                "horizon_days": 7
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_competitor_prices_1a2b",
+          "content": "{\"competitor_prices\": [99.99, 102.50]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_inventory_levels_3c4d",
+          "content": "{\"inventory\": 45}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_demand_forecast_5e6f",
+          "content": "{\"demand_score\": 0.78}"
+        },
+        {
+          "role": "assistant",
+          "content": "Calculating the optimal price...",
+          "tool_calls": [
+            {
+              "id": "calculate_optimal_price_7g8h",
+              "name": "calculate_optimal_price",
+              "arguments": {
+                "competitor_prices": [
+                  99.99,
+                  102.5
+                ],
+                "inventory": 45,
+                "demand_score": 0.78,
+                "cost_price": 80.0,
+                "min_margin_percent": 15
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "calculate_optimal_price_7g8h",
+          "content": "{\"recommended_price\": 108.0}"
+        },
+        {
+          "role": "assistant",
+          "content": "Updating the catalogue with the new price...",
+          "tool_calls": [
+            {
+              "id": "update_product_price_9i0j",
+              "name": "update_product_price",
+              "arguments": {
+                "product_id": "SKU123",
+                "new_price": 108.0
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "update_product_price_9i0j",
+          "content": "{\"success\": true, \"old_price\": 105.0, \"new_price\": 108.0}"
+        },
+        {
+          "role": "assistant",
+          "content": "Recording the price change for audit...",
+          "tool_calls": [
+            {
+              "id": "log_price_change_abcd",
+              "name": "log_price_change",
+              "arguments": {
+                "product_id": "SKU123",
+                "old_price": 105.0,
+                "new_price": 108.0,
+                "reason": "Competitor price increase & high demand"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "log_price_change_abcd",
+          "content": "{\"logged\": true}"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 Price for SKU123 has been updated from $105.00 to $108.00. The new price respects the 15% minimum margin and reflects competitor pricing, current inventory (45 units) and a strong 7\u2011day demand forecast (score\u202f0.78). All changes have been logged.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User requests a pricing recommendation report for several SKUs; the agent processes each SKU in parallel, computes optimal prices, and returns a concise table.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are DynamicPriceMaster, an autonomous pricing agent capable of pulling data, calculating optimal prices and presenting them in a clear tabular format."
+        },
+        {
+          "role": "user",
+          "content": "Generate a pricing recommendation report for these products: SKU101, SKU102, SKU103. Use a minimum margin of 12%."
+        },
+        {
+          "role": "assistant",
+          "content": "I'll collect competitor, inventory and demand information for each SKU and then compute the recommended prices.",
+          "tool_calls": [
+            {
+              "id": "fetch_competitor_prices_aa11",
+              "name": "fetch_competitor_prices",
+              "arguments": {
+                "product_id": "SKU101",
+                "competitor_ids": [
+                  "COMP_X",
+                  "COMP_Y"
+                ]
+              }
+            },
+            {
+              "id": "fetch_competitor_prices_bb22",
+              "name": "fetch_competitor_prices",
+              "arguments": {
+                "product_id": "SKU102",
+                "competitor_ids": [
+                  "COMP_X",
+                  "COMP_Z"
+                ]
+              }
+            },
+            {
+              "id": "fetch_competitor_prices_cc33",
+              "name": "fetch_competitor_prices",
+              "arguments": {
+                "product_id": "SKU103",
+                "competitor_ids": [
+                  "COMP_Y",
+                  "COMP_Z"
+                ]
+              }
+            },
+            {
+              "id": "get_inventory_levels_dd44",
+              "name": "get_inventory_levels",
+              "arguments": {
+                "product_id": "SKU101"
+              }
+            },
+            {
+              "id": "get_inventory_levels_ee55",
+              "name": "get_inventory_levels",
+              "arguments": {
+                "product_id": "SKU102"
+              }
+            },
+            {
+              "id": "get_inventory_levels_ff66",
+              "name": "get_inventory_levels",
+              "arguments": {
+                "product_id": "SKU103"
+              }
+            },
+            {
+              "id": "get_demand_forecast_gg77",
+              "name": "get_demand_forecast",
+              "arguments": {
+                "product_id": "SKU101",
+                "horizon_days": 7
+              }
+            },
+            {
+              "id": "get_demand_forecast_hh88",
+              "name": "get_demand_forecast",
+              "arguments": {
+                "product_id": "SKU102",
+                "horizon_days": 7
+              }
+            },
+            {
+              "id": "get_demand_forecast_ii99",
+              "name": "get_demand_forecast",
+              "arguments": {
+                "product_id": "SKU103",
+                "horizon_days": 7
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_competitor_prices_aa11",
+          "content": "{\"competitor_prices\": [119.99, 124.50]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_competitor_prices_bb22",
+          "content": "{\"competitor_prices\": [89.00, 92.75]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_competitor_prices_cc33",
+          "content": "{\"competitor_prices\": [149.99, 155.00]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_inventory_levels_dd44",
+          "content": "{\"inventory\": 120}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_inventory_levels_ee55",
+          "content": "{\"inventory\": 30}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_inventory_levels_ff66",
+          "content": "{\"inventory\": 5}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_demand_forecast_gg77",
+          "content": "{\"demand_score\": 0.65}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_demand_forecast_hh88",
+          "content": "{\"demand_score\": 0.42}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_demand_forecast_ii99",
+          "content": "{\"demand_score\": 0.90}"
+        },
+        {
+          "role": "assistant",
+          "content": "Computing optimal prices for each SKU...",
+          "tool_calls": [
+            {
+              "id": "calc_price_sku101",
+              "name": "calculate_optimal_price",
+              "arguments": {
+                "competitor_prices": [
+                  119.99,
+                  124.5
+                ],
+                "inventory": 120,
+                "demand_score": 0.65,
+                "cost_price": 95.0,
+                "min_margin_percent": 12
+              }
+            },
+            {
+              "id": "calc_price_sku102",
+              "name": "calculate_optimal_price",
+              "arguments": {
+                "competitor_prices": [
+                  89.0,
+                  92.75
+                ],
+                "inventory": 30,
+                "demand_score": 0.42,
+                "cost_price": 70.0,
+                "min_margin_percent": 12
+              }
+            },
+            {
+              "id": "calc_price_sku103",
+              "name": "calculate_optimal_price",
+              "arguments": {
+                "competitor_prices": [
+                  149.99,
+                  155.0
+                ],
+                "inventory": 5,
+                "demand_score": 0.9,
+                "cost_price": 130.0,
+                "min_margin_percent": 12
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "calc_price_sku101",
+          "content": "{\"recommended_price\": 123.0}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "calc_price_sku102",
+          "content": "{\"recommended_price\": 85.5}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "calc_price_sku103",
+          "content": "{\"recommended_price\": 152.0}"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the pricing recommendation report:\n\n| SKU   | Current Cost | Recommended Price | Margin % |\n|-------|--------------|-------------------|----------|\n| SKU101| $95.00       | $123.00           | 29.5%    |\n| SKU102| $70.00       | $85.50            | 22.1%    |\n| SKU103| $130.00      | $152.00           | 16.9%    |\n\nAll recommendations meet the minimum 12% margin requirement and take into account competitor pricing, inventory levels, and the 7\u2011day demand outlook.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

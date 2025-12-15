@@ -1,0 +1,528 @@
+{
+  "name": "CompliLearn Builder",
+  "description": "An AI\u2011driven compliance\u2011training platform that converts regulatory documents and internal policies into interactive e\u2011learning modules, complete with explanations, multimedia, quizzes and LMS integration for tracking employee progress.",
+  "tools": [
+    {
+      "name": "fetch_regulation_text",
+      "description": "Retrieves the full text of a regulation, standard or internal policy from a specified source given an identifier.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "description": "Name of the repository (e.g., \"eurlex\", \"internal_repo\")."
+          },
+          "identifier": {
+            "type": "string",
+            "description": "Unique ID of the document (e.g., \"GDPR-Article-5\" or \"Policy-1234\")."
+          }
+        },
+        "required": [
+          "source",
+          "identifier"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "extract_key_concepts",
+      "description": "Runs NLP over a regulation or policy text and extracts headings, definitions, obligations and actionable compliance concepts.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The full document text to analyse."
+          },
+          "language": {
+            "type": "string",
+            "description": "Language code (default \"en\")."
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_quiz",
+      "description": "Creates multiple\u2011choice questions from a list of extracted concepts. The caller can set quantity and difficulty.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "concepts": {
+            "type": "array",
+            "description": "List of concept objects extracted from the source document.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "concept": {
+                  "type": "string",
+                  "description": "Short title of the concept."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Brief definition or obligation."
+                }
+              },
+              "required": [
+                "concept",
+                "description"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "num_questions": {
+            "type": "integer",
+            "description": "Number of quiz items to generate."
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "description": "Desired difficulty level."
+          }
+        },
+        "required": [
+          "concepts",
+          "num_questions",
+          "difficulty"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "render_interactive_module",
+      "description": "Combines explanatory sections, optional media assets and a quiz into an HTML/SCORM package and returns a public URL.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Title of the training module."
+          },
+          "sections": {
+            "type": "array",
+            "description": "Ordered list of learning sections.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "heading": {
+                  "type": "string",
+                  "description": "Section heading."
+                },
+                "body": {
+                  "type": "string",
+                  "description": "HTML\u2011formatted explanatory content."
+                },
+                "quiz_id": {
+                  "type": "string",
+                  "description": "Identifier of the quiz generated for this section."
+                }
+              },
+              "required": [
+                "heading",
+                "body",
+                "quiz_id"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "assets": {
+            "type": "array",
+            "description": "Optional URLs of images, videos or PDFs referenced in the body.",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "sections"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "store_training_record",
+      "description": "Saves module metadata (URL, title, version, author) into the corporate LMS and returns a unique record identifier.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "module_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL where the rendered module is hosted."
+          },
+          "title": {
+            "type": "string",
+            "description": "Human\u2011readable module title."
+          },
+          "version": {
+            "type": "string",
+            "description": "Semantic version string (e.g., \"1.0.0\")."
+          },
+          "author": {
+            "type": "string",
+            "description": "Identifier of the creator (e.g., \"CompliLearn Builder\")."
+          }
+        },
+        "required": [
+          "module_url",
+          "title",
+          "version",
+          "author"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_analytics_report",
+      "description": "Retrieves completion statistics for a stored module over a user\u2011specified date range.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "module_id": {
+            "type": "string",
+            "description": "Record ID returned by store_training_record."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Report start date (YYYY\u2011MM\u2011DD)."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Report end date (YYYY\u2011MM\u2011DD)."
+          }
+        },
+        "required": [
+          "module_id",
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User requests a GDPR Article\u202f5 training module; the assistant orchestrates the full pipeline and returns the live URL.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are CompliLearn Builder, an agentic LLM that creates compliance e\u2011learning modules using specialized tools."
+        },
+        {
+          "role": "user",
+          "content": "Create a 15\u2011minute GDPR training covering Article\u202f5 principles."
+        },
+        {
+          "role": "assistant",
+          "content": "Sure, I\u2019ll fetch the article, extract the key principles, build a quiz, render the module and store it for you.",
+          "tool_calls": [
+            {
+              "id": "fetch_regulation_text_001a",
+              "name": "fetch_regulation_text",
+              "arguments": {
+                "source": "eurlex",
+                "identifier": "GDPR-Article-5"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_regulation_text_001a",
+          "content": "Full text of GDPR Article 5:\n1. Personal data shall be processed lawfully, fairly and in a transparent manner ... (truncated for brevity)."
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "extract_key_concepts_002b",
+              "name": "extract_key_concepts",
+              "arguments": {
+                "text": "Full text of GDPR Article 5:\n1. Personal data shall be processed lawfully, fairly and in a transparent manner ... (truncated for brevity).",
+                "language": "en"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_key_concepts_002b",
+          "content": "{\"concepts\":[{\"concept\":\"Lawfulness\",\"description\":\"Processing must have a legal basis.\"},{\"concept\":\"Fairness\",\"description\":\"Processing must be fair to the data subject.\"},{\"concept\":\"Transparency\",\"description\":\"Data subjects must be informed about the processing.\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating a short quiz from the extracted concepts.",
+          "tool_calls": [
+            {
+              "id": "generate_quiz_003c",
+              "name": "generate_quiz",
+              "arguments": {
+                "concepts": [
+                  {
+                    "concept": "Lawfulness",
+                    "description": "Processing must have a legal basis."
+                  },
+                  {
+                    "concept": "Fairness",
+                    "description": "Processing must be fair to the data subject."
+                  },
+                  {
+                    "concept": "Transparency",
+                    "description": "Data subjects must be informed about the processing."
+                  }
+                ],
+                "num_questions": 5,
+                "difficulty": "easy"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_quiz_003c",
+          "content": "{\"quiz_id\":\"quiz_1001\",\"questions\":[{\"question\":\"Which principle requires a legal basis for processing?\",\"options\":[\"Lawfulness\",\"Fairness\",\"Transparency\",\"Accountability\"],\"answer\":\"Lawfulness\"},{\"question\":\"What does the fairness principle protect?\",\"options\":[\"Data accuracy\",\"Equitable treatment of subjects\",\"Data minimisation\",\"Retention limits\"],\"answer\":\"Equitable treatment of subjects\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Rendering the interactive module.",
+          "tool_calls": [
+            {
+              "id": "render_interactive_module_004d",
+              "name": "render_interactive_module",
+              "arguments": {
+                "title": "GDPR Article 5 \u2013 Data\u2011Processing Principles",
+                "sections": [
+                  {
+                    "heading": "Lawfulness",
+                    "body": "<p>Processing must have a legal basis such as consent, contract, or legitimate interest.</p>",
+                    "quiz_id": "quiz_1001"
+                  },
+                  {
+                    "heading": "Fairness",
+                    "body": "<p>Processing must be fair to the data subject and not be misleading.</p>",
+                    "quiz_id": "quiz_1001"
+                  },
+                  {
+                    "heading": "Transparency",
+                    "body": "<p>Data subjects must be provided with clear information about how their data is used.</p>",
+                    "quiz_id": "quiz_1001"
+                  }
+                ],
+                "assets": []
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "render_interactive_module_004d",
+          "content": "https://cdn.complilearn.com/modules/gdpr_article5_v1.html"
+        },
+        {
+          "role": "assistant",
+          "content": "Storing the module metadata in the LMS.",
+          "tool_calls": [
+            {
+              "id": "store_training_record_005e",
+              "name": "store_training_record",
+              "arguments": {
+                "module_url": "https://cdn.complilearn.com/modules/gdpr_article5_v1.html",
+                "title": "GDPR Article 5 \u2013 Data\u2011Processing Principles",
+                "version": "1.0.0",
+                "author": "CompliLearn Builder"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "store_training_record_005e",
+          "content": "record_9001"
+        },
+        {
+          "role": "assistant",
+          "content": "Your GDPR Article\u202f5 training module is ready! Access it here: https://cdn.complilearn.com/modules/gdpr_article5_v1.html\n\nIt has been saved in the LMS with record ID `record_9001`. Let me know if you\u2019d like to assign it to a user group or request usage analytics.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User asks to update an existing \u201cData Retention 2023\u201d module with a new amendment and then requests a completion report for the past month.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are CompliLearn Builder, an agentic LLM that creates and maintains compliance training modules."
+        },
+        {
+          "role": "user",
+          "content": "We just received an amendment to our Data Retention policy. Update the \"Data Retention 2023\" module with the new sections and give me a completion report for August 2025."
+        },
+        {
+          "role": "assistant",
+          "content": "Understood. I will fetch the amendment, extract the new concepts, generate an additional quiz, render an updated module, store it and finally pull the analytics.",
+          "tool_calls": [
+            {
+              "id": "fetch_regulation_text_010a",
+              "name": "fetch_regulation_text",
+              "arguments": {
+                "source": "internal_repo",
+                "identifier": "DataRetentionPolicy_Amendment_2025_08"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_regulation_text_010a",
+          "content": "Amendment Summary:\n- Retention period for customer data extended from 5 to 7 years.\n- Archived logs must be destroyed after 3 years.\n- New audit\u2011trail requirement for all data\u2011access events."
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "extract_key_concepts_011b",
+              "name": "extract_key_concepts",
+              "arguments": {
+                "text": "Amendment Summary:\n- Retention period for customer data extended from 5 to 7 years.\n- Archived logs must be destroyed after 3 years.\n- New audit\u2011trail requirement for all data\u2011access events.",
+                "language": "en"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_key_concepts_011b",
+          "content": "{\"concepts\":[{\"concept\":\"Extended Retention\",\"description\":\"Customer data must now be kept for 7 years.\"},{\"concept\":\"Log Destruction\",\"description\":\"Archived logs must be deleted after 3 years.\"},{\"concept\":\"Audit Trail\",\"description\":\"All data\u2011access events must be recorded in an immutable log.\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Creating a short quiz for the new amendment.",
+          "tool_calls": [
+            {
+              "id": "generate_quiz_012c",
+              "name": "generate_quiz",
+              "arguments": {
+                "concepts": [
+                  {
+                    "concept": "Extended Retention",
+                    "description": "Customer data must now be kept for 7 years."
+                  },
+                  {
+                    "concept": "Log Destruction",
+                    "description": "Archived logs must be deleted after 3 years."
+                  },
+                  {
+                    "concept": "Audit Trail",
+                    "description": "All data\u2011access events must be recorded in an immutable log."
+                  }
+                ],
+                "num_questions": 3,
+                "difficulty": "medium"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_quiz_012c",
+          "content": "{\"quiz_id\":\"quiz_2002\",\"questions\":[{\"question\":\"What is the new retention period for customer data?\",\"options\":[\"5 years\",\"6 years\",\"7 years\",\"Indefinite\"],\"answer\":\"7 years\"},{\"question\":\"After how many years must archived logs be destroyed?\",\"options\":[\"1 year\",\"2 years\",\"3 years\",\"5 years\"],\"answer\":\"3 years\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Rendering the updated module.",
+          "tool_calls": [
+            {
+              "id": "render_interactive_module_013d",
+              "name": "render_interactive_module",
+              "arguments": {
+                "title": "Data Retention Policy 2023 \u2013 Updated Aug\u202f2025",
+                "sections": [
+                  {
+                    "heading": "Extended Retention",
+                    "body": "<p>Customer data must now be retained for 7 years instead of 5.</p>",
+                    "quiz_id": "quiz_2002"
+                  },
+                  {
+                    "heading": "Log Destruction",
+                    "body": "<p>Archived logs should be permanently destroyed after 3 years.</p>",
+                    "quiz_id": "quiz_2002"
+                  },
+                  {
+                    "heading": "Audit Trail",
+                    "body": "<p>All data\u2011access events must be captured in an immutable audit log.</p>",
+                    "quiz_id": "quiz_2002"
+                  }
+                ],
+                "assets": []
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "render_interactive_module_013d",
+          "content": "https://cdn.complilearn.com/modules/data_retention_2023_v2.html"
+        },
+        {
+          "role": "assistant",
+          "content": "Storing the new version in the LMS.",
+          "tool_calls": [
+            {
+              "id": "store_training_record_014e",
+              "name": "store_training_record",
+              "arguments": {
+                "module_url": "https://cdn.complilearn.com/modules/data_retention_2023_v2.html",
+                "title": "Data Retention Policy 2023 \u2013 Updated Aug\u202f2025",
+                "version": "2.0.0",
+                "author": "CompliLearn Builder"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "store_training_record_014e",
+          "content": "record_8002"
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching completion analytics for August 2025.",
+          "tool_calls": [
+            {
+              "id": "get_analytics_report_015f",
+              "name": "get_analytics_report",
+              "arguments": {
+                "module_id": "record_8002",
+                "start_date": "2025-08-01",
+                "end_date": "2025-08-31"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_analytics_report_015f",
+          "content": "{\"module_id\":\"record_8002\",\"period\":\"2025-08-01 to 2025-08-31\",\"completion_rate\":0.82,\"average_score\":88.3,\"average_time_minutes\":14.1}"
+        },
+        {
+          "role": "assistant",
+          "content": "The updated module is available at https://cdn.complilearn.com/modules/data_retention_2023_v2.html (record ID `record_8002`).\n\nAnalytics for August\u202f2025:\n- Completion rate: 82\u202f%\n- Average quiz score: 88.3\u202f%\n- Average time spent: 14.1\u202fminutes\n\nLet me know if you\u2019d like to assign the new version to a specific employee group or schedule another report.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

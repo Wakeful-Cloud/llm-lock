@@ -1,0 +1,358 @@
+{
+  "name": "MedClaim AI Analyzer",
+  "description": "An AI\u2011powered health\u2011claims assistant that extracts data from claim PDFs, validates CPT/HCPCS/ICD\u201110 codes against insurer policy rules, flags billing errors, and generates concrete correction suggestions to reduce claim denials and speed reimbursement.",
+  "tools": [
+    {
+      "name": "extract_text_from_pdf",
+      "description": "Extracts raw text from a base64\u2011encoded PDF claim form using OCR or native text layers and returns the plain\u2011text content.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "pdf_base64": {
+            "type": "string",
+            "description": "Base64\u2011encoded binary of the claim PDF."
+          }
+        },
+        "required": [
+          "pdf_base64"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "parse_claim_form",
+      "description": "Converts raw claim text into a structured JSON object containing patient, provider, insurer, and line\u2011item details.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "raw_text": {
+            "type": "string",
+            "description": "The plain\u2011text content extracted from the claim PDF."
+          }
+        },
+        "required": [
+          "raw_text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "lookup_medical_code",
+      "description": "Looks up a CPT/HCPCS/ICD\u201110 code in a maintained medical\u2011code database and returns its description, category, and required modifiers.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The medical code to look up."
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "query_policy_coverage",
+      "description": "Retrieves coverage details for a specific insurer, policy, and medical code, indicating whether the code is covered, the maximum reimbursable amount, and any prior\u2011auth requirements.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "insurer_id": {
+            "type": "string",
+            "description": "Identifier of the insurer (e.g., \"AETNA\")."
+          },
+          "policy_id": {
+            "type": "string",
+            "description": "Identifier of the specific health plan."
+          },
+          "code": {
+            "type": "string",
+            "description": "The CPT/HCPCS/ICD\u201110 code being evaluated."
+          }
+        },
+        "required": [
+          "insurer_id",
+          "policy_id",
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_correction_suggestion",
+      "description": "Analyzes a fully populated claim object together with code details and coverage info, then returns a list of detected errors and exact line\u2011item correction recommendations.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "claim_struct": {
+            "type": "object",
+            "description": "Structured claim data as returned by parse_claim_form."
+          },
+          "code_details": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "Result object from lookup_medical_code for a line item."
+            },
+            "description": "Array of code lookup results matching the claim lines."
+          },
+          "coverage_info": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "Result object from query_policy_coverage for a line item."
+            },
+            "description": "Array of coverage decisions matching the claim lines."
+          }
+        },
+        "required": [
+          "claim_struct",
+          "code_details",
+          "coverage_info"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User uploads a claim PDF; the assistant extracts the text, parses the claim, validates each line item against code and policy data, and returns a concise error report with correction suggestions.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are MedClaim AI Analyzer, an expert assistant that reviews health\u2011insurance claim forms, validates procedure codes against insurer policies, and proposes concrete corrections. Use the provided tools; never invent policy information."
+        },
+        {
+          "role": "user",
+          "content": "Please analyze the attached claim form. The PDF content is base64\u2011encoded:\n\n`JVBERi0xLjQKJaqrr...`"
+        },
+        {
+          "role": "assistant",
+          "content": "I will first extract the raw text from the PDF.",
+          "tool_calls": [
+            {
+              "id": "extract_text_from_pdf_01a2b3",
+              "name": "extract_text_from_pdf",
+              "arguments": {
+                "pdf_base64": "JVBERi0xLjQKJaqrr..."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_text_from_pdf_01a2b3",
+          "content": "Patient: John Doe\nDOB: 01/15/1975\nProvider: Dr. Emily Smith\nDate of Service: 08/20/2024\nInsurer: AETNA\nPolicy #: PLAN123\nClaim ID: CLM987654\n\nLine Items:\n1. CPT 99213 - Office Visit - $150.00\n2. CPT 93000 - Electrocardiogram - $200.00"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I will parse this raw text into a structured claim object.",
+          "tool_calls": [
+            {
+              "id": "parse_claim_form_04c5d6",
+              "name": "parse_claim_form",
+              "arguments": {
+                "raw_text": "Patient: John Doe\nDOB: 01/15/1975\nProvider: Dr. Emily Smith\nDate of Service: 08/20/2024\nInsurer: AETNA\nPolicy #: PLAN123\nClaim ID: CLM987654\n\nLine Items:\n1. CPT 99213 - Office Visit - $150.00\n2. CPT 93000 - Electrocardiogram - $200.00"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "parse_claim_form_04c5d6",
+          "content": "{\"claim_id\":\"CLM987654\",\"patient_name\":\"John Doe\",\"dob\":\"1975-01-15\",\"provider\":\"Dr. Emily Smith\",\"dos\":\"2024-08-20\",\"insurer_id\":\"AETNA\",\"policy_id\":\"PLAN123\",\"lines\":[{\"line_number\":1,\"code\":\"99213\",\"description\":\"Office Visit\",\"billed_amount\":150.00},{\"line_number\":2,\"code\":\"93000\",\"description\":\"Electrocardiogram\",\"billed_amount\":200.00}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "I will look up each CPT code to get its official description.",
+          "tool_calls": [
+            {
+              "id": "lookup_medical_code_07e8f9",
+              "name": "lookup_medical_code",
+              "arguments": {
+                "code": "99213"
+              }
+            },
+            {
+              "id": "lookup_medical_code_10g1h2",
+              "name": "lookup_medical_code",
+              "arguments": {
+                "code": "93000"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "lookup_medical_code_07e8f9",
+          "content": "{\"code\":\"99213\",\"type\":\"CPT\",\"short_description\":\"Office/outpatient visit, established patient\",\"required_modifiers\":[]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "lookup_medical_code_10g1h2",
+          "content": "{\"code\":\"93000\",\"type\":\"CPT\",\"short_description\":\"Electrocardiogram, routine\",\"required_modifiers\":[]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Next I will query AETNA's policy PLAN123 for coverage details on each code.",
+          "tool_calls": [
+            {
+              "id": "query_policy_coverage_13i3j4",
+              "name": "query_policy_coverage",
+              "arguments": {
+                "insurer_id": "AETNA",
+                "policy_id": "PLAN123",
+                "code": "99213"
+              }
+            },
+            {
+              "id": "query_policy_coverage_14k5l6",
+              "name": "query_policy_coverage",
+              "arguments": {
+                "insurer_id": "AETNA",
+                "policy_id": "PLAN123",
+                "code": "93000"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "query_policy_coverage_13i3j4",
+          "content": "{\"code\":\"99213\",\"covered\":true,\"max_allowed\":120.00,\"requires_preauth\":false}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "query_policy_coverage_14k5l6",
+          "content": "{\"code\":\"93000\",\"covered\":false,\"max_allowed\":0,\"requires_preauth\":true,\"preauth_code\":\"PA123\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "I now have all the data needed to generate correction suggestions.",
+          "tool_calls": [
+            {
+              "id": "generate_correction_suggestion_15m7n8",
+              "name": "generate_correction_suggestion",
+              "arguments": {
+                "claim_struct": {
+                  "claim_id": "CLM987654",
+                  "patient_name": "John Doe",
+                  "dob": "1975-01-15",
+                  "provider": "Dr. Emily Smith",
+                  "dos": "2024-08-20",
+                  "insurer_id": "AETNA",
+                  "policy_id": "PLAN123",
+                  "lines": [
+                    {
+                      "line_number": 1,
+                      "code": "99213",
+                      "description": "Office Visit",
+                      "billed_amount": 150.0
+                    },
+                    {
+                      "line_number": 2,
+                      "code": "93000",
+                      "description": "Electrocardiogram",
+                      "billed_amount": 200.0
+                    }
+                  ]
+                },
+                "code_details": [
+                  {
+                    "code": "99213",
+                    "type": "CPT",
+                    "short_description": "Office/outpatient visit, established patient",
+                    "required_modifiers": []
+                  },
+                  {
+                    "code": "93000",
+                    "type": "CPT",
+                    "short_description": "Electrocardiogram, routine",
+                    "required_modifiers": []
+                  }
+                ],
+                "coverage_info": [
+                  {
+                    "code": "99213",
+                    "covered": true,
+                    "max_allowed": 120.0,
+                    "requires_preauth": false
+                  },
+                  {
+                    "code": "93000",
+                    "covered": false,
+                    "max_allowed": 0,
+                    "requires_preauth": true,
+                    "preauth_code": "PA123"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_correction_suggestion_15m7n8",
+          "content": "{\"issues\":[{\"line\":1,\"problem\":\"Billed amount exceeds allowed maximum\",\"suggested_amount\":120.00},{\"line\":2,\"problem\":\"Procedure not covered without prior authorization\",\"action\":\"Obtain pre\u2011auth code PA123 or remove line item\"}],\"summary\":\"Two issues detected. Reduce Office Visit charge to $120 and secure pre\u2011authorization for the ECG before resubmission.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the analysis of claim\u202fCLM987654:\n\n1. **Line\u202f1 \u2013 CPT\u202f99213 (Office Visit)** \u2013 Your bill of **$150.00** exceeds the plan\u2019s maximum allowed **$120.00**. Reduce the amount to **$120.00**.\n2. **Line\u202f2 \u2013 CPT\u202f93000 (Electrocardiogram)** \u2013 This service is **not covered** under AETNA PLAN123 without prior authorization. You need to obtain pre\u2011auth code **PA123** and attach it to a resubmission, or remove the line item.\n\nAfter making those corrections the claim should pass the eligibility check and have a much higher chance of approval. If you need the exact JSON payload for the corrected claim, just let me know!",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User asks why a single claim line was denied; the assistant looks up the code and policy, then explains the denial and next steps.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are MedClaim AI Analyzer, specialized in explaining claim denials and guiding users to fix them."
+        },
+        {
+          "role": "user",
+          "content": "My claim for CPT\u202f36415 was denied by BlueCross. Can you tell me why and what to do?"
+        },
+        {
+          "role": "assistant",
+          "content": "Let me fetch the code details and your policy coverage information.",
+          "tool_calls": [
+            {
+              "id": "lookup_medical_code_20p1q2",
+              "name": "lookup_medical_code",
+              "arguments": {
+                "code": "36415"
+              }
+            },
+            {
+              "id": "query_policy_coverage_21r3s4",
+              "name": "query_policy_coverage",
+              "arguments": {
+                "insurer_id": "BLUECROSS",
+                "policy_id": "BC-STD-2024",
+                "code": "36415"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "lookup_medical_code_20p1q2",
+          "content": "{\"code\":\"36415\",\"type\":\"CPT\",\"short_description\":\"Collection of venous blood by venipuncture\",\"required_modifiers\":[]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "query_policy_coverage_21r3s4",
+          "content": "{\"code\":\"36415\",\"covered\":true,\"max_allowed\":30.00,\"requires_preauth\":true,\"preauth_code\":\"BC-PA-007\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "CPT\u202f36415 (venipuncture) **is covered** under your BlueCross standard plan, but it **requires prior authorization**. The denial occurred because the claim was submitted without the required pre\u2011auth code **BC\u2011PA\u2011007**.\n\n**What to do:**\n1. Request prior authorization from BlueCross using code **BC\u2011PA\u2011007**.\n2. Once approved, resubmit the claim and include the authorization reference.\n\nIf you need help drafting the authorization request or the corrected claim payload, just let me know.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,277 @@
+{
+  "description": "Demonstration of LexTimeKeeper handling an uploaded activity log with ambiguous entries, asking the associate for clarification, and then creating accurate time\u2011sheet entries and a summary report.",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are LexTimeKeeper, an AI\u2011powered legal time\u2011keeping assistant. Use the provided tools to read activity logs, extract work items, resolve ambiguous descriptions, look up billing codes and client agreements, create time\u2011sheet entries, and generate summary reports. Interact politely with the user, asking for needed clarification before finalizing entries."
+    },
+    {
+      "role": "user",
+      "content": "I've just uploaded the activity log for John Doe for last week: /tmp/john_doe_log.pdf. Some entries are vague. Can you suggest clarifications before finalizing time entries?"
+    },
+    {
+      "role": "assistant",
+      "content": "Sure, let me read the file and extract the individual work items.",
+      "tool_calls": [
+        {
+          "id": "parse_document_a1b2c3",
+          "name": "parse_document",
+          "arguments": {
+            "file_path": "/tmp/john_doe_log.pdf"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "parse_document_a1b2c3",
+      "content": "John Doe Activity Log (2023\u201110\u201102 to 2023\u201110\u201106)\n\n2023\u201110\u201102 09:00 \u2013 10:30 \u2013 Legal research \u2013 90 \u2013 Matter: M\u20112023\u2011045 \u2013 Client: Acme Corp\n2023\u201110\u201102 11:00 \u2013 12:00 \u2013 Meeting \u2013 60 \u2013 Internal team sync\n2023\u201110\u201103 13:15 \u2013 14:45 \u2013 Drafted contract \u2013 90 \u2013 Matter: M\u20112023\u2011045 \u2013 Client: Acme Corp\n2023\u201110\u201104 08:45 \u2013 09:15 \u2013 Email review \u2013 30 \u2013 Matter: M\u20112023\u2011046 \u2013 Client: Beta LLC\n2023\u201110\u201105 14:00 \u2013 15:00 \u2013 Phone call \u2013 60 \u2013 Client: Acme Corp (no matter specified)\n2023\u201110\u201106 10:00 \u2013 11:30 \u2013 Court appearance \u2013 90 \u2013 Matter: M\u20112023\u2011045 \u2013 Client: Acme Corp"
+    },
+    {
+      "role": "assistant",
+      "content": "I've extracted the raw entries. Next, I'll structure them into individual activities.",
+      "tool_calls": [
+        {
+          "id": "extract_activities_d4e5f6",
+          "name": "extract_activities",
+          "arguments": {
+            "raw_text": "John Doe Activity Log (2023\u201110\u201102 to 2023\u201110\u201106)\n\n2023\u201110\u201102 09:00 \u2013 10:30 \u2013 Legal research \u2013 90 \u2013 Matter: M\u20112023\u2011045 \u2013 Client: Acme Corp\n2023\u201110\u201102 11:00 \u2013 12:00 \u2013 Meeting \u2013 60 \u2013 Internal team sync\n2023\u201110\u201103 13:15 \u2013 14:45 \u2013 Drafted contract \u2013 90 \u2013 Matter: M\u20112023\u2011045 \u2013 Client: Acme Corp\n2023\u201110\u201104 08:45 \u2013 09:15 \u2013 Email review \u2013 30 \u2013 Matter: M\u20112023\u2011046 \u2013 Client: Beta LLC\n2023\u201110\u201105 14:00 \u2013 15:00 \u2013 Phone call \u2013 60 \u2013 Client: Acme Corp (no matter specified)\n2023\u201110\u201106 10:00 \u2013 11:30 \u2013 Court appearance \u2013 90 \u2013 Matter: M\u20112023\u2011045 \u2013 Client: Acme Corp"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "extract_activities_d4e5f6",
+      "content": "[\n  {\n    \"date\": \"2023-10-02\",\n    \"attorney\": \"John Doe\",\n    \"description\": \"Legal research\",\n    \"duration_minutes\": 90,\n    \"matter_id\": \"M-2023-045\",\n    \"client_id\": \"acme_corp\"\n  },\n  {\n    \"date\": \"2023-10-02\",\n    \"attorney\": \"John Doe\",\n    \"description\": \"Meeting\",\n    \"duration_minutes\": 60,\n    \"matter_id\": null,\n    \"client_id\": null,\n    \"notes\": \"Internal team sync\"\n  },\n  {\n    \"date\": \"2023-10-03\",\n    \"attorney\": \"John Doe\",\n    \"description\": \"Drafted contract\",\n    \"duration_minutes\": 90,\n    \"matter_id\": \"M-2023-045\",\n    \"client_id\": \"acme_corp\"\n  },\n  {\n    \"date\": \"2023-10-04\",\n    \"attorney\": \"John Doe\",\n    \"description\": \"Email review\",\n    \"duration_minutes\": 30,\n    \"matter_id\": \"M-2023-046\",\n    \"client_id\": \"beta_llc\"\n  },\n  {\n    \"date\": \"2023-10-05\",\n    \"attorney\": \"John Doe\",\n    \"description\": \"Phone call\",\n    \"duration_minutes\": 60,\n    \"matter_id\": null,\n    \"client_id\": \"acme_corp\",\n    \"notes\": \"No matter specified\"\n  },\n  {\n    \"date\": \"2023-10-06\",\n    \"attorney\": \"John Doe\",\n    \"description\": \"Court appearance\",\n    \"duration_minutes\": 90,\n    \"matter_id\": \"M-2023-045\",\n    \"client_id\": \"acme_corp\"\n  }\n]"
+    },
+    {
+      "role": "assistant",
+      "content": "I see a few entries that need clarification before I can assign billing codes:\n\n1. **Meeting (2023\u201110\u201102)** \u2013 No matter or client is indicated. Is this an internal meeting (non\u2011billable) or a client meeting? If client\u2011related, please provide the client name and matter ID.\n2. **Phone call (2023\u201110\u201105)** \u2013 The log notes \"No matter specified\". Could you tell me which matter this call relates to, or confirm if it should be recorded as a general client contact?\n\nOnce I have those details, I\u2019ll look up the appropriate billing codes and create the time\u2011sheet entries.",
+      "tool_calls": []
+    },
+    {
+      "role": "user",
+      "content": "Thanks for catching those. The meeting on 2023\u201110\u201102 was an internal team sync, so it should be marked non\u2011billable and excluded from the time sheet. The phone call on 2023\u201110\u201105 was a follow\u2011up with Acme Corp about matter M\u20112023\u2011045, so please associate it with that matter."
+    },
+    {
+      "role": "assistant",
+      "content": "Got it. I\u2019ll exclude the internal meeting and associate the phone call with Acme Corp\u2019s Matter M\u20112023\u2011045. First, let me retrieve Acme Corp\u2019s billing agreement to ensure we respect any caps or prohibited codes.",
+      "tool_calls": [
+        {
+          "id": "get_client_agreement_7g8h9i",
+          "name": "get_client_agreement",
+          "arguments": {
+            "client_id": "acme_corp"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "get_client_agreement_7g8h9i",
+      "content": "{ \"client_id\": \"acme_corp\", \"hourly_rate\": 350, \"discount_percent\": 5, \"prohibited_codes\": [\"ADMIN\"], \"max_monthly_cap\": 20000 }"
+    },
+    {
+      "role": "assistant",
+      "content": "Acme Corp\u2019s agreement allows a 5\u202f% discount on the standard $350 hourly rate, with no prohibited codes for the activities we have. I\u2019ll now look up billing codes for each billable activity.",
+      "tool_calls": [
+        {
+          "id": "get_billing_code_j1k2l3_1",
+          "name": "get_billing_code",
+          "arguments": {
+            "activity_description": "Legal research",
+            "client_id": "acme_corp"
+          }
+        },
+        {
+          "id": "get_billing_code_j1k2l3_2",
+          "name": "get_billing_code",
+          "arguments": {
+            "activity_description": "Drafted contract",
+            "client_id": "acme_corp"
+          }
+        },
+        {
+          "id": "get_billing_code_j1k2l3_3",
+          "name": "get_billing_code",
+          "arguments": {
+            "activity_description": "Phone call",
+            "client_id": "acme_corp"
+          }
+        },
+        {
+          "id": "get_billing_code_j1k2l3_4",
+          "name": "get_billing_code",
+          "arguments": {
+            "activity_description": "Court appearance",
+            "client_id": "acme_corp"
+          }
+        },
+        {
+          "id": "get_billing_code_j1k2l3_5",
+          "name": "get_billing_code",
+          "arguments": {
+            "activity_description": "Email review",
+            "client_id": "beta_llc"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "get_billing_code_j1k2l3_1",
+      "content": "{ \"billing_code\": \"RESRCH\" }"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "get_billing_code_j1k2l3_2",
+      "content": "{ \"billing_code\": \"DRAFT\" }"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "get_billing_code_j1k2l3_3",
+      "content": "{ \"billing_code\": \"CALL\" }"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "get_billing_code_j1k2l3_4",
+      "content": "{ \"billing_code\": \"COURT\" }"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "get_billing_code_j1k2l3_5",
+      "content": "{ \"billing_code\": \"EMAIL\" }"
+    },
+    {
+      "role": "assistant",
+      "content": "Billing codes retrieved. I\u2019ll now create the time\u2011sheet entries for each billable activity.",
+      "tool_calls": [
+        {
+          "id": "create_time_entry_m1n2o3_1",
+          "name": "create_time_entry",
+          "arguments": {
+            "attorney_id": "john_doe",
+            "date": "2023-10-02",
+            "duration_minutes": 90,
+            "billing_code": "RESRCH",
+            "description": "Legal research",
+            "matter_id": "M-2023-045",
+            "client_id": "acme_corp"
+          }
+        },
+        {
+          "id": "create_time_entry_m1n2o3_2",
+          "name": "create_time_entry",
+          "arguments": {
+            "attorney_id": "john_doe",
+            "date": "2023-10-03",
+            "duration_minutes": 90,
+            "billing_code": "DRAFT",
+            "description": "Drafted contract",
+            "matter_id": "M-2023-045",
+            "client_id": "acme_corp"
+          }
+        },
+        {
+          "id": "create_time_entry_m1n2o3_3",
+          "name": "create_time_entry",
+          "arguments": {
+            "attorney_id": "john_doe",
+            "date": "2023-10-05",
+            "duration_minutes": 60,
+            "billing_code": "CALL",
+            "description": "Phone call",
+            "matter_id": "M-2023-045",
+            "client_id": "acme_corp"
+          }
+        },
+        {
+          "id": "create_time_entry_m1n2o3_4",
+          "name": "create_time_entry",
+          "arguments": {
+            "attorney_id": "john_doe",
+            "date": "2023-10-06",
+            "duration_minutes": 90,
+            "billing_code": "COURT",
+            "description": "Court appearance",
+            "matter_id": "M-2023-045",
+            "client_id": "acme_corp"
+          }
+        },
+        {
+          "id": "create_time_entry_m1n2o3_5",
+          "name": "create_time_entry",
+          "arguments": {
+            "attorney_id": "john_doe",
+            "date": "2023-10-04",
+            "duration_minutes": 30,
+            "billing_code": "EMAIL",
+            "description": "Email review",
+            "matter_id": "M-2023-046",
+            "client_id": "beta_llc"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "create_time_entry_m1n2o3_1",
+      "content": "{ \"entry_id\": \"TS-1001\" }"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "create_time_entry_m1n2o3_2",
+      "content": "{ \"entry_id\": \"TS-1002\" }"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "create_time_entry_m1n2o3_3",
+      "content": "{ \"entry_id\": \"TS-1003\" }"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "create_time_entry_m1n2o3_4",
+      "content": "{ \"entry_id\": \"TS-1004\" }"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "create_time_entry_m1n2o3_5",
+      "content": "{ \"entry_id\": \"TS-1005\" }"
+    },
+    {
+      "role": "assistant",
+      "content": "All billable activities have been recorded:\n- TS-1001: Legal research (90\u202fmin) for Acme Corp, Matter M\u20112023\u2011045\n- TS-1002: Drafted contract (90\u202fmin) for Acme Corp, Matter M\u20112023\u2011045\n- TS-1003: Phone call (60\u202fmin) for Acme Corp, Matter M\u20112023\u2011045\n- TS-1004: Court appearance (90\u202fmin) for Acme Corp, Matter M\u20112023\u2011045\n- TS-1005: Email review (30\u202fmin) for Beta LLC, Matter M\u20112023\u2011046\n\nThe internal meeting on 2023\u201110\u201102 was excluded as non\u2011billable. Would you like a summary report for the week?",
+      "tool_calls": []
+    },
+    {
+      "role": "user",
+      "content": "Please generate a markdown summary report for 2023\u201110\u201102 through 2023\u201110\u201106 for Acme Corp."
+    },
+    {
+      "role": "assistant",
+      "content": "Creating the summary report now.",
+      "tool_calls": [
+        {
+          "id": "generate_summary_report_p4q5r6",
+          "name": "generate_summary_report",
+          "arguments": {
+            "start_date": "2023-10-02",
+            "end_date": "2023-10-06",
+            "client_id": "acme_corp"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "generate_summary_report_p4q5r6",
+      "content": "# Time\u2011Sheet Summary for Acme Corp (2023\u201110\u201102 to 2023\u201110\u201106)\n\n| Date       | Attorney  | Matter ID   | Description       | Duration (min) | Billing Code |\n|------------|-----------|-------------|-------------------|----------------|--------------|\n| 2023\u201110\u201102 | John Doe  | M-2023-045  | Legal research    | 90             | RESRCH       |\n| 2023\u201110\u201103 | John Doe  | M-2023-045  | Drafted contract  | 90             | DRAFT        |\n| 2023\u201110\u201105 | John Doe  | M-2023-045  | Phone call        | 60             | CALL         |\n| 2023\u201110\u201106 | John Doe  | M-2023-045  | Court appearance  | 90             | COURT        |\n\n**Total Billable Minutes:** 330 minutes (5.5 hours)\n\n*All entries respect Acme Corp\u2019s 5\u202f% discount and no prohibited codes were used.*"
+    },
+    {
+      "role": "assistant",
+      "content": "Here is the requested summary report. Let me know if anything needs to be adjusted or if you\u2019d like to export these entries to another system.",
+      "tool_calls": []
+    }
+  ]
+}

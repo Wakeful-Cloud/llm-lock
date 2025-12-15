@@ -1,0 +1,416 @@
+{
+  "name": "CurateMuse",
+  "description": "CurateMuse is a virtual museum curator that dynamically composes theme\u2011based tours, creates interpretive panel text, and aligns exhibition content with educational standards. By pulling artwork metadata, visitor interaction logs, and curriculum guidelines, the system produces personalized, standards\u2011aligned tours and multilingual audio guides for teachers, families, and casual visitors.",
+  "tools": [
+    {
+      "name": "fetch_artwork_metadata",
+      "description": "Retrieves metadata (title, artist, date, medium, description, image URL, etc.) for one or more artworks based on a free\u2011text query or a list of artwork IDs.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "A free\u2011text search term such as a movement, artist name, or keyword. Optional if artwork_ids is supplied."
+          },
+          "artwork_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of internal artwork identifiers to fetch. Optional if query is supplied."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of artworks to return when using a query. Defaults to 10."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "query_visitor_logs",
+      "description": "Looks up a visitor's interaction history (viewed artworks, liked pieces, dwell time, previous tours) from the museum's analytics database.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Unique identifier for the museum visitor (e.g., account email or anonymized token)."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of recent interactions to return."
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_educational_standards",
+      "description": "Fetches state or national educational standards for a given grade level and subject (e.g., Art, History, STEAM). Returns a list of relevant standard codes and brief descriptions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "grade_level": {
+            "type": "integer",
+            "description": "US school grade (1\u201112)."
+          },
+          "subject": {
+            "type": "string",
+            "description": "Subject area such as \"Art\", \"History\", or \"STEAM\"."
+          }
+        },
+        "required": [
+          "grade_level",
+          "subject"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_tour_itinerary",
+      "description": "Creates a timed, themed tour itinerary given a set of artworks, a desired length, and optional language for labels.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "theme": {
+            "type": "string",
+            "description": "Human\u2011readable name of the tour theme (e.g., \"Impressionism for 5th Grade\")."
+          },
+          "artwork_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Ordered list of artwork identifiers to include in the tour."
+          },
+          "duration_minutes": {
+            "type": "integer",
+            "description": "Target length of the tour in minutes."
+          },
+          "language": {
+            "type": "string",
+            "description": "ISO\u2011639\u20111 language code for any generated labels (default \"en\")."
+          }
+        },
+        "required": [
+          "theme",
+          "artwork_ids",
+          "duration_minutes"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_interpretive_text",
+      "description": "Writes an interpretive text panel for a specific artwork. The depth can be \"brief\" (1\u20112 sentences) or \"detailed\" (paragraph).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "artwork_id": {
+            "type": "string",
+            "description": "Identifier of the artwork to describe."
+          },
+          "depth": {
+            "type": "string",
+            "enum": [
+              "brief",
+              "detailed"
+            ],
+            "description": "Level of detail for the panel text."
+          },
+          "language": {
+            "type": "string",
+            "description": "ISO\u2011639\u20111 language code for the output text (default \"en\")."
+          }
+        },
+        "required": [
+          "artwork_id",
+          "depth"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "translate_text",
+      "description": "Translates a block of text into a target language using a machine\u2011translation service.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Source text to translate."
+          },
+          "target_language": {
+            "type": "string",
+            "description": "ISO\u2011639\u20111 language code for the desired translation (e.g., \"es\" for Spanish)."
+          }
+        },
+        "required": [
+          "text",
+          "target_language"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "schedule_user_tour",
+      "description": "Books the generated tour for a specific visitor on a chosen date and time, returning a confirmation token and QR code URL.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Visitor identifier."
+          },
+          "itinerary": {
+            "type": "string",
+            "description": "JSON\u2011string representation of the tour itinerary returned by generate_tour_itinerary."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Desired start date for the tour (YYYY\u2011MM\u2011DD)."
+          },
+          "start_time": {
+            "type": "string",
+            "format": "time",
+            "description": "Desired start time (HH:MM, 24\u2011hour)."
+          }
+        },
+        "required": [
+          "user_id",
+          "itinerary",
+          "date",
+          "start_time"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "A 5th\u2011grade art teacher requests a 45\u2011minute Impressionist tour aligned with state standards.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are CurateMuse, a virtual museum curator that assembles theme\u2011based tours and writes interpretive panels by using internal tools. Always reference educational standards when requested by teachers."
+        },
+        {
+          "role": "user",
+          "content": "I teach 5th\u2011grade art and need a 45\u2011minute tour on Impressionism that matches my state standards."
+        },
+        {
+          "role": "assistant",
+          "content": "Let me pull the relevant 5th\u2011grade art standards first.",
+          "tool_calls": [
+            {
+              "id": "get_educational_standards_9f2a",
+              "name": "get_educational_standards",
+              "arguments": {
+                "grade_level": 5,
+                "subject": "Art"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_educational_standards_9f2a",
+          "content": "{\"standards\":[{\"code\":\"5.1\",\"description\":\"Identify key elements of visual art, including line, shape, color, texture, and space.\"},{\"code\":\"5.3\",\"description\":\"Explain how artists' choices reflect cultural and historical contexts.\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Great, those are the standards I\u2019ll align with. I\u2019ll now search for Impressionist works in our collection.",
+          "tool_calls": [
+            {
+              "id": "fetch_artwork_metadata_a1b2",
+              "name": "fetch_artwork_metadata",
+              "arguments": {
+                "query": "Impressionism",
+                "limit": 7
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_artwork_metadata_a1b2",
+          "content": "{\"artworks\":[{\"id\":\"art001\",\"title\":\"Impression, Sunrise\",\"artist\":\"Claude Monet\",\"date\":\"1872\"},{\"id\":\"art002\",\"title\":\"The Luncheon on the Grass\",\"artist\":\"\u00c9douard Manet\",\"date\":\"1863\"},{\"id\":\"art003\",\"title\":\"Ballet Rehearsal\",\"artist\":\"Edgar Degas\",\"date\":\"1874\"},{\"id\":\"art004\",\"title\":\"The Boating Party\",\"artist\":\"Mary Cassatt\",\"date\":\"1893\"},{\"id\":\"art005\",\"title\":\"The Haystacks\",\"artist\":\"Claude Monet\",\"date\":\"1890\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll create a 45\u2011minute itinerary using five of those works and write brief interpretive panels.",
+          "tool_calls": [
+            {
+              "id": "generate_tour_itinerary_c3d4",
+              "name": "generate_tour_itinerary",
+              "arguments": {
+                "theme": "Impressionism for 5th\u2011Grade Art Standards",
+                "artwork_ids": [
+                  "art001",
+                  "art002",
+                  "art003",
+                  "art004",
+                  "art005"
+                ],
+                "duration_minutes": 45,
+                "language": "en"
+              }
+            },
+            {
+              "id": "generate_interpretive_text_e5f6",
+              "name": "generate_interpretive_text",
+              "arguments": {
+                "artwork_id": "art001",
+                "depth": "brief",
+                "language": "en"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_tour_itinerary_c3d4",
+          "content": "{\"itinerary\":[{\"artwork_id\":\"art001\",\"title\":\"Impression, Sunrise\",\"stop_minutes\":10},{\"artwork_id\":\"art002\",\"title\":\"The Luncheon on the Grass\",\"stop_minutes\":9},{\"artwork_id\":\"art003\",\"title\":\"Ballet Rehearsal\",\"stop_minutes\":9},{\"artwork_id\":\"art004\",\"title\":\"The Boating Party\",\"stop_minutes\":8},{\"artwork_id\":\"art005\",\"title\":\"The Haystacks\",\"stop_minutes\":9}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_interpretive_text_e5f6",
+          "content": "\"Claude Monet\u2019s 'Impression, Sunrise' captures the fleeting effects of light at dawn, exemplifying the Impressionist focus on atmosphere over detail.\\n\\nStandard 5.1: Students can identify how color and brushstroke convey mood.\\nStandard 5.3: This work shows how post\u2011industrial France celebrated modern life through new visual strategies.\""
+        },
+        {
+          "role": "assistant",
+          "content": "Here\u2019s your 45\u2011minute Impressionism tour aligned with 5th\u2011grade standards:\n\n**Itinerary**\n1. *Impression, Sunrise* \u2013 10\u202fmin\n2. *The Luncheon on the Grass* \u2013 9\u202fmin\n3. *Ballet Rehearsal* \u2013 9\u202fmin\n4. *The Boating Party* \u2013 8\u202fmin\n5. *The Haystacks* \u2013 9\u202fmin\n\n**Interpretive panel for the first stop**\nClaude Monet\u2019s *Impression, Sunrise* captures the fleeting effects of light at dawn, exemplifying the Impressionist focus on atmosphere over detail.\n\n*Standards addressed:* 5.1 (identify elements of visual art) and 5.3 (explain cultural/historical context).",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "A returning visitor asks for a personalized audio tour in Spanish based on previously liked artworks.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are CurateMuse, an AI curator that can pull visitor history, assemble custom tours, translate content, and schedule visits."
+        },
+        {
+          "role": "user",
+          "content": "Hi, I loved the Van Gogh pieces I saw last week. Can you put together an audio tour of those works in Spanish for me tomorrow afternoon?"
+        },
+        {
+          "role": "assistant",
+          "content": "Let me retrieve the artworks you liked during your last visit.",
+          "tool_calls": [
+            {
+              "id": "query_visitor_logs_7a8b",
+              "name": "query_visitor_logs",
+              "arguments": {
+                "user_id": "user_12345",
+                "limit": 20
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "query_visitor_logs_7a8b",
+          "content": "{\"interactions\":[{\"artwork_id\":\"art010\",\"action\":\"like\"},{\"artwork_id\":\"art011\",\"action\":\"like\"},{\"artwork_id\":\"art012\",\"action\":\"view\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "I see you liked two Van Gogh works (art010 and art011). I\u2019ll fetch their metadata.",
+          "tool_calls": [
+            {
+              "id": "fetch_artwork_metadata_9c0d",
+              "name": "fetch_artwork_metadata",
+              "arguments": {
+                "artwork_ids": [
+                  "art010",
+                  "art011"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_artwork_metadata_9c0d",
+          "content": "{\"artworks\":[{\"id\":\"art010\",\"title\":\"Starry Night\",\"artist\":\"Vincent van Gogh\",\"date\":\"1889\"},{\"id\":\"art011\",\"title\":\"Sunflowers\",\"artist\":\"Vincent van Gogh\",\"date\":\"1888\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I\u2019ll build a short audio tour (about 20\u202fminutes) with those two pieces.",
+          "tool_calls": [
+            {
+              "id": "generate_tour_itinerary_f1e2",
+              "name": "generate_tour_itinerary",
+              "arguments": {
+                "theme": "Van Gogh Highlights",
+                "artwork_ids": [
+                  "art010",
+                  "art011"
+                ],
+                "duration_minutes": 20,
+                "language": "en"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_tour_itinerary_f1e2",
+          "content": "{\"itinerary\":[{\"artwork_id\":\"art010\",\"title\":\"Starry Night\",\"stop_minutes\":12},{\"artwork_id\":\"art011\",\"title\":\"Sunflowers\",\"stop_minutes\":8}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll translate the tour script into Spanish for the audio guide.",
+          "tool_calls": [
+            {
+              "id": "translate_text_3b4c",
+              "name": "translate_text",
+              "arguments": {
+                "text": "Welcome to the Van Gogh Highlights tour. First, we stop at 'Starry Night', a 1889 masterpiece where Van Gogh depicts a swirling night sky over a quiet village. Next, we view 'Sunflowers', an 1888 painting celebrating the vibrant yellow blossoms that symbolize optimism.\nEnjoy your visit!",
+                "target_language": "es"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "translate_text_3b4c",
+          "content": "Bienvenido al recorrido \"Lo m\u00e1s destacado de Van Gogh\". Primero, nos detenemos en \"La noche estrellada\", una obra maestra de 1889 en la que Van Gogh representa un cielo nocturno giratorio sobre un tranquilo pueblo. A continuaci\u00f3n, vemos \"Los girasoles\", una pintura de 1888 que celebra los vibrantes brotes amarillos que simbolizan el optimismo.\n\u00a1Disfruta tu visita!"
+        },
+        {
+          "role": "assistant",
+          "content": "Finally, I\u2019ll schedule the tour for tomorrow at 14:00.",
+          "tool_calls": [
+            {
+              "id": "schedule_user_tour_5d6e",
+              "name": "schedule_user_tour",
+              "arguments": {
+                "user_id": "user_12345",
+                "itinerary": "{\"itinerary\":[{\"artwork_id\":\"art010\",\"title\":\"Starry Night\",\"stop_minutes\":12},{\"artwork_id\":\"art011\",\"title\":\"Sunflowers\",\"stop_minutes\":8}]}",
+                "date": "2025-12-08",
+                "start_time": "14:00"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "schedule_user_tour_5d6e",
+          "content": "{\"confirmation_id\":\"tour_9876\",\"qr_code_url\":\"https://museum.example.com/qr/tour_9876.png\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Your Spanish audio tour is booked for tomorrow at 2\u202fPM. Use the QR code below at the entrance to start the guide:\nhttps://museum.example.com/qr/tour_9876.png\nEnjoy the \"Starry Night\" and \"Sunflowers\"!",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

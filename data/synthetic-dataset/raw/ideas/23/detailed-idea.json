@@ -1,0 +1,501 @@
+{
+  "name": "ShelfSmart Planner",
+  "description": "An AI\u2011powered retail shelf planning assistant that analyses point\u2011of\u2011sale data, current planogram images, and supplier lead times to generate optimal product placement and reorder recommendations for each store.",
+  "tools": [
+    {
+      "name": "fetch_pos_data",
+      "description": "Retrieves historical POS sales and inventory data for given store IDs, SKU list, and date range.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "store_id": {
+            "type": "string",
+            "description": "The unique identifier of the store."
+          },
+          "skus": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of SKU identifiers to retrieve data for."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Start date of the data window (YYYY\u2011MM\u2011DD)."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "End date of the data window (YYYY\u2011MM\u2011DD)."
+          }
+        },
+        "required": [
+          "store_id",
+          "skus",
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_planogram_image",
+      "description": "Downloads the latest planogram image for a specified store and aisle.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "store_id": {
+            "type": "string",
+            "description": "The unique identifier of the store."
+          },
+          "aisle_id": {
+            "type": "string",
+            "description": "Identifier of the aisle whose planogram image is required."
+          }
+        },
+        "required": [
+          "store_id",
+          "aisle_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "analyze_image",
+      "description": "Runs computer\u2011vision on a planogram image to detect current product facings, gaps, and shelf space usage.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "image_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Public URL of the planogram image to analyse."
+          },
+          "sku_catalog": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of SKU identifiers that may appear in the image."
+          }
+        },
+        "required": [
+          "image_url",
+          "sku_catalog"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_supplier_lead_time",
+      "description": "Returns the supplier lead time in days for each requested SKU.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "skus": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of SKU identifiers for which lead times are required."
+          }
+        },
+        "required": [
+          "skus"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "recommend_placement",
+      "description": "Computes optimal product facings and placement given sales velocity, shelf space, and lead times, returning a JSON plan.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "sales_data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sku": {
+                  "type": "string"
+                },
+                "units_sold": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "sku",
+                "units_sold"
+              ]
+            },
+            "description": "Historical sales for each SKU."
+          },
+          "current_layout": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sku": {
+                  "type": "string"
+                },
+                "facings": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "sku",
+                "facings"
+              ]
+            },
+            "description": "Existing facings per SKU from image analysis."
+          },
+          "lead_times": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Mapping from SKU to supplier lead time (days)."
+          },
+          "constraints": {
+            "type": "object",
+            "properties": {
+              "max_facing_per_sku": {
+                "type": "integer"
+              },
+              "total_facing_limit": {
+                "type": "integer"
+              }
+            },
+            "description": "Business constraints for the planogram."
+          }
+        },
+        "required": [
+          "sales_data",
+          "current_layout",
+          "lead_times",
+          "constraints"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_reorder_plan",
+      "description": "Based on recommended facings and lead times, calculates weekly reorder quantities for each SKU.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "recommended_placement": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sku": {
+                  "type": "string"
+                },
+                "target_facings": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "sku",
+                "target_facings"
+              ]
+            },
+            "description": "Facings plan returned by recommend_placement."
+          },
+          "lead_times": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Mapping from SKU to supplier lead time (days)."
+          },
+          "target_stock_days": {
+            "type": "integer",
+            "description": "Desired number of days of inventory on hand."
+          }
+        },
+        "required": [
+          "recommended_placement",
+          "lead_times",
+          "target_stock_days"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "update_planogram_system",
+      "description": "Sends the new placement plan to the store\u2019s planogram management system.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "store_id": {
+            "type": "string",
+            "description": "Identifier of the store to update."
+          },
+          "aisle_id": {
+            "type": "string",
+            "description": "Identifier of the aisle being updated."
+          },
+          "placement_plan": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Mapping from SKU to number of facings for the new plan."
+          }
+        },
+        "required": [
+          "store_id",
+          "aisle_id",
+          "placement_plan"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User requests a new planogram for Store\u00a0101, Aisle\u00a05 (Cereal category). The assistant fetches POS data, the latest planogram image, analyses the image, pulls supplier lead times, computes an optimal placement, and returns the recommendation.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are ShelfSmart Planner, an AI assistant that helps retail stores optimise shelf layouts using POS data, planogram images and supplier lead times."
+        },
+        {
+          "role": "user",
+          "content": "Create a revised planogram for Store 101, Aisle 5 (Cereal) for the upcoming month."
+        },
+        {
+          "role": "assistant",
+          "content": "Got it. I\u2019ll gather recent sales, the current layout, and supplier lead times before suggesting a new placement.",
+          "tool_calls": [
+            {
+              "id": "fetch_pos_data_a1b2c3",
+              "name": "fetch_pos_data",
+              "arguments": {
+                "store_id": "101",
+                "skus": [
+                  "SKU001",
+                  "SKU002",
+                  "SKU003",
+                  "SKU004"
+                ],
+                "start_date": "2024-11-01",
+                "end_date": "2024-11-30"
+              }
+            },
+            {
+              "id": "fetch_planogram_image_d4e5f6",
+              "name": "fetch_planogram_image",
+              "arguments": {
+                "store_id": "101",
+                "aisle_id": "5"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_pos_data_a1b2c3",
+          "content": "{\"sales_data\": [{\"sku\": \"SKU001\", \"units_sold\": 1200}, {\"sku\": \"SKU002\", \"units_sold\": 800}, {\"sku\": \"SKU003\", \"units_sold\": 450}, {\"sku\": \"SKU004\", \"units_sold\": 300}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_planogram_image_d4e5f6",
+          "content": "{\"image_url\": \"https://example.com/planograms/store101/aisle5.png\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Thanks. I\u2019ll now analyse the current image and retrieve lead times.",
+          "tool_calls": [
+            {
+              "id": "analyze_image_789abc",
+              "name": "analyze_image",
+              "arguments": {
+                "image_url": "https://example.com/planograms/store101/aisle5.png",
+                "sku_catalog": [
+                  "SKU001",
+                  "SKU002",
+                  "SKU003",
+                  "SKU004"
+                ]
+              }
+            },
+            {
+              "id": "get_supplier_lead_time_def123",
+              "name": "get_supplier_lead_time",
+              "arguments": {
+                "skus": [
+                  "SKU001",
+                  "SKU002",
+                  "SKU003",
+                  "SKU004"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "analyze_image_789abc",
+          "content": "{\"current_layout\": [{\"sku\": \"SKU001\", \"facings\": 6}, {\"sku\": \"SKU002\", \"facings\": 4}, {\"sku\": \"SKU003\", \"facings\": 2}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_supplier_lead_time_def123",
+          "content": "{\"lead_times\": {\"SKU001\": 7, \"SKU002\": 5, \"SKU003\": 10, \"SKU004\": 12}}"
+        },
+        {
+          "role": "assistant",
+          "content": "Processing the data to compute the optimal facings.",
+          "tool_calls": [
+            {
+              "id": "recommend_placement_456def",
+              "name": "recommend_placement",
+              "arguments": {
+                "sales_data": [
+                  {
+                    "sku": "SKU001",
+                    "units_sold": 1200
+                  },
+                  {
+                    "sku": "SKU002",
+                    "units_sold": 800
+                  },
+                  {
+                    "sku": "SKU003",
+                    "units_sold": 450
+                  },
+                  {
+                    "sku": "SKU004",
+                    "units_sold": 300
+                  }
+                ],
+                "current_layout": [
+                  {
+                    "sku": "SKU001",
+                    "facings": 6
+                  },
+                  {
+                    "sku": "SKU002",
+                    "facings": 4
+                  },
+                  {
+                    "sku": "SKU003",
+                    "facings": 2
+                  }
+                ],
+                "lead_times": {
+                  "SKU001": 7,
+                  "SKU002": 5,
+                  "SKU003": 10,
+                  "SKU004": 12
+                },
+                "constraints": {
+                  "max_facing_per_sku": 8,
+                  "total_facing_limit": 20
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "recommend_placement_456def",
+          "content": "{\"placement_plan\": {\"SKU001\": 8, \"SKU002\": 6, \"SKU003\": 4, \"SKU004\": 2}}"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the recommended planogram for Store\u00a0101, Aisle\u00a05 (Cereal):\n\n- SKU001 (Top\u2011Grade Cereal): 8 facings\n- SKU002 (Family\u2011Size Cereal): 6 facings\n- SKU003 (Granola): 4 facings\n- SKU004 (Organic Cereal): 2 facings\n\nThis uses the full 20 facing capacity, prioritising the highest\u2011selling SKUs while keeping a small presence for the slower movers.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User asks for the weekly reorder quantities based on the newly recommended placement. The assistant pulls lead times, runs the reorder planner, and optionally updates the store system.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are ShelfSmart Planner, an AI assistant that produces weekly replenishment plans for retail shelves."
+        },
+        {
+          "role": "user",
+          "content": "Based on the cereal planogram you just gave me for Store\u00a0101, generate the reorder quantities needed for next week."
+        },
+        {
+          "role": "assistant",
+          "content": "Sure, I\u2019ll need the supplier lead times for the SKUs and then I\u2019ll calculate the weekly reorder amounts.",
+          "tool_calls": [
+            {
+              "id": "get_supplier_lead_time_abc789",
+              "name": "get_supplier_lead_time",
+              "arguments": {
+                "skus": [
+                  "SKU001",
+                  "SKU002",
+                  "SKU003",
+                  "SKU004"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_supplier_lead_time_abc789",
+          "content": "{\"lead_times\": {\"SKU001\": 7, \"SKU002\": 5, \"SKU003\": 10, \"SKU004\": 12}}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I\u2019ll compute the reorder quantities assuming we want 14 days of stock on hand.",
+          "tool_calls": [
+            {
+              "id": "generate_reorder_plan_fed321",
+              "name": "generate_reorder_plan",
+              "arguments": {
+                "recommended_placement": [
+                  {
+                    "sku": "SKU001",
+                    "target_facings": 8
+                  },
+                  {
+                    "sku": "SKU002",
+                    "target_facings": 6
+                  },
+                  {
+                    "sku": "SKU003",
+                    "target_facings": 4
+                  },
+                  {
+                    "sku": "SKU004",
+                    "target_facings": 2
+                  }
+                ],
+                "lead_times": {
+                  "SKU001": 7,
+                  "SKU002": 5,
+                  "SKU003": 10,
+                  "SKU004": 12
+                },
+                "target_stock_days": 14
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_reorder_plan_fed321",
+          "content": "{\"reorder_quantities\": {\"SKU001\": 560, \"SKU002\": 420, \"SKU003\": 210, \"SKU004\": 120}}"
+        },
+        {
+          "role": "assistant",
+          "content": "Weekly reorder quantities for Store\u00a0101 (Cereal aisle):\n\n- SKU001: 560 units\n- SKU002: 420 units\n- SKU003: 210 units\n- SKU004: 120 units\n\nThese amounts will bring each SKU to roughly 14 days of on\u2011hand inventory, accounting for the recommended facings and each supplier\u2019s lead time.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,324 @@
+{
+  "name": "Corporate Knowledge Bot",
+  "description": "An enterprise\u2011grade conversational assistant that indexes internal wikis, policy PDFs, and meeting transcripts, then answers employee questions with up\u2011to\u2011date, context\u2011aware information while respecting corporate security and access controls.",
+  "tools": [
+    {
+      "name": "auth_check",
+      "description": "Verifies that the requesting user has the required role(s) to access a particular knowledge domain. Returns a boolean flag and optional reason.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Unique identifier of the employee making the request."
+          },
+          "required_roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of corporate roles that are allowed to view the requested information."
+          }
+        },
+        "required": [
+          "user_id",
+          "required_roles"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "ingest_documents",
+      "description": "Ingests new or updated corporate documents (wikis, PDFs, markdown files) into the vector store and metadata database. Returns a summary of processed items.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "wiki",
+              "pdf",
+              "markdown",
+              "transcript"
+            ],
+            "description": "The type of source being ingested."
+          },
+          "source_path": {
+            "type": "string",
+            "description": "Filesystem path, URL, or cloud bucket location of the source material."
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Optional key\u2011value pairs (e.g., department, confidentiality level)."
+          }
+        },
+        "required": [
+          "source_type",
+          "source_path"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "vector_search",
+      "description": "Performs a similarity search over the indexed knowledge base using the supplied query and returns the top\u2011k most relevant document snippets with metadata.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Natural\u2011language question or keyword search."
+          },
+          "top_k": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20,
+            "description": "Number of most relevant results to retrieve."
+          },
+          "filters": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Optional metadata filters (e.g., department:HR, confidentiality:public)."
+          }
+        },
+        "required": [
+          "query",
+          "top_k"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_meeting_transcript",
+      "description": "Retrieves the raw transcript text for a given meeting identifier or date range from the corporate transcript store.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "meeting_id": {
+            "type": "string",
+            "description": "Unique identifier of the meeting (if known)."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Start date of the range to search for a meeting (inclusive)."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "End date of the range to search for a meeting (inclusive)."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "summarize_text",
+      "description": "Generates a concise summary (bullet points) of the provided text while preserving key facts and decisions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The raw text that needs to be summarized."
+          },
+          "max_sentences": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10,
+            "description": "Maximum number of summary sentences or bullet points."
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_policy_version",
+      "description": "Fetches the latest or a specific version of a corporate policy document based on name and optional effective date.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "policy_name": {
+            "type": "string",
+            "description": "Human\u2011readable name of the policy (e.g., \"Travel Reimbursement\")."
+          },
+          "effective_date": {
+            "type": "string",
+            "format": "date",
+            "description": "If provided, returns the policy version that was effective on this date."
+          }
+        },
+        "required": [
+          "policy_name"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks for the current international travel reimbursement policy; the bot authenticates, searches, fetches the latest policy version, summarizes it, and replies.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are Corporate Knowledge Bot, an internal assistant that answers employee questions by searching the company's knowledge base. Always verify the user's role before accessing policy documents."
+        },
+        {
+          "role": "user",
+          "content": "Hi, could you tell me what the current reimbursement policy is for international flights?"
+        },
+        {
+          "role": "assistant",
+          "content": "Let me check your access rights and fetch the latest policy.",
+          "tool_calls": [
+            {
+              "id": "auth_check_1a2b3c",
+              "name": "auth_check",
+              "arguments": {
+                "user_id": "U12345",
+                "required_roles": [
+                  "employee",
+                  "finance"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "auth_check_1a2b3c",
+          "content": "{\"allowed\": true}"
+        },
+        {
+          "role": "assistant",
+          "content": "Access granted. Searching for the most recent \"International Travel Reimbursement\" policy.",
+          "tool_calls": [
+            {
+              "id": "vector_search_4d5e6f",
+              "name": "vector_search",
+              "arguments": {
+                "query": "International Travel Reimbursement policy",
+                "top_k": 3,
+                "filters": {
+                  "document_type": "policy",
+                  "confidentiality": "public"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "vector_search_4d5e6f",
+          "content": "[{\"snippet\": \"Travel Reimbursement \u2013 International Flights \u2013 Effective 2024-01-01\", \"metadata\": {\"policy_name\": \"Travel Reimbursement\", \"version_date\": \"2024-01-01\", \"doc_id\": \"policy_2024_01\"}}]"
+        },
+        {
+          "role": "assistant",
+          "content": "I found the latest version of the Travel Reimbursement policy (effective Jan\u202f1\u202f2024). Retrieving the full document.",
+          "tool_calls": [
+            {
+              "id": "get_policy_version_7g8h9i",
+              "name": "get_policy_version",
+              "arguments": {
+                "policy_name": "Travel Reimbursement",
+                "effective_date": "2024-01-01"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_policy_version_7g8h9i",
+          "content": "{\"text\": \"... (full policy text) ...\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Summarizing the relevant section for international flights.",
+          "tool_calls": [
+            {
+              "id": "summarize_text_ab12cd",
+              "name": "summarize_text",
+              "arguments": {
+                "text": "International flights are reimbursed at 100% of the economy class fare. Receipts must be submitted within 30 days. Flights booked through the corporate travel portal are mandatory unless a business case is approved. Meal allowances apply per day. ..."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_text_ab12cd",
+          "content": "- Reimbursement: 100\u202f% of economy class fare for international flights.\n- Booking: Must use corporate travel portal; exceptions need business\u2011case approval.\n- Receipt deadline: 30\u202fdays after travel.\n- Meal allowance: Standard daily rate per policy.\n- Cap: No cap on ticket price, but must be reasonable and approved."
+        },
+        {
+          "role": "assistant",
+          "content": "Here\u2019s a quick summary of the current international travel reimbursement policy:\n\n- **Reimbursement:** 100\u202f% of the economy\u2011class fare.\n- **Booking:** Use the corporate travel portal; exceptions require a business\u2011case approval.\n- **Receipts:** Submit within\u202f30\u202fdays of travel.\n- **Meals:** Standard daily allowance as defined in the policy.\n- **Other:** No price cap, but the expense must be reasonable and approved.\n\nLet me know if you need more details or the full document.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User requests a summary of the Q3 2023 all\u2011hands meeting; the bot fetches the transcript, summarizes it, and presents the key decisions.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are Corporate Knowledge Bot, an internal assistant that can retrieve meeting transcripts and provide concise summaries."
+        },
+        {
+          "role": "user",
+          "content": "Could you give me a brief summary of the decisions made during the Q3 2023 all\u2011hands meeting?"
+        },
+        {
+          "role": "assistant",
+          "content": "Sure, I\u2019ll locate the transcript for that meeting and summarize the main points.",
+          "tool_calls": [
+            {
+              "id": "fetch_meeting_transcript_x1y2z3",
+              "name": "fetch_meeting_transcript",
+              "arguments": {
+                "meeting_id": "allhands_q3_2023"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_meeting_transcript_x1y2z3",
+          "content": "{\"transcript\": \"... (full transcript text) ...\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Summarizing the transcript now.",
+          "tool_calls": [
+            {
+              "id": "summarize_text_mn45op",
+              "name": "summarize_text",
+              "arguments": {
+                "text": "... (full transcript text) ...",
+                "max_sentences": 7
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_text_mn45op",
+          "content": "- Approved the FY2024 budget with a 4\u202f% increase for R&D.\n- Launched the new Employee Wellness program starting Jan\u202f2024.\n- Introduced a flexible\u2011work policy allowing three remote days per week.\n- Decided to consolidate the data\u2011analytics team under the CFO.\n- Set Q4 OKRs focusing on customer retention and AI product enhancements.\n- Announced a company\u2011wide hackathon scheduled for February 2024.\n- Open Q&A: Employees expressed interest in more transparent salary bands."
+        },
+        {
+          "role": "assistant",
+          "content": "Here\u2019s a brief summary of the Q3\u202f2023 all\u2011hands meeting decisions:\n\n1. **FY2024 Budget:** Approved with a 4\u202f% increase earmarked for R&D.\n2. **Employee Wellness Program:** Launching in January\u202f2024.\n3. **Flexible\u2011Work Policy:** Up to three remote days per week for all staff.\n4. **Organizational Change:** Data\u2011analytics team will now report to the CFO.\n5. **Q4 OKRs:** Focus on customer retention and AI product enhancements.\n6. **Hackathon:** Company\u2011wide event planned for February\u202f2024.\n7. **Open Q&A Highlights:** Strong employee interest in more transparent salary bands.\n\nLet me know if you\u2019d like deeper details on any of these items.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

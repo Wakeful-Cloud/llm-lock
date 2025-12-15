@@ -1,0 +1,366 @@
+{
+  "name": "FactoryFlow Scheduler",
+  "description": "An autonomous LLM\u2011driven production scheduler for manufacturers. It ingests real\u2011time machine availability, pending work\u2011orders, and inbound supply deliveries, computes optimal weekly or daily schedules, writes the plan to the ERP system, and notifies shift supervisors of any changes or alerts.",
+  "tools": [
+    {
+      "name": "fetch_machine_status",
+      "description": "Retrieves the current operational status, capacity, and scheduled maintenance windows for every machine in a specified factory.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "factory_id": {
+            "type": "string",
+            "description": "Unique identifier of the factory (e.g., \"factory_a\")."
+          }
+        },
+        "required": [
+          "factory_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_work_orders",
+      "description": "Returns a list of all pending work\u2011orders for a factory, including part number, required quantity, due date, and priority level.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "factory_id": {
+            "type": "string",
+            "description": "Unique identifier of the factory."
+          }
+        },
+        "required": [
+          "factory_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_supply_deliveries",
+      "description": "Provides the schedule of upcoming material deliveries for a factory, with supplier name, material type, quantity, and expected arrival time.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "factory_id": {
+            "type": "string",
+            "description": "Unique identifier of the factory."
+          }
+        },
+        "required": [
+          "factory_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_schedule",
+      "description": "Computes an optimized production schedule given machine availability, work\u2011orders, and supply deliveries. Returns the schedule as a JSON string.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "factory_id": {
+            "type": "string",
+            "description": "Factory for which to generate the schedule."
+          },
+          "constraints": {
+            "type": "object",
+            "description": "Optional constraints such as broken_machine_id, forced overtime, or priority overrides.",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "factory_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "update_schedule_db",
+      "description": "Persists the generated schedule into the plant's ERP/database system and returns a confirmation status.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "factory_id": {
+            "type": "string",
+            "description": "Factory where the schedule will be stored."
+          },
+          "schedule": {
+            "type": "string",
+            "description": "The schedule JSON string produced by generate_schedule."
+          }
+        },
+        "required": [
+          "factory_id",
+          "schedule"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "send_shift_alert",
+      "description": "Sends a notification (email, SMS, or push) to a list of shift supervisors with a custom subject and body.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "recipients": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Email address or phone number of a recipient."
+            },
+            "description": "List of people who should receive the alert."
+          },
+          "subject": {
+            "type": "string",
+            "description": "Short subject line for the alert."
+          },
+          "body": {
+            "type": "string",
+            "description": "Full message body, typically containing the schedule or change details."
+          }
+        },
+        "required": [
+          "recipients",
+          "subject",
+          "body"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User requests a weekly schedule for Factory A; the assistant gathers data, generates the plan, stores it, and notifies supervisors.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are FactoryFlow Scheduler, an autonomous production\u2011planning assistant. Use the provided tools to collect data, compute optimal schedules, persist them, and keep shift managers informed."
+        },
+        {
+          "role": "user",
+          "content": "Please create the production schedule for Factory A for the upcoming week (Monday to Friday)."
+        },
+        {
+          "role": "assistant",
+          "content": "Gathering the latest machine status, work\u2011orders, and supply deliveries.",
+          "tool_calls": [
+            {
+              "id": "fetch_machine_status_1a2b3c",
+              "name": "fetch_machine_status",
+              "arguments": {
+                "factory_id": "factory_a"
+              }
+            },
+            {
+              "id": "fetch_work_orders_4d5e6f",
+              "name": "fetch_work_orders",
+              "arguments": {
+                "factory_id": "factory_a"
+              }
+            },
+            {
+              "id": "fetch_supply_deliveries_7g8h9i",
+              "name": "fetch_supply_deliveries",
+              "arguments": {
+                "factory_id": "factory_a"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_machine_status_1a2b3c",
+          "content": "{\"machines\":[{\"id\":\"M1\",\"status\":\"available\",\"capacity\":\"8h\"},{\"id\":\"M2\",\"status\":\"maintenance\",\"available_at\":\"2025-12-09T08:00:00Z\"}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_work_orders_4d5e6f",
+          "content": "{\"work_orders\":[{\"order_id\":\"WO1001\",\"part\":\"A123\",\"qty\":500,\"due\":\"2025-12-12\",\"priority\":1},{\"order_id\":\"WO1002\",\"part\":\"B456\",\"qty\":300,\"due\":\"2025-12-14\",\"priority\":2}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_supply_deliveries_7g8h9i",
+          "content": "{\"deliveries\":[{\"supplier\":\"SteelCo\",\"material\":\"Steel\",\"qty\":2000,\"eta\":\"2025-12-08T06:00:00Z\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "All data collected. Computing the optimal schedule now.",
+          "tool_calls": [
+            {
+              "id": "generate_schedule_ab12cd",
+              "name": "generate_schedule",
+              "arguments": {
+                "factory_id": "factory_a",
+                "constraints": {}
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_schedule_ab12cd",
+          "content": "{\"schedule\":[{\"machine\":\"M1\",\"order_id\":\"WO1001\",\"start\":\"2025-12-09T08:00:00Z\",\"end\":\"2025-12-09T16:00:00Z\"},{\"machine\":\"M2\",\"order_id\":\"WO1002\",\"start\":\"2025-12-10T08:00:00Z\",\"end\":\"2025-12-10T14:00:00Z\"} ]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Schedule generated. Saving it to the ERP system.",
+          "tool_calls": [
+            {
+              "id": "update_schedule_db_ef34gh",
+              "name": "update_schedule_db",
+              "arguments": {
+                "factory_id": "factory_a",
+                "schedule": "{\"schedule\":[{\"machine\":\"M1\",\"order_id\":\"WO1001\",\"start\":\"2025-12-09T08:00:00Z\",\"end\":\"2025-12-09T16:00:00Z\"},{\"machine\":\"M2\",\"order_id\":\"WO1002\",\"start\":\"2025-12-10T08:00:00Z\",\"end\":\"2025-12-10T14:00:00Z\"}]}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "update_schedule_db_ef34gh",
+          "content": "{\"status\":\"success\",\"message\":\"Schedule persisted for factory_a.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Notifying shift supervisors about the new weekly plan.",
+          "tool_calls": [
+            {
+              "id": "send_shift_alert_ij56kl",
+              "name": "send_shift_alert",
+              "arguments": {
+                "recipients": [
+                  "supervisor1@factory.com",
+                  "supervisor2@factory.com"
+                ],
+                "subject": "Factory A \u2013 New Weekly Production Schedule",
+                "body": "The schedule for Monday\u2011Friday has been generated and saved.\\n\\nKey assignments:\\n- M1: WO1001 (8\u202fh)\\n- M2: WO1002 (6\u202fh)\\n\\nPlease review the ERP system for full details."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_shift_alert_ij56kl",
+          "content": "{\"status\":\"sent\",\"recipients\":2}"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 The production schedule for Factory A has been created, stored, and the shift supervisors have been alerted.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "A machine breakdown occurs; the assistant quickly re\u2011optimizes tomorrow's schedule and informs the team.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are FactoryFlow Scheduler, an autonomous production\u2011planning assistant. React promptly to changes, re\u2011compute schedules, persist them, and keep the floor team informed."
+        },
+        {
+          "role": "user",
+          "content": "Machine M3 just went down unexpectedly. Please re\u2011optimize tomorrow's schedule for Factory B to work around this."
+        },
+        {
+          "role": "assistant",
+          "content": "Updating machine status and re\u2011gathering workload data.",
+          "tool_calls": [
+            {
+              "id": "fetch_machine_status_xyz123",
+              "name": "fetch_machine_status",
+              "arguments": {
+                "factory_id": "factory_b"
+              }
+            },
+            {
+              "id": "fetch_work_orders_abc456",
+              "name": "fetch_work_orders",
+              "arguments": {
+                "factory_id": "factory_b"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_machine_status_xyz123",
+          "content": "{\"machines\":[{\"id\":\"M1\",\"status\":\"available\",\"capacity\":\"8h\"},{\"id\":\"M3\",\"status\":\"down\",\"estimated_repair\":\"2025-12-09T12:00:00Z\"}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_work_orders_abc456",
+          "content": "{\"work_orders\":[{\"order_id\":\"WO2001\",\"part\":\"C789\",\"qty\":400,\"due\":\"2025-12-10\",\"priority\":1}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating a new schedule for tomorrow while excluding the broken machine.",
+          "tool_calls": [
+            {
+              "id": "generate_schedule_def789",
+              "name": "generate_schedule",
+              "arguments": {
+                "factory_id": "factory_b",
+                "constraints": {
+                  "broken_machine_id": "M3",
+                  "target_date": "2025-12-09"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_schedule_def789",
+          "content": "{\"schedule\":[{\"machine\":\"M1\",\"order_id\":\"WO2001\",\"start\":\"2025-12-09T08:00:00Z\",\"end\":\"2025-12-09T16:00:00Z\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Saving the updated schedule.",
+          "tool_calls": [
+            {
+              "id": "update_schedule_db_ghi012",
+              "name": "update_schedule_db",
+              "arguments": {
+                "factory_id": "factory_b",
+                "schedule": "{\"schedule\":[{\"machine\":\"M1\",\"order_id\":\"WO2001\",\"start\":\"2025-12-09T08:00:00Z\",\"end\":\"2025-12-09T16:00:00Z\"}]}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "update_schedule_db_ghi012",
+          "content": "{\"status\":\"success\",\"message\":\"Re\u2011optimized schedule saved for factory_b.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Alerting supervisors about the change.",
+          "tool_calls": [
+            {
+              "id": "send_shift_alert_jkl345",
+              "name": "send_shift_alert",
+              "arguments": {
+                "recipients": [
+                  "supervisorB1@factory.com"
+                ],
+                "subject": "Urgent: Schedule Update for Tomorrow (Machine M3 Down)",
+                "body": "M3 is down until at least 12:00. The schedule for 2025\u201112\u201109 has been re\u2011optimized and now assigns WO2001 to M1 (08:00\u201116:00). Please review the ERP system for the full updated plan."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_shift_alert_jkl345",
+          "content": "{\"status\":\"sent\",\"recipients\":1}"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 The schedule has been re\u2011optimized, stored, and the relevant supervisor has been notified.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

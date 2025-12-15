@@ -1,0 +1,435 @@
+{
+  "name": "NutriLabelPro",
+  "description": "NutriLabelPro is an agentic LLM application that transforms a recipe's ingredient list into a full FDA\u2011compliant nutrition facts label, complete with macro\u2011 and micronutrient breakdowns and a printable PDF. Users can input raw recipes, specify serving sizes, and receive a ready\u2011to\u2011use label that meets US labeling regulations, ideal for home bakers, food entrepreneurs, and product developers.",
+  "tools": [
+    {
+      "name": "parse_ingredients",
+      "description": "Parses a free\u2011form ingredient list into a structured array of {ingredient, quantity, unit} objects, normalizing common units and handling ambiguous entries.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "raw_ingredients": {
+            "type": "string",
+            "description": "The raw ingredient list as typed by the user, e.g., \"2 cups flour, 1 tsp salt, 3 large eggs\"."
+          }
+        },
+        "required": [
+          "raw_ingredients"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "lookup_nutrition",
+      "description": "Queries an internal USDA/FDA nutrition database for each parsed ingredient and calculates total macro\u2011 and micronutrients for the given quantities.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "ingredients": {
+            "type": "array",
+            "description": "Array of objects returned by parse_ingredients, each containing ingredient, quantity, and unit.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ingredient": {
+                  "type": "string",
+                  "description": "Name of the ingredient."
+                },
+                "quantity": {
+                  "type": "number",
+                  "description": "Numeric amount."
+                },
+                "unit": {
+                  "type": "string",
+                  "description": "Standardized unit (e.g., g, mg, oz, cup)."
+                }
+              },
+              "required": [
+                "ingredient",
+                "quantity",
+                "unit"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "ingredients"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "validate_fda_label",
+      "description": "Validates the computed nutrition data against FDA labeling rules, determines required fields, rounding, and verifies serving size formatting.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "nutrition_totals": {
+            "type": "object",
+            "description": "Aggregated nutrition values (calories, fat, carbs, protein, vitamins, minerals, etc.) as returned by lookup_nutrition.",
+            "additionalProperties": true
+          },
+          "serving_size": {
+            "type": "string",
+            "description": "User\u2011specified serving size text, e.g., \"1 cookie (30\u202fg)\"."
+          }
+        },
+        "required": [
+          "nutrition_totals",
+          "serving_size"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_label_pdf",
+      "description": "Creates a printable PDF of the nutrition facts label using FDA layout guidelines and returns the file as a base64\u2011encoded string.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "label_data": {
+            "type": "object",
+            "description": "All information needed for the label: serving size, nutrient rows, %DV, ingredient list, allergen statements, etc.",
+            "additionalProperties": true
+          },
+          "format_options": {
+            "type": "object",
+            "description": "Optional styling preferences such as page size, DPI, and whether to include a QR code linking to the full recipe.",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "label_data"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User provides a classic chocolate\u2011chip cookie recipe and requests an FDA\u2011compliant label for a single cookie serving.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are NutriLabelPro, an expert nutrition label generator. Use the provided tools to parse ingredients, calculate nutrition, ensure FDA compliance, and return a printable PDF label."
+        },
+        {
+          "role": "user",
+          "content": "I have a recipe for chocolate chip cookies: 2 cups flour, 1 cup sugar, 1 cup butter, 2 eggs, 1 tsp baking soda, 1 tsp salt, 1 cup chocolate chips. The batch makes 24 cookies. Please generate an FDA\u2011compliant nutrition label for one cookie."
+        },
+        {
+          "role": "assistant",
+          "content": "Got it! First I\u2019ll turn your ingredient list into a structured format.",
+          "tool_calls": [
+            {
+              "id": "parse_ingredients_1a2b3c",
+              "name": "parse_ingredients",
+              "arguments": {
+                "raw_ingredients": "2 cups flour, 1 cup sugar, 1 cup butter, 2 eggs, 1 tsp baking soda, 1 tsp salt, 1 cup chocolate chips"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "parse_ingredients_1a2b3c",
+          "content": "[{\"ingredient\":\"flour\",\"quantity\":2,\"unit\":\"cup\"},{\"ingredient\":\"sugar\",\"quantity\":1,\"unit\":\"cup\"},{\"ingredient\":\"butter\",\"quantity\":1,\"unit\":\"cup\"},{\"ingredient\":\"egg\",\"quantity\":2,\"unit\":\"unit\"},{\"ingredient\":\"baking soda\",\"quantity\":1,\"unit\":\"tsp\"},{\"ingredient\":\"salt\",\"quantity\":1,\"unit\":\"tsp\"},{\"ingredient\":\"chocolate chips\",\"quantity\":1,\"unit\":\"cup\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Great, now I\u2019ll look up the nutrition for each ingredient and sum them for the whole batch.",
+          "tool_calls": [
+            {
+              "id": "lookup_nutrition_4d5e6f",
+              "name": "lookup_nutrition",
+              "arguments": {
+                "ingredients": [
+                  {
+                    "ingredient": "flour",
+                    "quantity": 2,
+                    "unit": "cup"
+                  },
+                  {
+                    "ingredient": "sugar",
+                    "quantity": 1,
+                    "unit": "cup"
+                  },
+                  {
+                    "ingredient": "butter",
+                    "quantity": 1,
+                    "unit": "cup"
+                  },
+                  {
+                    "ingredient": "egg",
+                    "quantity": 2,
+                    "unit": "unit"
+                  },
+                  {
+                    "ingredient": "baking soda",
+                    "quantity": 1,
+                    "unit": "tsp"
+                  },
+                  {
+                    "ingredient": "salt",
+                    "quantity": 1,
+                    "unit": "tsp"
+                  },
+                  {
+                    "ingredient": "chocolate chips",
+                    "quantity": 1,
+                    "unit": "cup"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "lookup_nutrition_4d5e6f",
+          "content": "{\"calories\": 4620,\"total_fat_g\": 260,\"saturated_fat_g\": 150,\"cholesterol_mg\": 460,\"sodium_mg\": 3600,\"total_carbohydrate_g\": 480,\"dietary_fiber_g\": 20,\"total_sugars_g\": 350,\"protein_g\": 70,\"vitamin_a_\u00b5g\": 0,\"vitamin_c_mg\": 0,\"calcium_mg\": 800,\"iron_mg\": 12}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I\u2019ll validate the numbers for a single\u2011cookie serving (batch divided by 24) and ensure the label meets FDA formatting rules.",
+          "tool_calls": [
+            {
+              "id": "validate_fda_label_7g8h9i",
+              "name": "validate_fda_label",
+              "arguments": {
+                "nutrition_totals": {
+                  "calories": 4620,
+                  "total_fat_g": 260,
+                  "saturated_fat_g": 150,
+                  "cholesterol_mg": 460,
+                  "sodium_mg": 3600,
+                  "total_carbohydrate_g": 480,
+                  "dietary_fiber_g": 20,
+                  "total_sugars_g": 350,
+                  "protein_g": 70,
+                  "vitamin_a_\u00b5g": 0,
+                  "vitamin_c_mg": 0,
+                  "calcium_mg": 800,
+                  "iron_mg": 12
+                },
+                "serving_size": "1 cookie (approximately 30\u202fg)"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "validate_fda_label_7g8h9i",
+          "content": "{\"serving_size\":\"1 cookie (approximately 30 g)\",\"calories\":193,\"total_fat_g\":10.8,\"saturated_fat_g\":6.2,\"cholesterol_mg\":19,\"sodium_mg\":150,\"total_carbohydrate_g\":20,\"dietary_fiber_g\":0.8,\"total_sugars_g\":14.6,\"protein_g\":2.9,\"vitamin_a_\u00b5g\":0,\"vitamin_c_mg\":0,\"calcium_mg\":33,\"iron_mg\":0.5,\"percent_daily_values\":{ \"total_fat_%\":17,\"saturated_fat_%\":31,\"cholesterol_%\":6,\"sodium_%\":6,\"total_carbohydrate_%\":7,\"dietary_fiber_%\":3,\"protein_%\":6,\"vitamin_a_%\":0,\"vitamin_c_%\":0,\"calcium_%\":3,\"iron_%\":3 } }"
+        },
+        {
+          "role": "assistant",
+          "content": "All set! I\u2019ll now create a printable PDF of the label using the FDA layout.",
+          "tool_calls": [
+            {
+              "id": "generate_label_pdf_0j1k2l",
+              "name": "generate_label_pdf",
+              "arguments": {
+                "label_data": {
+                  "serving_size": "1 cookie (approximately 30 g)",
+                  "calories": 193,
+                  "total_fat_g": 10.8,
+                  "saturated_fat_g": 6.2,
+                  "cholesterol_mg": 19,
+                  "sodium_mg": 150,
+                  "total_carbohydrate_g": 20,
+                  "dietary_fiber_g": 0.8,
+                  "total_sugars_g": 14.6,
+                  "protein_g": 2.9,
+                  "ingredients": "Flour, Sugar, Butter, Eggs, Baking Soda, Salt, Chocolate Chips",
+                  "allergen_statement": "Contains Milk, Eggs, Wheat",
+                  "percent_daily_values": {
+                    "total_fat_%": 17,
+                    "saturated_fat_%": 31,
+                    "cholesterol_%": 6,
+                    "sodium_%": 6,
+                    "total_carbohydrate_%": 7,
+                    "dietary_fiber_%": 3,
+                    "protein_%": 6,
+                    "calcium_%": 3,
+                    "iron_%": 3
+                  }
+                },
+                "format_options": {
+                  "page_size": "A4",
+                  "dpi": 300
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_label_pdf_0j1k2l",
+          "content": "data:application/pdf;base64,JVBERi0xLjQKJcfs..."
+        },
+        {
+          "role": "assistant",
+          "content": "Here is your FDA\u2011compliant nutrition label PDF. Download and print it, or embed it on your packaging.\n\n[Download Label PDF](data:application/pdf;base64,JVBERi0xLjQKJcfs...)",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User wants to adjust the label for a different serving size (\u00bd cup of oatmeal) and add a custom ingredient (blueberries).",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are NutriLabelPro, helping users generate accurate nutrition labels with FDA compliance."
+        },
+        {
+          "role": "user",
+          "content": "I make a simple oatmeal breakfast: \u00bd cup rolled oats, 1 cup water, \u00bc cup milk, \u00bd cup blueberries. Please give me a nutrition label for a single serving (the whole bowl)."
+        },
+        {
+          "role": "assistant",
+          "content": "Let\u2019s parse those ingredients first.",
+          "tool_calls": [
+            {
+              "id": "parse_ingredients_a1b2c3",
+              "name": "parse_ingredients",
+              "arguments": {
+                "raw_ingredients": "\u00bd cup rolled oats, 1 cup water, \u00bc cup milk, \u00bd cup blueberries"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "parse_ingredients_a1b2c3",
+          "content": "[{\"ingredient\":\"rolled oats\",\"quantity\":0.5,\"unit\":\"cup\"},{\"ingredient\":\"water\",\"quantity\":1,\"unit\":\"cup\"},{\"ingredient\":\"milk\",\"quantity\":0.25,\"unit\":\"cup\"},{\"ingredient\":\"blueberries\",\"quantity\":0.5,\"unit\":\"cup\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I\u2019ll look up the nutrition for each component and total them.",
+          "tool_calls": [
+            {
+              "id": "lookup_nutrition_d4e5f6",
+              "name": "lookup_nutrition",
+              "arguments": {
+                "ingredients": [
+                  {
+                    "ingredient": "rolled oats",
+                    "quantity": 0.5,
+                    "unit": "cup"
+                  },
+                  {
+                    "ingredient": "water",
+                    "quantity": 1,
+                    "unit": "cup"
+                  },
+                  {
+                    "ingredient": "milk",
+                    "quantity": 0.25,
+                    "unit": "cup"
+                  },
+                  {
+                    "ingredient": "blueberries",
+                    "quantity": 0.5,
+                    "unit": "cup"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "lookup_nutrition_d4e5f6",
+          "content": "{\"calories\":210,\"total_fat_g\":3.5,\"saturated_fat_g\":2.0,\"cholesterol_mg\":10,\"sodium_mg\":115,\"total_carbohydrate_g\":38,\"dietary_fiber_g\":5,\"total_sugars_g\":12,\"protein_g\":6,\"vitamin_a_\u00b5g\":0,\"vitamin_c_mg\":5,\"calcium_mg\":200,\"iron_mg\":2}"
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll validate the data against FDA label rules for a single\u2011bowl serving.",
+          "tool_calls": [
+            {
+              "id": "validate_fda_label_g7h8i9",
+              "name": "validate_fda_label",
+              "arguments": {
+                "nutrition_totals": {
+                  "calories": 210,
+                  "total_fat_g": 3.5,
+                  "saturated_fat_g": 2.0,
+                  "cholesterol_mg": 10,
+                  "sodium_mg": 115,
+                  "total_carbohydrate_g": 38,
+                  "dietary_fiber_g": 5,
+                  "total_sugars_g": 12,
+                  "protein_g": 6,
+                  "vitamin_a_\u00b5g": 0,
+                  "vitamin_c_mg": 5,
+                  "calcium_mg": 200,
+                  "iron_mg": 2
+                },
+                "serving_size": "1 bowl (\u2248 300\u202fg)"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "validate_fda_label_g7h8i9",
+          "content": "{\"serving_size\":\"1 bowl (\u2248 300 g)\",\"calories\":210,\"total_fat_g\":3.5,\"saturated_fat_g\":2.0,\"cholesterol_mg\":10,\"sodium_mg\":115,\"total_carbohydrate_g\":38,\"dietary_fiber_g\":5,\"total_sugars_g\":12,\"protein_g\":6,\"vitamin_a_\u00b5g\":0,\"vitamin_c_mg\":5,\"calcium_mg\":200,\"iron_mg\":2,\"percent_daily_values\":{\"total_fat_%\":5,\"saturated_fat_%\":10,\"cholesterol_%\":3,\"sodium_%\":5,\"total_carbohydrate_%\":13,\"dietary_fiber_%\":20,\"protein_%\":12,\"vitamin_c_%\":6,\"calcium_%\":20,\"iron_%\":11}}"
+        },
+        {
+          "role": "assistant",
+          "content": "Finally, I\u2019ll generate the PDF label.",
+          "tool_calls": [
+            {
+              "id": "generate_label_pdf_j0k1l2",
+              "name": "generate_label_pdf",
+              "arguments": {
+                "label_data": {
+                  "serving_size": "1 bowl (\u2248 300 g)",
+                  "calories": 210,
+                  "total_fat_g": 3.5,
+                  "saturated_fat_g": 2.0,
+                  "cholesterol_mg": 10,
+                  "sodium_mg": 115,
+                  "total_carbohydrate_g": 38,
+                  "dietary_fiber_g": 5,
+                  "total_sugars_g": 12,
+                  "protein_g": 6,
+                  "ingredients": "Rolled Oats, Water, Milk, Blueberries",
+                  "allergen_statement": "Contains Milk",
+                  "percent_daily_values": {
+                    "total_fat_%": 5,
+                    "saturated_fat_%": 10,
+                    "cholesterol_%": 3,
+                    "sodium_%": 5,
+                    "total_carbohydrate_%": 13,
+                    "dietary_fiber_%": 20,
+                    "protein_%": 12,
+                    "vitamin_c_%": 6,
+                    "calcium_%": 20,
+                    "iron_%": 11
+                  }
+                },
+                "format_options": {
+                  "page_size": "Letter",
+                  "dpi": 200
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_label_pdf_j0k1l2",
+          "content": "data:application/pdf;base64,JVBERi0xLjYKJcfs..."
+        },
+        {
+          "role": "assistant",
+          "content": "Here\u2019s the nutrition label for your oatmeal bowl. You can download it below:\n\n[Download PDF](data:application/pdf;base64,JVBERi0xLjYKJcfs...)",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

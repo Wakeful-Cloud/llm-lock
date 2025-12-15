@@ -1,0 +1,384 @@
+{
+  "name": "CodeReview Genie",
+  "description": "An autonomous LLM that fetches GitHub pull\u2011request diffs, runs static analysis tools, and produces detailed review comments with suggested code patches. It can also post the comments back to the PR, streamlining code\u2011review workflows for engineering teams.",
+  "tools": [
+    {
+      "name": "fetch_pull_request_diff",
+      "description": "Retrieves the unified diff for a specific pull request from GitHub. Returns the raw diff as a string.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "repo_owner": {
+            "type": "string",
+            "description": "GitHub organization or user that owns the repository."
+          },
+          "repo_name": {
+            "type": "string",
+            "description": "Name of the repository."
+          },
+          "pr_number": {
+            "type": "integer",
+            "description": "The pull\u2011request number to fetch."
+          }
+        },
+        "required": [
+          "repo_owner",
+          "repo_name",
+          "pr_number"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "run_static_analysis",
+      "description": "Runs language\u2011specific static analysis (linters, type checkers, security scanners) on the supplied diff and returns a JSON report of findings.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "language": {
+            "type": "string",
+            "description": "Programming language of the changed files (e.g., python, javascript, go)."
+          },
+          "diff": {
+            "type": "string",
+            "description": "Unified diff text to be analyzed."
+          }
+        },
+        "required": [
+          "language",
+          "diff"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_review_comments",
+      "description": "Consumes static\u2011analysis results and the original diff, then creates human\u2011readable review comments with optional patch suggestions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "analysis_results": {
+            "type": "string",
+            "description": "JSON string produced by run_static_analysis containing warnings, errors, and security findings."
+          },
+          "diff": {
+            "type": "string",
+            "description": "The original pull\u2011request diff."
+          }
+        },
+        "required": [
+          "analysis_results",
+          "diff"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_review_comment",
+      "description": "Posts a single line\u2011level comment to a GitHub pull request.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "repo_owner": {
+            "type": "string",
+            "description": "GitHub organization or user."
+          },
+          "repo_name": {
+            "type": "string",
+            "description": "Repository name."
+          },
+          "pr_number": {
+            "type": "integer",
+            "description": "Target pull\u2011request number."
+          },
+          "file_path": {
+            "type": "string",
+            "description": "Path of the file relative to the repo root."
+          },
+          "line_number": {
+            "type": "integer",
+            "description": "Line number in the new file where the comment should appear."
+          },
+          "comment_body": {
+            "type": "string",
+            "description": "The markdown\u2011formatted comment text."
+          }
+        },
+        "required": [
+          "repo_owner",
+          "repo_name",
+          "pr_number",
+          "file_path",
+          "line_number",
+          "comment_body"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "apply_patch_suggestion",
+      "description": "Applies an inline patch suggestion to a file in the pull request branch and pushes the change as a new commit.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "repo_owner": {
+            "type": "string",
+            "description": "GitHub organization or user."
+          },
+          "repo_name": {
+            "type": "string",
+            "description": "Repository name."
+          },
+          "pr_number": {
+            "type": "integer",
+            "description": "Pull\u2011request to which the patch belongs."
+          },
+          "file_path": {
+            "type": "string",
+            "description": "Path of the file to modify."
+          },
+          "patch": {
+            "type": "string",
+            "description": "Unified diff (patch) that should be applied."
+          },
+          "commit_message": {
+            "type": "string",
+            "description": "Commit message describing the change."
+          }
+        },
+        "required": [
+          "repo_owner",
+          "repo_name",
+          "pr_number",
+          "file_path",
+          "patch",
+          "commit_message"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks the Genie to review a pull request; the agent fetches the diff, runs analysis, generates comments, and posts them back to GitHub.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are CodeReview Genie, an autonomous assistant that reviews GitHub pull requests, runs static analysis, and posts review comments."
+        },
+        {
+          "role": "user",
+          "content": "Please review PR #42 in the repository octo-org/octo-repo."
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching the diff for PR #42...",
+          "tool_calls": [
+            {
+              "id": "fetch_pull_request_diff_1a2b3c",
+              "name": "fetch_pull_request_diff",
+              "arguments": {
+                "repo_owner": "octo-org",
+                "repo_name": "octo-repo",
+                "pr_number": 42
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_pull_request_diff_1a2b3c",
+          "content": "diff --git a/src/main.py b/src/main.py\n@@\n-    old_line = compute()\n+    new_line = compute_fixed()"
+        },
+        {
+          "role": "assistant",
+          "content": "Running Python static analysis on the diff...",
+          "tool_calls": [
+            {
+              "id": "run_static_analysis_4d5e6f",
+              "name": "run_static_analysis",
+              "arguments": {
+                "language": "python",
+                "diff": "diff --git a/src/main.py b/src/main.py\n@@\n-    old_line = compute()\n+    new_line = compute_fixed()"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "run_static_analysis_4d5e6f",
+          "content": "{\"issues\": [{\"type\": \"warning\", \"file\": \"src/main.py\", \"line\": 12, \"message\": \"Potential division by zero\", \"suggested_fix\": null}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating detailed review comments...",
+          "tool_calls": [
+            {
+              "id": "generate_review_comments_7g8h9i",
+              "name": "generate_review_comments",
+              "arguments": {
+                "analysis_results": "{\"issues\": [{\"type\": \"warning\", \"file\": \"src/main.py\", \"line\": 12, \"message\": \"Potential division by zero\", \"suggested_fix\": null}]}",
+                "diff": "diff --git a/src/main.py b/src/main.py\n@@\n-    old_line = compute()\n+    new_line = compute_fixed()"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_review_comments_7g8h9i",
+          "content": "[{\"file_path\": \"src/main.py\", \"line_number\": 12, \"comment_body\": \"\u26a0\ufe0f **Warning**: Potential division by zero on line 12. Consider adding a guard clause before the division.\", \"patch\": null}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Posting the generated comment to the PR...",
+          "tool_calls": [
+            {
+              "id": "post_review_comment_ab12cd",
+              "name": "post_review_comment",
+              "arguments": {
+                "repo_owner": "octo-org",
+                "repo_name": "octo-repo",
+                "pr_number": 42,
+                "file_path": "src/main.py",
+                "line_number": 12,
+                "comment_body": "\u26a0\ufe0f **Warning**: Potential division by zero on line 12. Consider adding a guard clause before the division."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "post_review_comment_ab12cd",
+          "content": "Comment posted successfully."
+        },
+        {
+          "role": "assistant",
+          "content": "All done! I posted a warning about a possible division\u2011by\u2011zero on `src/main.py` line\u202f12. Let me know if you\u2019d like me to suggest a concrete code fix.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User asks the Genie to both review a PR and automatically apply a suggested fix for a security issue.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are CodeReview Genie, an autonomous assistant that reviews GitHub pull requests, runs static analysis, and can apply patches."
+        },
+        {
+          "role": "user",
+          "content": "Review PR #7 in repo secure-inc/backend and automatically apply any security\u2011related fixes."
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching the diff for PR #7...",
+          "tool_calls": [
+            {
+              "id": "fetch_pull_request_diff_aa11bb",
+              "name": "fetch_pull_request_diff",
+              "arguments": {
+                "repo_owner": "secure-inc",
+                "repo_name": "backend",
+                "pr_number": 7
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_pull_request_diff_aa11bb",
+          "content": "diff --git a/auth.js b/auth.js\n@@\n-    if (password === user.pass) {\n+    if (bcrypt.compareSync(password, user.passHash)) {\n"
+        },
+        {
+          "role": "assistant",
+          "content": "Running JavaScript security analysis on the diff...",
+          "tool_calls": [
+            {
+              "id": "run_static_analysis_bb22cc",
+              "name": "run_static_analysis",
+              "arguments": {
+                "language": "javascript",
+                "diff": "diff --git a/auth.js b/auth.js\n@@\n-    if (password === user.pass) {\n+    if (bcrypt.compareSync(password, user.passHash)) {\n"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "run_static_analysis_bb22cc",
+          "content": "{\"issues\": [{\"type\": \"security\", \"file\": \"auth.js\", \"line\": 45, \"message\": \"Plain\u2011text password comparison\", \"suggested_fix\": \"Use bcrypt.compareSync\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating review comments and patch suggestions...",
+          "tool_calls": [
+            {
+              "id": "generate_review_comments_cc33dd",
+              "name": "generate_review_comments",
+              "arguments": {
+                "analysis_results": "{\"issues\": [{\"type\": \"security\", \"file\": \"auth.js\", \"line\": 45, \"message\": \"Plain\u2011text password comparison\", \"suggested_fix\": \"Use bcrypt.compareSync\"}]}",
+                "diff": "diff --git a/auth.js b/auth.js\n@@\n-    if (password === user.pass) {\n+    if (bcrypt.compareSync(password, user.passHash)) {\n"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_review_comments_cc33dd",
+          "content": "[{\"file_path\": \"auth.js\", \"line_number\": 45, \"comment_body\": \"\ud83d\udd10 **Security**: Plain\u2011text password comparison detected. Replaced with `bcrypt.compareSync`.\", \"patch\": \"@@ -44,2 +44,2 @@\\n-    if (password === user.pass) {\\n+    if (bcrypt.compareSync(password, user.passHash)) {\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Applying the suggested security patch...",
+          "tool_calls": [
+            {
+              "id": "apply_patch_suggestion_dd44ee",
+              "name": "apply_patch_suggestion",
+              "arguments": {
+                "repo_owner": "secure-inc",
+                "repo_name": "backend",
+                "pr_number": 7,
+                "file_path": "auth.js",
+                "patch": "@@ -44,2 +44,2 @@\n-    if (password === user.pass) {\n+    if (bcrypt.compareSync(password, user.passHash)) {",
+                "commit_message": "Fix: replace plain\u2011text password check with bcrypt.compareSync (auto\u2011applied by CodeReview Genie)"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "apply_patch_suggestion_dd44ee",
+          "content": "Patch applied and new commit SHA abcdef123 pushed to PR #7."
+        },
+        {
+          "role": "assistant",
+          "content": "The security issue has been fixed and a new commit has been added to the PR. I also left a comment describing the change.",
+          "tool_calls": [
+            {
+              "id": "post_review_comment_ee55ff",
+              "name": "post_review_comment",
+              "arguments": {
+                "repo_owner": "secure-inc",
+                "repo_name": "backend",
+                "pr_number": 7,
+                "file_path": "auth.js",
+                "line_number": 45,
+                "comment_body": "\ud83d\udd10 **Security**: Plain\u2011text password comparison was replaced with `bcrypt.compareSync`. A fix has been auto\u2011applied."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "post_review_comment_ee55ff",
+          "content": "Comment posted successfully."
+        },
+        {
+          "role": "assistant",
+          "content": "All done! The PR now includes a secure password check. Let me know if you need any further review.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,273 @@
+{
+  "name": "DiverseInsights",
+  "description": "DiverseInsights is an agentic LLM platform for HR leaders that automatically gathers hiring, promotion, and employee\u2011survey data, computes quantitative diversity and inclusion metrics, and generates clear, actionable hiring and promotion recommendations. Companies can request specific breakdowns (e.g., gender, ethnicity, tenure) or strategic guidance, and the LLM orchestrates data retrieval, calculations, and report generation through a set of focused tools.",
+  "tools": [
+    {
+      "name": "get_employee_data",
+      "description": "Retrieves employee demographic records (gender, ethnicity, age, department, hire date, etc.) from the HR data warehouse for a given date range and optional department filters.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "start_date": {
+            "type": "string",
+            "description": "Start of the date range in ISO\u20118601 format (YYYY\u2011MM\u2011DD)."
+          },
+          "end_date": {
+            "type": "string",
+            "description": "End of the date range in ISO\u20118601 format (YYYY\u2011MM\u2011DD)."
+          },
+          "departments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional list of department names to limit the query."
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_promotion_data",
+      "description": "Fetches promotion events (employee id, promotion date, old title, new title, gender, ethnicity) for a specified period.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "start_date": {
+            "type": "string",
+            "description": "Start of the period (ISO\u20118601)."
+          },
+          "end_date": {
+            "type": "string",
+            "description": "End of the period (ISO\u20118601)."
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_survey_comments",
+      "description": "Pulls free\u2011text employee\u2011engagement survey comments for a given date range.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "start_date": {
+            "type": "string",
+            "description": "Start of the survey window (ISO\u20118601)."
+          },
+          "end_date": {
+            "type": "string",
+            "description": "End of the survey window (ISO\u20118601)."
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "calculate_metrics",
+      "description": "Computes diversity, representation, promotion equity, and sentiment metrics from raw employee, promotion, and survey data. Returns a JSON object with counts, percentages, disparity scores, and optional sentiment summaries.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "employee_data": {
+            "type": "string",
+            "description": "JSON\u2011encoded array of employee records (as returned by get_employee_data)."
+          },
+          "promotion_data": {
+            "type": "string",
+            "description": "JSON\u2011encoded array of promotion events (as returned by get_promotion_data)."
+          },
+          "survey_comments": {
+            "type": "string",
+            "description": "JSON\u2011encoded array of survey comment objects (as returned by get_survey_comments)."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_actionable_report",
+      "description": "Creates a markdown report that summarizes key metrics, highlights under\u2011represented groups, and provides concrete hiring, promotion, or retention recommendations based on the supplied metrics.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "metrics": {
+            "type": "string",
+            "description": "JSON\u2011encoded metrics object returned by calculate_metrics."
+          },
+          "focus_area": {
+            "type": "string",
+            "description": "Optional short phrase indicating the user's focus (e.g., \"gender equity\", \"FY2023 hiring\")."
+          }
+        },
+        "required": [
+          "metrics"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "HR leader asks for a gender & ethnicity breakdown for FY2023 and wants a concise report that highlights any under\u2011represented groups.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are DiverseInsights, an expert HR analytics assistant. Use the provided tools to gather data, compute diversity metrics, and craft an actionable markdown report for the user."
+        },
+        {
+          "role": "user",
+          "content": "Please give me a gender and ethnicity breakdown of our workforce for FY2023 and highlight any under\u2011represented groups."
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching employee demographics for 2023...",
+          "tool_calls": [
+            {
+              "id": "get_employee_data_1a2b3c",
+              "name": "get_employee_data",
+              "arguments": {
+                "start_date": "2023-01-01",
+                "end_date": "2023-12-31"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_employee_data_1a2b3c",
+          "content": "[{\"employee_id\":101,\"gender\":\"Female\",\"ethnicity\":\"Hispanic\",\"department\":\"Engineering\"},{\"employee_id\":102,\"gender\":\"Male\",\"ethnicity\":\"Asian\",\"department\":\"Sales\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Calculating diversity metrics based on the retrieved employee data...",
+          "tool_calls": [
+            {
+              "id": "calculate_metrics_4d5e6f",
+              "name": "calculate_metrics",
+              "arguments": {
+                "employee_data": "[{\"employee_id\":101,\"gender\":\"Female\",\"ethnicity\":\"Hispanic\",\"department\":\"Engineering\"},{\"employee_id\":102,\"gender\":\"Male\",\"ethnicity\":\"Asian\",\"department\":\"Sales\"}]"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "calculate_metrics_4d5e6f",
+          "content": "{\"total_employees\":1240,\"gender_breakdown\":{\"Male\":720,\"Female\":500,\"NonBinary\":20},\"ethnicity_breakdown\":{\"Asian\":400,\"Black\":180,\"Hispanic\":260,\"White\":350,\"Other\":50},\"underrepresented_groups\":[{\"category\":\"Gender\",\"group\":\"Female\",\"percentage\":40.3,\"benchmark\":50}],\"diversity_score\":0.68}"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating a concise markdown report that highlights the findings...",
+          "tool_calls": [
+            {
+              "id": "generate_actionable_report_7g8h9i",
+              "name": "generate_actionable_report",
+              "arguments": {
+                "metrics": "{\"total_employees\":1240,\"gender_breakdown\":{\"Male\":720,\"Female\":500,\"NonBinary\":20},\"ethnicity_breakdown\":{\"Asian\":400,\"Black\":180,\"Hispanic\":260,\"White\":350,\"Other\":50},\"underrepresented_groups\":[{\"category\":\"Gender\",\"group\":\"Female\",\"percentage\":40.3,\"benchmark\":50}],\"diversity_score\":0.68}",
+                "focus_area": "FY2023 gender & ethnicity"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_actionable_report_7g8h9i",
+          "content": "# FY2023 Workforce Diversity Report\n\n**Total Employees:** 1,240\n\n## Gender Breakdown\n- Male: 720 (58.1%)\n- Female: 500 (40.3%)\n- Non\u2011binary: 20 (1.6%)\n\n## Ethnicity Breakdown\n- Asian: 400 (32.3%)\n- Black: 180 (14.5%)\n- Hispanic: 260 (21.0%)\n- White: 350 (28.2%)\n- Other: 50 (4.0%)\n\n### Under\u2011represented Groups\n- **Female** representation is **9.7\u202f% below** the company benchmark of 50\u202f%.\n\n## Recommendations\n1. **Targeted Recruiting:** Partner with organizations that support women in tech to increase female candidate pipelines.\n2. **Bias\u2011Aware Interview Training:** Implement mandatory unconscious\u2011bias training for all interviewers.\n3. **Mentorship Programs:** Establish mentorship circles for women and under\u2011represented ethnicities to improve retention and promotion prospects.\n\n*Diversity Score (0\u20111):* **0.68** \u2013 indicates room for improvement, especially in gender parity.\n"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the FY2023 diversity report you requested. The key takeaway is that female representation is currently 9.7\u202f% below the benchmark. The recommendations section outlines three concrete actions you can start implementing right away.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "Head of Engineering asks for promotion rates by gender from 2021\u20112023 and wants suggestions to improve equity.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are DiverseInsights, an expert HR analytics assistant. Use the available tools to retrieve promotion data, compute equity metrics, and produce an actionable markdown brief."
+        },
+        {
+          "role": "user",
+          "content": "Show me promotion rates by gender from 2021 through 2023 and suggest ways to improve equity."
+        },
+        {
+          "role": "assistant",
+          "content": "Retrieving promotion events for the requested period...",
+          "tool_calls": [
+            {
+              "id": "get_promotion_data_a1b2c3",
+              "name": "get_promotion_data",
+              "arguments": {
+                "start_date": "2021-01-01",
+                "end_date": "2023-12-31"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_promotion_data_a1b2c3",
+          "content": "[{\"employee_id\":101,\"gender\":\"Female\",\"ethnicity\":\"Hispanic\",\"promotion_date\":\"2021-06-15\",\"old_title\":\"Software Engineer I\",\"new_title\":\"Software Engineer II\"},{\"employee_id\":102,\"gender\":\"Male\",\"ethnicity\":\"Asian\",\"promotion_date\":\"2022-03-22\",\"old_title\":\"Software Engineer II\",\"new_title\":\"Senior Software Engineer\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Calculating promotion equity metrics from the promotion data...",
+          "tool_calls": [
+            {
+              "id": "calculate_metrics_d4e5f6",
+              "name": "calculate_metrics",
+              "arguments": {
+                "promotion_data": "[{\"employee_id\":101,\"gender\":\"Female\",\"ethnicity\":\"Hispanic\",\"promotion_date\":\"2021-06-15\",\"old_title\":\"Software Engineer I\",\"new_title\":\"Software Engineer II\"},{\"employee_id\":102,\"gender\":\"Male\",\"ethnicity\":\"Asian\",\"promotion_date\":\"2022-03-22\",\"old_title\":\"Software Engineer II\",\"new_title\":\"Senior Software Engineer\"}]"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "calculate_metrics_d4e5f6",
+          "content": "{\"promotion_rates_by_gender\":{\"Male\":0.34,\"Female\":0.21},\"gender_disparity_score\":0.61,\"underrepresented_groups\":[{\"category\":\"Promotion Rate\",\"group\":\"Female\",\"rate\":21,\"benchmark\":30}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Creating an actionable markdown brief based on the promotion analysis...",
+          "tool_calls": [
+            {
+              "id": "generate_actionable_report_g7h8i9",
+              "name": "generate_actionable_report",
+              "arguments": {
+                "metrics": "{\"promotion_rates_by_gender\":{\"Male\":0.34,\"Female\":0.21},\"gender_disparity_score\":0.61,\"underrepresented_groups\":[{\"category\":\"Promotion Rate\",\"group\":\"Female\",\"rate\":21,\"benchmark\":30}]}",
+                "focus_area": "Promotion equity 2021\u20112023"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_actionable_report_g7h8i9",
+          "content": "# Promotion Equity Brief (2021\u20112023)\n\n## Promotion Rates by Gender\n- **Male:** 34\u202f% of eligible males received promotions.\n- **Female:** 21\u202f% of eligible females received promotions.\n\n### Disparity Insight\n- Female promotion rate is **9\u202f% points below** the internal benchmark of 30\u202f% and 13\u202f% points below the male rate.\n- **Gender Disparity Score:** 0.61 (0\u202f=\u202fperfect equity, 1\u202f=\u202fmaximal disparity).\n\n## Recommendations\n1. **Transparent Promotion Criteria:** Publish a clear rubric outlining the exact performance metrics needed for promotion.\n2. **Bias Review Committee:** Establish a cross\u2011functional committee to review promotion decisions for gender bias before final approval.\n3. **Career Development Sponsors:** Pair high\u2011potential female engineers with senior sponsors who can advocate for their advancement.\n4. **Regular Audits:** Run quarterly equity audits and share the findings with leadership to maintain accountability.\n\n*Next Steps:* Implement the transparent rubric within the next two months and schedule the first bias\u2011review meeting for the upcoming promotion cycle.\n"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the promotion equity brief. The main finding is that female staff have a substantially lower promotion rate than male staff over the past three years. The four recommendations provide concrete steps you can begin to address this gap.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

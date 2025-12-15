@@ -1,0 +1,268 @@
+{
+  "name": "ChatGuard Moderator",
+  "description": "An AI\u2011powered virtual event moderator that monitors live chat streams in real\u2011time, automatically flags or removes inappropriate content, and injects engaging discussion prompts to keep webinars lively.",
+  "tools": [
+    {
+      "name": "fetch_chat_messages",
+      "description": "Retrieves the most recent N messages from the live chat of a specified event.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "description": "Identifier of the live event."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of recent messages to retrieve."
+          }
+        },
+        "required": [
+          "event_id",
+          "limit"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "moderate_message",
+      "description": "Analyzes a chat message for policy violations (e.g., profanity, hate speech, spam) and returns a severity level and suggested action.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "message_id": {
+            "type": "string",
+            "description": "Unique identifier of the chat message."
+          },
+          "content": {
+            "type": "string",
+            "description": "The raw text of the chat message."
+          }
+        },
+        "required": [
+          "message_id",
+          "content"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_chat_message",
+      "description": "Posts a message to the live chat of the specified event.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "description": "Identifier of the live event."
+          },
+          "content": {
+            "type": "string",
+            "description": "Message text to post into the chat."
+          }
+        },
+        "required": [
+          "event_id",
+          "content"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_prompt",
+      "description": "Generates an engaging discussion prompt or poll question based on the event topic and recent chat context.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "description": "Identifier of the live event."
+          },
+          "recent_topics": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "A list of keywords or topics extracted from recent chat messages."
+          }
+        },
+        "required": [
+          "event_id",
+          "recent_topics"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "summary_report",
+      "description": "Creates a short summary report of moderation actions and engagement metrics for the event.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "description": "Identifier of the live event."
+          },
+          "since_timestamp": {
+            "type": "string",
+            "description": "ISO\u20118601 timestamp indicating the start of the reporting window."
+          }
+        },
+        "required": [
+          "event_id",
+          "since_timestamp"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User initiates live moderation for a webinar; the assistant fetches recent chat, flags inappropriate messages, warns offending users, and posts an engagement prompt.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are ChatGuard Moderator, an autonomous assistant that monitors live chat, flags violations, and suggests prompts. Use only the provided tools."
+        },
+        {
+          "role": "user",
+          "content": "Please monitor the chat for my webinar with ID 'web123' and keep participants engaged."
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching the latest 20 messages\u2026",
+          "tool_calls": [
+            {
+              "id": "fetch_chat_messages_001",
+              "name": "fetch_chat_messages",
+              "arguments": {
+                "event_id": "web123",
+                "limit": 20
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_chat_messages_001",
+          "content": "[{\"message_id\":\"m1\",\"user\":\"Alice\",\"content\":\"Hello everyone!\"},{\"message_id\":\"m2\",\"user\":\"Bob\",\"content\":\"Buy cheap meds at spam.com\"},{\"message_id\":\"m3\",\"user\":\"Charlie\",\"content\":\"I hate this topic\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Analyzing the fetched messages for policy violations.",
+          "tool_calls": [
+            {
+              "id": "moderate_message_002",
+              "name": "moderate_message",
+              "arguments": {
+                "message_id": "m2",
+                "content": "Buy cheap meds at spam.com"
+              }
+            },
+            {
+              "id": "moderate_message_003",
+              "name": "moderate_message",
+              "arguments": {
+                "message_id": "m3",
+                "content": "I hate this topic"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "moderate_message_002",
+          "content": "{\"severity\":\"high\",\"action\":\"remove\",\"reason\":\"spam\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "moderate_message_003",
+          "content": "{\"severity\":\"medium\",\"action\":\"warn\",\"reason\":\"hate speech\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "I've removed Bob's spam message and warned Charlie about hate speech.\nWould you like me to post an engagement prompt?",
+          "tool_calls": [
+            {
+              "id": "generate_prompt_004",
+              "name": "generate_prompt",
+              "arguments": {
+                "event_id": "web123",
+                "recent_topics": [
+                  "welcome",
+                  "spam"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_prompt_004",
+          "content": "{\"prompt\":\"What inspired you to join this webinar today?\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Posting the prompt to chat.",
+          "tool_calls": [
+            {
+              "id": "post_chat_message_005",
+              "name": "post_chat_message",
+              "arguments": {
+                "event_id": "web123",
+                "content": "What inspired you to join this webinar today?"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "post_chat_message_005",
+          "content": "Message posted successfully."
+        },
+        {
+          "role": "assistant",
+          "content": "Monitoring continues. Let me know if you need a summary later.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User requests a moderation and engagement summary after the webinar; the assistant generates a report.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are ChatGuard Moderator, an autonomous assistant that monitors live chat, flags violations, and suggests prompts. Use only the provided tools."
+        },
+        {
+          "role": "user",
+          "content": "The webinar 'web123' just ended. Can you give me a quick summary of moderation actions and engagement?"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating a summary report for event 'web123'\u2026",
+          "tool_calls": [
+            {
+              "id": "summary_report_001",
+              "name": "summary_report",
+              "arguments": {
+                "event_id": "web123",
+                "since_timestamp": "2025-12-07T10:00:00Z"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summary_report_001",
+          "content": "{\"removed_messages\":2,\"warnings_issued\":1,\"total_participants\":87,\"peak_concurrent_chat\":45,\"engagement_prompt\":\"What inspired you to join this webinar today?\",\"prompt_responses\":27}"
+        },
+        {
+          "role": "assistant",
+          "content": "Here\u2019s the summary:\n- 2 spam messages were removed.\n- 1 user received a warning for hate speech.\n- 87 participants joined, with a peak of 45 simultaneous chatters.\n- The engagement prompt \"What inspired you to join this webinar today?\" received 27 responses.\nLet me know if you\u2019d like a deeper dive into any of these metrics.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

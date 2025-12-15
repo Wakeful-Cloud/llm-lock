@@ -1,0 +1,403 @@
+{
+  "name": "LegalBrief AI",
+  "description": "An autonomous AI assistant that drafts, reviews, and revises legal briefs. It pulls relevant statutes, case law, and client documents from secure corporate repositories, ensures citation compliance, redacts privileged information, and outputs court\u2011ready filings, streamlining law firm workflows.",
+  "tools": [
+    {
+      "name": "fetch_document",
+      "description": "Retrieves a document (e.g., client file, prior brief, evidence) from a secure corporate repository using a document ID and returns its raw text content.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "description": "The unique identifier of the document in the corporate storage system."
+          },
+          "access_token": {
+            "type": "string",
+            "description": "OAuth or API token granting read permission for the requested document."
+          }
+        },
+        "required": [
+          "document_id",
+          "access_token"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "search_legal_db",
+      "description": "Executes a full\u2011text search against a licensed legal research database (e.g., Westlaw, LexisNexis) and returns the top results in Markdown format, including case citations and excerpt snippets.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The legal research query, preferably with citation keywords, jurisdiction, and date range."
+          },
+          "max_results": {
+            "type": "integer",
+            "description": "Maximum number of search results to return. Defaults to 5."
+          },
+          "database": {
+            "type": "string",
+            "description": "Identifier of the legal database to query (e.g., \"westlaw\", \"lexisnexis\")."
+          }
+        },
+        "required": [
+          "query",
+          "database"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "summarize_case",
+      "description": "Receives the full text of a judicial opinion and returns a concise summary highlighting facts, legal issue, holding, and key reasoning in bullet\u2011point format.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "case_text": {
+            "type": "string",
+            "description": "The full text of the judicial opinion to be summarized."
+          }
+        },
+        "required": [
+          "case_text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_brief_section",
+      "description": "Creates a draft section of a legal brief (e.g., statement of facts, argument, conclusion) given a template name and structured inputs such as facts, issues, and authority citations.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "section_type": {
+            "type": "string",
+            "description": "The type of brief section to generate (e.g., \"facts\", \"argument\", \"conclusion\")."
+          },
+          "facts": {
+            "type": "string",
+            "description": "Plain\u2011language description of the case facts that the section should cover."
+          },
+          "issues": {
+            "type": "string",
+            "description": "Legal issues to be addressed in the section."
+          },
+          "authorities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of citation strings (e.g., \"Smith v. Jones, 123 F.3d 456 (9th Cir. 2020)\") that support the argument."
+          }
+        },
+        "required": [
+          "section_type",
+          "facts",
+          "issues",
+          "authorities"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "redact_sensitive_info",
+      "description": "Scans the supplied text for privileged, personally identifying, or confidential information and returns a redacted version with placeholders (e.g., [REDACTED]).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The raw text that may contain protected or confidential information."
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "validate_citations",
+      "description": "Checks a block of legal text for proper Bluebook citation format, flags any errors, and suggests corrected citations.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The legal text containing citations that need validation."
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "commit_version",
+      "description": "Commits the final brief (or a draft version) to a version\u2011controlled repository (e.g., Git) and returns the commit hash and a shareable URL.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "description": "Relative path in the repo where the brief should be stored."
+          },
+          "content": {
+            "type": "string",
+            "description": "The full text content of the brief to commit."
+          },
+          "commit_message": {
+            "type": "string",
+            "description": "A concise message describing the commit (e.g., \"Draft motion to dismiss for ABC Corp.\")."
+          },
+          "author": {
+            "type": "string",
+            "description": "Name or identifier of the user/agent making the commit."
+          }
+        },
+        "required": [
+          "file_path",
+          "content",
+          "commit_message",
+          "author"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User requests a first\u2011draft motion to dismiss a contract\u2011breach case; the assistant gathers client facts, pulls relevant statutes, finds supporting precedent, drafts the argument, validates citations, redacts any privileged information, and commits the draft.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LegalBrief AI, an autonomous assistant for drafting court\u2011ready legal briefs. Use the provided tools to fetch documents, research law, summarize cases, generate sections, redact, validate citations, and commit the final draft."
+        },
+        {
+          "role": "user",
+          "content": "Please prepare a motion to dismiss for our client ABC Corp. regarding the contract\u2011breach claim filed by XYZ LLC. The client file ID is \"doc_12345\"."
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching the client file to obtain the facts and the complaint.",
+          "tool_calls": [
+            {
+              "id": "fetch_document_1a2b3c",
+              "name": "fetch_document",
+              "arguments": {
+                "document_id": "doc_12345",
+                "access_token": "eyJhbGciOi..."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_document_1a2b3c",
+          "content": "{ \"text\": \"...full client file with facts, contract terms, and correspondence...\" }"
+        },
+        {
+          "role": "assistant",
+          "content": "Researching applicable statutes and case law on motions to dismiss for breach of contract in the Ninth Circuit.",
+          "tool_calls": [
+            {
+              "id": "search_legal_db_4d5e6f",
+              "name": "search_legal_db",
+              "arguments": {
+                "query": "motion to dismiss breach of contract Ninth Circuit statutes",
+                "max_results": 3,
+                "database": "westlaw"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_legal_db_4d5e6f",
+          "content": "1. **Statute**: 28 U.S.C. \u00a7 1332 \u2013 Diversity jurisdiction (relevant for dismissal based on lack of subject\u2011matter jurisdiction).\\n2. **Case**: *Doe v. Acme Corp.*, 987 F.3d 112 (9th Cir. 2021) \u2013 Discusses the standard for Rule 12(b)(6) motions in contract disputes.\\n3. **Case**: *Smith v. Jones*, 789 F.2d 456 (9th Cir. 2019) \u2013 Provides a checklist for pleading sufficiency."
+        },
+        {
+          "role": "assistant",
+          "content": "Summarizing the most on\u2011point precedent (*Doe v. Acme Corp.*) to use in the argument.",
+          "tool_calls": [
+            {
+              "id": "summarize_case_7g8h9i",
+              "name": "summarize_case",
+              "arguments": {
+                "case_text": "Full opinion text of Doe v. Acme Corp. ..."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_case_7g8h9i",
+          "content": "- **Facts**: Plaintiff alleged breach of a services contract.\\n- **Issue**: Whether the complaint pleaded sufficient facts to survive a Rule 12(b)(6) motion.\\n- **Holding**: Court dismissed for failure to allege essential contract terms.\\n- **Reasoning**: Plaintiff must specify the contract\u2019s essential elements (price, quantity, performance dates)."
+        },
+        {
+          "role": "assistant",
+          "content": "Generating the *Argument* section of the motion using the facts from the client file, the statutory reference, and the summarized case.",
+          "tool_calls": [
+            {
+              "id": "generate_brief_section_abc123",
+              "name": "generate_brief_section",
+              "arguments": {
+                "section_type": "argument",
+                "facts": "ABC Corp. entered into a written services agreement with XYZ LLC on Jan 1, 2023. The contract required XYZ to deliver deliverables by March 1, 2023. XYZ filed a breach claim alleging non\u2011delivery, but the contract\u2019s essential terms (price and delivery schedule) are not alleged in the complaint.",
+                "issues": "Whether the complaint satisfies Rule 12(b)(6) pleading standards under *Doe v. Acme Corp.* and 28 U.S.C. \u00a7 1332.",
+                "authorities": [
+                  "28 U.S.C. \u00a7 1332",
+                  "Doe v. Acme Corp., 987 F.3d 112 (9th Cir. 2021)"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_brief_section_abc123",
+          "content": "**Argument**\\nABC Corp. respectfully moves to dismiss the complaint for failure to state a claim under Rule 12(b)(6). The complaint neglects to allege the contract\u2019s essential terms\u2014price, quantity, and delivery dates\u2014mirroring the deficiencies identified in *Doe v. Acme Corp.*. Without these elements, the plaintiff cannot demonstrate that a contract existed, let alone a breach. Moreover, the complaint does not establish diversity jurisdiction under 28 U.S.C. \u00a7 1332 because the amount in controversy is not alleged. Accordingly, dismissal is warranted."
+        },
+        {
+          "role": "assistant",
+          "content": "Validating the citations in the drafted argument.",
+          "tool_calls": [
+            {
+              "id": "validate_citations_def456",
+              "name": "validate_citations",
+              "arguments": {
+                "text": "**Argument**\\nABC Corp. respectfully moves to dismiss the complaint for failure to state a claim under Rule 12(b)(6). The complaint neglects to allege the contract\u2019s essential terms\u2014price, quantity, and delivery dates\u2014mirroring the deficiencies identified in *Doe v. Acme Corp.*. Without these elements, the plaintiff cannot demonstrate that a contract existed, let alone a breach. Moreover, the complaint does not establish diversity jurisdiction under 28 U.S.C. \u00a7 1332 because the amount in controversy is not alleged. Accordingly, dismissal is warranted."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "validate_citations_def456",
+          "content": "All citations are correctly formatted according to Bluebook rules."
+        },
+        {
+          "role": "assistant",
+          "content": "Redacting any privileged information that may appear in the brief.",
+          "tool_calls": [
+            {
+              "id": "redact_sensitive_info_ghi789",
+              "name": "redact_sensitive_info",
+              "arguments": {
+                "text": "**Argument**\\nABC Corp. respectfully moves to dismiss the complaint for failure to state a claim under Rule 12(b)(6). The complaint neglects to allege the contract\u2019s essential terms\u2014price, quantity, and delivery dates\u2014mirroring the deficiencies identified in *Doe v. Acme Corp.*. Without these elements, the plaintiff cannot demonstrate that a contract existed, let alone a breach. Moreover, the complaint does not establish diversity jurisdiction under 28 U.S.C. \u00a7 1332 because the amount in controversy is not alleged. Accordingly, dismissal is warranted."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "redact_sensitive_info_ghi789",
+          "content": "**Argument**\\nABC Corp. respectfully moves to dismiss the complaint for failure to state a claim under Rule 12(b)(6). The complaint neglects to allege the contract\u2019s essential terms\u2014[REDACTED], [REDACTED], and [REDACTED]\u2014mirroring the deficiencies identified in *Doe v. Acme Corp.*. Without these elements, the plaintiff cannot demonstrate that a contract existed, let alone a breach. Moreover, the complaint does not establish diversity jurisdiction under 28 U.S.C. \u00a7 1332 because the amount in controversy is not alleged. Accordingly, dismissal is warranted."
+        },
+        {
+          "role": "assistant",
+          "content": "Committing the draft motion to the firm's Git repository.",
+          "tool_calls": [
+            {
+              "id": "commit_version_jkl012",
+              "name": "commit_version",
+              "arguments": {
+                "file_path": "motions/ABC_Corp_vs_XYZ_LLC/motion_to_dismiss.md",
+                "content": "# Motion to Dismiss\\n\\n**Argument**\\nABC Corp. respectfully moves to dismiss ... (redacted version above)\\n\\n*End of Document*",
+                "commit_message": "Draft motion to dismiss for ABC Corp. (auto\u2011generated)",
+                "author": "LegalBrief AI"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "commit_version_jkl012",
+          "content": "Commit 9f4c2e7 \u2013 https://repo.example.com/firm/motions/ABC_Corp_vs_XYZ_LLC/motion_to_dismiss.md"
+        },
+        {
+          "role": "assistant",
+          "content": "The motion to dismiss has been drafted, citations validated, privileged data redacted, and saved to the repository. You can view it here: https://repo.example.com/firm/motions/ABC_Corp_vs_XYZ_LLC/motion_to_dismiss.md (Commit 9f4c2e7). Let me know if you need any revisions or a cover letter.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User uploads an existing brief for a summary judgment motion and asks for a compliance review. The assistant fetches the document, checks citation formatting, redacts confidential client identifiers, and returns a list of needed edits.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LegalBrief AI, an autonomous assistant that reviews and improves legal briefs using the provided tools."
+        },
+        {
+          "role": "user",
+          "content": "Please review the summary judgment brief we prepared for the case \"In re TechCo\". The file ID is \"brief_9876\"."
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching the brief to analyze its content.",
+          "tool_calls": [
+            {
+              "id": "fetch_document_mno345",
+              "name": "fetch_document",
+              "arguments": {
+                "document_id": "brief_9876",
+                "access_token": "eyJhbGciOi..."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_document_mno345",
+          "content": "{ \"text\": \"...full brief text including client name TechCo, case facts, argument, and citations...\" }"
+        },
+        {
+          "role": "assistant",
+          "content": "Checking the brief for Bluebook citation compliance.",
+          "tool_calls": [
+            {
+              "id": "validate_citations_pqr678",
+              "name": "validate_citations",
+              "arguments": {
+                "text": "...full brief text..."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "validate_citations_pqr678",
+          "content": "Citation errors found:\\n1. \"TechCo v. Global Inc., 45 F.3d 123 (9th Cir. 2020)\" should be \"TechCo v. Global Inc., 45 F.3d 123 (9th Cir. 2020)\" (missing period after \"Cir\").\\n2. \"28 U.S.C \u00a7 1332\" should be \"28 U.S.C. \u00a7 1332\" (missing period after \"C\")."
+        },
+        {
+          "role": "assistant",
+          "content": "Redacting any client\u2011specific identifiers that should not appear in the public filing.",
+          "tool_calls": [
+            {
+              "id": "redact_sensitive_info_stu901",
+              "name": "redact_sensitive_info",
+              "arguments": {
+                "text": "...full brief text..."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "redact_sensitive_info_stu901",
+          "content": "...full brief text with \"TechCo\" replaced by \"[REDACTED CLIENT]\" and docket numbers masked..."
+        },
+        {
+          "role": "assistant",
+          "content": "Here is a concise compliance report:\n\n1. **Citation Issues**:\n   - \"TechCo v. Global Inc., 45 F.3d 123 (9th Cir. 2020)\" \u2013 add missing period after \"Cir\".\n   - \"28 U.S.C \u00a7 1332\" \u2013 add missing period after \"C\".\n2. **Redaction Completed** \u2013 all client names and docket numbers have been replaced with placeholders.\n3. **Suggested Next Steps**:\n   - Update the citations as noted.\n   - Review the redacted placeholders to ensure they meet court filing rules.\n   - Re\u2011run the citation validator after edits.\n\nWould you like me to automatically apply the citation fixes and generate a revised brief?\n",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,423 @@
+{
+  "name": "PatientPath Planner",
+  "description": "An agentic LLM that builds individualized treatment pathways for clinicians by pulling data from electronic health records, drug\u2011interaction databases, and evidence\u2011based clinical guidelines, then delivering a structured, actionable care plan.",
+  "tools": [
+    {
+      "name": "fetch_ehr_record",
+      "description": "Retrieves a patient\u2019s electronic health record (demographics, diagnoses, labs, medication history) given a patient identifier and optional date range.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "patient_id": {
+            "type": "string",
+            "description": "Unique identifier of the patient in the EHR system."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Earliest date of records to return (optional)."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Latest date of records to return (optional)."
+          }
+        },
+        "required": [
+          "patient_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "check_drug_interactions",
+      "description": "Queries a drug\u2011interaction database for contraindications, CYP enzyme conflicts, and dosage adjustment alerts between a list of medicines.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "medications": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of medication identifiers (e.g., NDC codes or generic names)."
+          },
+          "patient_id": {
+            "type": "string",
+            "description": "Patient identifier to also consider known allergies or pharmacogenomic traits (optional)."
+          }
+        },
+        "required": [
+          "medications"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_guideline_recommendations",
+      "description": "Retrieves evidence\u2011based guideline recommendations (e.g., ACC/AHA, NCCN) for a set of diagnosis codes and patient characteristics.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "diagnosis_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "ICD\u201110 codes representing the patient\u2019s active diagnoses."
+          },
+          "patient_age": {
+            "type": "integer",
+            "description": "Patient age in years."
+          },
+          "patient_sex": {
+            "type": "string",
+            "enum": [
+              "male",
+              "female",
+              "other"
+            ],
+            "description": "Biological sex of the patient."
+          },
+          "comorbidities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional list of additional comorbid conditions."
+          }
+        },
+        "required": [
+          "diagnosis_codes",
+          "patient_age",
+          "patient_sex"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "calculate_risk_score",
+      "description": "Computes a validated clinical risk score (e.g., ASCVD, CHA2DS2\u2011VASc) using patient demographics, labs, and lifestyle factors.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "score_type": {
+            "type": "string",
+            "description": "The name of the risk calculator to use (e.g., \"ascvd\", \"cha2ds2vasc\")."
+          },
+          "age": {
+            "type": "integer",
+            "description": "Patient age in years."
+          },
+          "sex": {
+            "type": "string",
+            "enum": [
+              "male",
+              "female"
+            ],
+            "description": "Patient biological sex."
+          },
+          "cholesterol_total": {
+            "type": "number",
+            "description": "Total cholesterol (mg/dL)."
+          },
+          "cholesterol_hdl": {
+            "type": "number",
+            "description": "HDL cholesterol (mg/dL)."
+          },
+          "systolic_bp": {
+            "type": "integer",
+            "description": "Systolic blood pressure (mmHg)."
+          },
+          "smoker": {
+            "type": "boolean",
+            "description": "True if the patient currently smokes."
+          },
+          "diabetes": {
+            "type": "boolean",
+            "description": "True if the patient has diabetes."
+          }
+        },
+        "required": [
+          "score_type",
+          "age",
+          "sex"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_care_plan",
+      "description": "Synthesizes all gathered data (EHR, drug\u2011interaction results, guideline recommendations, risk scores) into a structured, markdown\u2011formatted care plan ready for clinician review.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "patient_id": {
+            "type": "string",
+            "description": "Identifier of the patient."
+          },
+          "ehr_summary": {
+            "type": "string",
+            "description": "Brief JSON or text summary of the patient\u2019s EHR data."
+          },
+          "guideline_recs": {
+            "type": "string",
+            "description": "JSON string of guideline recommendations."
+          },
+          "interaction_warnings": {
+            "type": "string",
+            "description": "JSON string of any drug\u2011interaction alerts."
+          },
+          "risk_scores": {
+            "type": "string",
+            "description": "JSON string of computed risk scores."
+          }
+        },
+        "required": [
+          "patient_id",
+          "ehr_summary",
+          "guideline_recs",
+          "interaction_warnings"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "schedule_followup",
+      "description": "Suggests an appropriate follow\u2011up appointment date and specialty based on treatment timeline, risk level, and clinician availability.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "patient_id": {
+            "type": "string",
+            "description": "Patient identifier."
+          },
+          "earliest_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Earliest acceptable follow\u2011up date."
+          },
+          "latest_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Latest acceptable follow\u2011up date."
+          },
+          "preferred_specialty": {
+            "type": "string",
+            "description": "Specialty for the follow\u2011up (e.g., \"cardiology\")."
+          }
+        },
+        "required": [
+          "patient_id",
+          "earliest_date",
+          "latest_date",
+          "preferred_specialty"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "Clinician requests a full treatment pathway for a hypertensive, diabetic patient. The assistant gathers EHR data, checks medication interactions, pulls guideline recommendations, calculates ASCVD risk, and returns a markdown care plan with follow\u2011up suggestion.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are PatientPath Planner, an agentic LLM that creates personalized treatment pathways by integrating EHR data, drug\u2011interaction checks, clinical guidelines, and risk assessments."
+        },
+        {
+          "role": "user",
+          "content": "Patient ID PAT123 has hypertension and type 2 diabetes. Please generate a personalized treatment pathway."
+        },
+        {
+          "role": "assistant",
+          "content": "Gathering the necessary information to build the pathway\u2026",
+          "tool_calls": [
+            {
+              "id": "fetch_ehr_record_1a2b3c",
+              "name": "fetch_ehr_record",
+              "arguments": {
+                "patient_id": "PAT123"
+              }
+            },
+            {
+              "id": "check_drug_interactions_4d5e6f",
+              "name": "check_drug_interactions",
+              "arguments": {
+                "medications": [
+                  "Lisinopril",
+                  "Metformin"
+                ]
+              }
+            },
+            {
+              "id": "get_guideline_recommendations_7g8h9i",
+              "name": "get_guideline_recommendations",
+              "arguments": {
+                "diagnosis_codes": [
+                  "I10",
+                  "E11.9"
+                ],
+                "patient_age": 58,
+                "patient_sex": "male",
+                "comorbidities": []
+              }
+            },
+            {
+              "id": "calculate_risk_score_j0k1l2",
+              "name": "calculate_risk_score",
+              "arguments": {
+                "score_type": "ascvd",
+                "age": 58,
+                "sex": "male",
+                "cholesterol_total": 210,
+                "cholesterol_hdl": 45,
+                "systolic_bp": 145,
+                "smoker": false,
+                "diabetes": true
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_ehr_record_1a2b3c",
+          "content": "{\"demographics\":{\"age\":58,\"sex\":\"male\"},\"diagnoses\":[{\"code\":\"I10\",\"description\":\"Essential hypertension\"},{\"code\":\"E11.9\",\"description\":\"Type 2 diabetes mellitus without complications\"}],\"medications\":[\"Lisinopril 10mg daily\",\"Metformin 500mg BID\"],\"labs\":{\"hbA1c\":7.8,\"creatinine\":1.0}}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "check_drug_interactions_4d5e6f",
+          "content": "{\"interactions\":[]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_guideline_recommendations_7g8h9i",
+          "content": "{\"guidelines\":[{\"source\":\"ACC/AHA 2023\",\"recommendation\":\"Add a thiazide\u2011type diuretic for stage 2 hypertension\"},{\"source\":\"ADA 2024\",\"recommendation\":\"Target HbA1c <7% with lifestyle + metformin\"}]}\""
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "calculate_risk_score_j0k1l2",
+          "content": "{\"ascvd_risk\":0.14}"
+        },
+        {
+          "role": "assistant",
+          "content": "All data gathered. Generating the care plan now.",
+          "tool_calls": [
+            {
+              "id": "generate_care_plan_m3n4o5",
+              "name": "generate_care_plan",
+              "arguments": {
+                "patient_id": "PAT123",
+                "ehr_summary": "{\"age\":58,\"sex\":\"male\",\"diagnoses\":[\"I10\",\"E11.9\"],\"medications\":[\"Lisinopril\",\"Metformin\"],\"hbA1c\":7.8}",
+                "guideline_recs": "{\"guidelines\":[{\"source\":\"ACC/AHA\",\"rec\":\"Add thiazide\"},{\"source\":\"ADA\",\"rec\":\"Intensify glucose control\"}]}",
+                "interaction_warnings": "{\"interactions\":[]}",
+                "risk_scores": "{\"ascvd\":0.14}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_care_plan_m3n4o5",
+          "content": "# PatientPath Care Plan \u2013 PAT123\n\n**Demographics**: 58\u2011year\u2011old male\n\n**Current Diagnoses**:\n- Hypertension (I10)\n- Type\u202f2 Diabetes (E11.9)\n\n**Current Medications**:\n- Lisinopril 10\u202fmg PO daily\n- Metformin 500\u202fmg PO BID\n\n---\n### 1. Hypertension Management\n- **Add** chlorthalidone 12.5\u202fmg PO daily (per ACC/AHA 2023).\n- Target BP <130/80\u202fmmHg.\n- Monitor electrolytes and renal function in 4\u202fweeks.\n\n### 2. Diabetes Management\n- Continue Metformin; consider adding a GLP\u20111 receptor agonist (e.g., semaglutide) to reach HbA1c <7% (ADA 2024).\n- Encourage Mediterranean diet & 150\u202fmin/week aerobic activity.\n- Repeat HbA1c in 3\u202fmonths.\n\n### 3. Cardiovascular Risk\n- 10\u2011year ASCVD risk: **14%** (moderate).\n- Initiate low\u2011dose aspirin 81\u202fmg PO daily if no contraindication.\n- Discuss lifestyle modification for risk reduction.\n\n### 4. Follow\u2011up\n- **Next visit**: 4\u202fweeks (clinic) for BP check, labs.\n- **Specialty referral**: Cardiology in 6\u202fmonths for risk\u2011factor optimization.\n\n*All recommendations are aligned with the latest ACC/AHA, ADA, and USPSTF guidelines.*"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the personalized treatment pathway for PAT123. Let me know if you\u2019d like any adjustments or a printable PDF.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "Clinician wants to add ondansetron to a patient receiving paclitaxel chemotherapy and needs interaction check plus supportive\u2011care recommendations.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are PatientPath Planner, an agentic LLM that creates personalized treatment pathways by integrating EHR data, drug\u2011interaction checks, clinical guidelines, and risk scores."
+        },
+        {
+          "role": "user",
+          "content": "Patient ID PAT456 is beginning a paclitaxel regimen. I would like to add ondansetron for nausea prophylaxis. Are there any drug interactions, and what supportive care should I include?"
+        },
+        {
+          "role": "assistant",
+          "content": "Let me retrieve the patient\u2019s record and verify any interactions.",
+          "tool_calls": [
+            {
+              "id": "fetch_ehr_record_a1b2c3",
+              "name": "fetch_ehr_record",
+              "arguments": {
+                "patient_id": "PAT456"
+              }
+            },
+            {
+              "id": "check_drug_interactions_d4e5f6",
+              "name": "check_drug_interactions",
+              "arguments": {
+                "medications": [
+                  "Paclitaxel",
+                  "Ondansetron"
+                ],
+                "patient_id": "PAT456"
+              }
+            },
+            {
+              "id": "get_guideline_recommendations_g7h8i9",
+              "name": "get_guideline_recommendations",
+              "arguments": {
+                "diagnosis_codes": [
+                  "C50.9"
+                ],
+                "patient_age": 45,
+                "patient_sex": "female",
+                "comorbidities": []
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_ehr_record_a1b2c3",
+          "content": "{\"demographics\":{\"age\":45,\"sex\":\"female\"},\"diagnoses\":[{\"code\":\"C50.9\",\"description\":\"Breast cancer, unspecified\"}],\"medications\":[\"Paclitaxel 80\u202fmg/m\u00b2 q weekly\"],\"labs\":{\"neutrophils\":1500}}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "check_drug_interactions_d4e5f6",
+          "content": "{\"interactions\":[{\"med1\":\"Ondansetron\",\"med2\":\"Paclitaxel\",\"type\":\"QT prolongation risk\",\"severity\":\"moderate\"}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_guideline_recommendations_g7h8i9",
+          "content": "{\"guidelines\":[{\"source\":\"ASCO 2023\",\"recommendation\":\"Antiemetic prophylaxis with a 5\u2011HT3 antagonist plus dexamethasone for paclitaxel\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "I have the relevant data. I will now compose a concise supportive\u2011care plan.",
+          "tool_calls": [
+            {
+              "id": "generate_care_plan_j0k1l2",
+              "name": "generate_care_plan",
+              "arguments": {
+                "patient_id": "PAT456",
+                "ehr_summary": "{\"age\":45,\"sex\":\"female\",\"diagnoses\":[\"C50.9\"],\"medications\":[\"Paclitaxel\"],\"labs\":{\"neutrophils\":1500}}",
+                "guideline_recs": "{\"guidelines\":[{\"source\":\"ASCO\",\"rec\":\"5\u2011HT3 antagonist + dexamethasone\"}]}",
+                "interaction_warnings": "{\"interactions\":[{\"med1\":\"Ondansetron\",\"med2\":\"Paclitaxel\",\"type\":\"QT prolongation\",\"severity\":\"moderate\"}]}",
+                "risk_scores": "{}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_care_plan_j0k1l2",
+          "content": "# Supportive\u2011Care Plan \u2013 PAT456\n\n**Patient**: 45\u2011year\u2011old female with breast cancer (C50.9) receiving weekly Paclitaxel.\n\n---\n### Antiemetic Prophylaxis\n- **Ondansetron** 8\u202fmg PO 30\u202fmin before Paclitaxel (per ASCO 2023).\n- **Dexamethasone** 8\u202fmg IV (or PO) 30\u202fmin before Paclitaxel.\n- **Monitoring**: Baseline ECG and repeat if patient reports palpitations; watch for QT prolongation (moderate interaction warning).\n\n### Additional Supportive Measures\n- **Neutropenia**: Check absolute neutrophil count prior to each cycle; consider G\u2011CSF if ANC < 1000\u202f/\u00b5L.\n- **Hydration**: Encourage oral fluids \u22652\u202fL/day.\n- **Peripheral neuropathy**: Baseline neurological exam; dose modify Paclitaxel if grade \u22652 neuropathy develops.\n\n### Follow\u2011up\n- **Clinic visit**: 1\u202fweek after each cycle to assess side effects and labs.\n- **Cardiology consult**: If ECG shows QTc > 470\u202fms or patient develops symptomatic arrhythmia.\n\n*All recommendations conform to ASCO, NCCN, and FDA labeling.*"
+        },
+        {
+          "role": "assistant",
+          "content": "The supportive\u2011care plan is ready. It includes ondansetron with a note about the moderate QT\u2011prolongation interaction and additional monitoring steps. Let me know if you need a PDF export or any modifications.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,421 @@
+{
+  "name": "LocaleGuard QA",
+  "description": "An AI\u2011powered agent that automatically validates translated UI strings against source context, cultural guidelines, and UI character limits. It pulls source strings and translations from a TMS, checks for tone, cultural appropriateness, placeholder usage and length constraints, and writes back QA results or suggested fixes.",
+  "tools": [
+    {
+      "name": "get_source_strings",
+      "description": "Retrieves source UI strings and their metadata (key, screen, component, placeholder tokens) for a given project and optional list of keys.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "description": "Identifier of the software project in the translation management system."
+          },
+          "language_code": {
+            "type": "string",
+            "description": "ISO language code of the source language (e.g., \"en\")."
+          },
+          "keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional list of specific string keys to fetch. If omitted, all strings are returned."
+          }
+        },
+        "required": [
+          "project_id",
+          "language_code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_translation",
+      "description": "Fetches the translated UI string for a given key and target locale from the translation database.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "description": "Project identifier in the TMS."
+          },
+          "locale": {
+            "type": "string",
+            "description": "Target locale code (e.g., \"fr-FR\")."
+          },
+          "key": {
+            "type": "string",
+            "description": "The unique identifier of the UI string."
+          }
+        },
+        "required": [
+          "project_id",
+          "locale",
+          "key"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_cultural_rules",
+      "description": "Returns cultural appropriateness guidelines for a locale, including taboo words, preferred date/number formats, and formality level.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "description": "Locale code for which to retrieve cultural rules (e.g., \"ja-JP\")."
+          }
+        },
+        "required": [
+          "locale"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "validate_char_limit",
+      "description": "Checks whether a given string respects the maximum character limit defined for its UI component and returns the excess count if any.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The UI string to be measured."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum allowed number of characters for this UI element."
+          }
+        },
+        "required": [
+          "text",
+          "limit"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "propose_translation",
+      "description": "Generates a suggested translation for a source string given a target locale, context, and optional constraints like maximum length or tone.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source_text": {
+            "type": "string",
+            "description": "Original UI string in the source language."
+          },
+          "locale": {
+            "type": "string",
+            "description": "Target locale for the translation."
+          },
+          "context": {
+            "type": "string",
+            "description": "Brief description of where the string appears (screen, component, placeholder usage)."
+          },
+          "max_length": {
+            "type": "integer",
+            "description": "Optional maximum character count for the translation."
+          },
+          "tone": {
+            "type": "string",
+            "description": "Optional desired tone (e.g., \"formal\", \"informal\")."
+          }
+        },
+        "required": [
+          "source_text",
+          "locale",
+          "context"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "record_qc_result",
+      "description": "Stores the quality\u2011control verdict for a translated string (pass/fail, issues, suggested fix) back into the TMS.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "description": "Project identifier."
+          },
+          "locale": {
+            "type": "string",
+            "description": "Target locale."
+          },
+          "key": {
+            "type": "string",
+            "description": "String key being evaluated."
+          },
+          "status": {
+            "type": "string",
+            "description": "Result status \u2013 either \"pass\" or \"fail\"."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional free\u2011form notes describing problems and suggestions."
+          }
+        },
+        "required": [
+          "project_id",
+          "locale",
+          "key",
+          "status"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks the agent to run a full QA pass on the French localisation of a mobile app; the agent fetches source strings, translations, cultural rules, validates length, and returns a concise report.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LocaleGuard QA, an autonomous assistant that validates UI translations for cultural fit, placeholder correctness, and character limits. Use the provided tools to gather data and record results."
+        },
+        {
+          "role": "user",
+          "content": "Run a QA check for the French (fr-FR) localisation of project \"app123\". Give me a summary of any issues."
+        },
+        {
+          "role": "assistant",
+          "content": "Sure, I\u2019ll start by retrieving all source strings for the project.",
+          "tool_calls": [
+            {
+              "id": "get_source_strings_1a2b3c",
+              "name": "get_source_strings",
+              "arguments": {
+                "project_id": "app123",
+                "language_code": "en"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_source_strings_1a2b3c",
+          "content": "{\"strings\":[{\"key\":\"welcome_msg\",\"text\":\"Welcome, {username}!\",\"screen\":\"home\",\"component\":\"header\",\"char_limit\":25},{\"key\":\"logout_confirm\",\"text\":\"Are you sure you want to log out?\",\"screen\":\"settings\",\"component\":\"dialog\",\"char_limit\":30}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Got the source strings. I\u2019ll now pull the French translations for those keys.",
+          "tool_calls": [
+            {
+              "id": "get_translation_4d5e6f",
+              "name": "get_translation",
+              "arguments": {
+                "project_id": "app123",
+                "locale": "fr-FR",
+                "key": "welcome_msg"
+              }
+            },
+            {
+              "id": "get_translation_7g8h9i",
+              "name": "get_translation",
+              "arguments": {
+                "project_id": "app123",
+                "locale": "fr-FR",
+                "key": "logout_confirm"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_translation_4d5e6f",
+          "content": "{\"translation\":\"Bienvenue, {username}!\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_translation_7g8h9i",
+          "content": "{\"translation\":\"\u00cates\u2011vous s\u00fbr de vouloir vous d\u00e9connecter ?\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I\u2019ll fetch French cultural guidelines.",
+          "tool_calls": [
+            {
+              "id": "get_cultural_rules_ab12cd",
+              "name": "get_cultural_rules",
+              "arguments": {
+                "locale": "fr-FR"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_cultural_rules_ab12cd",
+          "content": "{\"formal\":true,\"taboo_words\":[],\"date_format\":\"DD/MM/YYYY\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Finally I\u2019ll validate the character limits for each string.",
+          "tool_calls": [
+            {
+              "id": "validate_char_limit_wx01yz",
+              "name": "validate_char_limit",
+              "arguments": {
+                "text": "Bienvenue, {username}!",
+                "limit": 25
+              }
+            },
+            {
+              "id": "validate_char_limit_qr23st",
+              "name": "validate_char_limit",
+              "arguments": {
+                "text": "\u00cates\u2011vous s\u00fbr de vouloir vous d\u00e9connecter ?",
+                "limit": 30
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "validate_char_limit_wx01yz",
+          "content": "{\"over\":0}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "validate_char_limit_qr23st",
+          "content": "{\"over\":5}"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 **Summary of French QA**\n\n- **welcome_msg** \u2013 Pass. Length OK (22\u202f/\u202f25). Placeholder `{username}` preserved.\n- **logout_confirm** \u2013 Fail. Length exceeds limit by 5 characters (35\u202f/\u202f30). The extra characters come from the spaced question mark and the word \u201cd\u00e9connecter\u201d.\n\nWould you like me to propose a shortened French version for `logout_confirm` and record the results?",
+          "tool_calls": []
+        },
+        {
+          "role": "user",
+          "content": "Yes, please propose a shorter version and record the findings."
+        },
+        {
+          "role": "assistant",
+          "content": "Generating a concise translation\u2026",
+          "tool_calls": [
+            {
+              "id": "propose_translation_uv34wx",
+              "name": "propose_translation",
+              "arguments": {
+                "source_text": "Are you sure you want to log out?",
+                "locale": "fr-FR",
+                "context": "settings dialog confirmation",
+                "max_length": 30,
+                "tone": "formal"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "propose_translation_uv34wx",
+          "content": "{\"suggestion\":\"Confirmez la d\u00e9connexion ?\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Proposed translation: **\"Confirmez la d\u00e9connexion ?\"** (27\u202f/\u202f30 characters).\n\nRecording the QA result now.",
+          "tool_calls": [
+            {
+              "id": "record_qc_result_aa99bb",
+              "name": "record_qc_result",
+              "arguments": {
+                "project_id": "app123",
+                "locale": "fr-FR",
+                "key": "logout_confirm",
+                "status": "fail",
+                "notes": "Exceeds char limit by 5. Suggested replacement: \"Confirmez la d\u00e9connexion ?\""
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "record_qc_result_aa99bb",
+          "content": "{\"status\":\"recorded\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 The issue has been recorded and the suggested translation is ready for review. Let me know if you need anything else.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User asks why a specific German translation fails the char\u2011limit check; the agent fetches the strings, runs the limit validation, and explains the cause.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LocaleGuard QA, a specialist AI that checks UI string translations for cultural fit and length constraints."
+        },
+        {
+          "role": "user",
+          "content": "Why does the German translation for key `profile_title` exceed the UI limit?"
+        },
+        {
+          "role": "assistant",
+          "content": "Let me retrieve the source and German strings for that key.",
+          "tool_calls": [
+            {
+              "id": "get_source_strings_zz11yy",
+              "name": "get_source_strings",
+              "arguments": {
+                "project_id": "app456",
+                "language_code": "en",
+                "keys": [
+                  "profile_title"
+                ]
+              }
+            },
+            {
+              "id": "get_translation_aa22bb",
+              "name": "get_translation",
+              "arguments": {
+                "project_id": "app456",
+                "locale": "de-DE",
+                "key": "profile_title"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_source_strings_zz11yy",
+          "content": "{\"strings\":[{\"key\":\"profile_title\",\"text\":\"User Profile\",\"screen\":\"profile\",\"component\":\"header\",\"char_limit\":12}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_translation_aa22bb",
+          "content": "{\"translation\":\"Benutzerprofil\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I\u2019ll compare the length with the defined limit.",
+          "tool_calls": [
+            {
+              "id": "validate_char_limit_cc33dd",
+              "name": "validate_char_limit",
+              "arguments": {
+                "text": "Benutzerprofil",
+                "limit": 12
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "validate_char_limit_cc33dd",
+          "content": "{\"over\":2}"
+        },
+        {
+          "role": "assistant",
+          "content": "The German translation **\"Benutzerprofil\"** is 14 characters long, exceeding the UI limit of 12 by 2 characters. The extra characters come from the compound word \"Benutzer\" (8) + \"profil\" (6). A shorter alternative could be **\"Profil\"** (6) or **\"Nutzer\u2011Profil\"** (10) if space permits.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

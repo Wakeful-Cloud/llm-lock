@@ -1,0 +1,379 @@
+{
+  "name": "CanvasWizard AI",
+  "description": "An agentic LLM that instantly builds a complete Business Model Canvas by researching market size, revenue streams, cost structures, competitors and then formatting the results into a ready\u2011to\u2011use canvas document (PDF/Markdown). Users simply describe their product idea and target market, and CanvasWizard does the heavy lifting in minutes.",
+  "tools": [
+    {
+      "name": "web_search",
+      "description": "Performs a live web search for the given query and returns the top three result snippets formatted in Markdown.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The search query to send to the search engine."
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_market_report",
+      "description": "Retrieves a structured market\u2011research report for a specified industry and year from a paid data\u2011provider API and returns key metrics (market size, growth rate, average CAC, LTV, etc.) as JSON.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "industry": {
+            "type": "string",
+            "description": "Industry name, e.g., \"coffee subscription\"."
+          },
+          "year": {
+            "type": "integer",
+            "description": "Fiscal year for the report (default is the current year)."
+          }
+        },
+        "required": [
+          "industry"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_company_financials",
+      "description": "Pulls publicly available financial metrics (ARR, churn, CAC, gross margin, etc.) for a given public or disclosed private company from financial\u2011data APIs.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "company_name": {
+            "type": "string",
+            "description": "Exact name of the company to look up."
+          }
+        },
+        "required": [
+          "company_name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_competitor_analysis",
+      "description": "Returns a concise competitor landscape for a given industry, including top N competitors, their primary value propositions, pricing models, and estimated market shares.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "industry": {
+            "type": "string",
+            "description": "Industry to analyse."
+          },
+          "top_n": {
+            "type": "integer",
+            "description": "How many top competitors to return (default 5).",
+            "default": 5
+          }
+        },
+        "required": [
+          "industry"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "summarize_text",
+      "description": "Accepts a long text (or HTML) and returns a concise summary limited to the specified number of sentences.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The raw text to be summarized."
+          },
+          "max_sentences": {
+            "type": "integer",
+            "description": "Maximum number of sentences in the summary.",
+            "default": 3
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_canvas",
+      "description": "Creates a markdown representation of a Business Model Canvas from a structured data object containing the nine canvas blocks.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "canvas_data": {
+            "type": "object",
+            "description": "Object with keys: value_proposition, customer_segments, channels, customer_relationships, revenue_streams, key_resources, key_activities, key_partners, cost_structure. Each key holds a list of strings.",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "required": [
+          "canvas_data"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "export_to_pdf",
+      "description": "Converts a markdown Business Model Canvas into a PDF file and returns a temporary download URL.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "canvas_markdown": {
+            "type": "string",
+            "description": "The full markdown of the canvas."
+          },
+          "filename": {
+            "type": "string",
+            "description": "Desired filename for the PDF (without extension)."
+          }
+        },
+        "required": [
+          "canvas_markdown",
+          "filename"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks for a canvas for a subscription coffee delivery startup. The assistant pulls market size, industry metrics, summarises them and returns a complete canvas ready for export.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are CanvasWizard, an expert AI that builds Business Model Canvases. Use the provided tools to gather data, summarise insights and finally produce a markdown canvas. Offer a PDF export if the user wants it."
+        },
+        {
+          "role": "user",
+          "content": "Create a Business Model Canvas for a subscription\u2011based coffee delivery service targeting millennials in the United States."
+        },
+        {
+          "role": "assistant",
+          "content": "I will first fetch recent market data for the coffee\u2011subscription space.",
+          "tool_calls": [
+            {
+              "id": "web_search_1a2b3c",
+              "name": "web_search",
+              "arguments": {
+                "query": "US coffee subscription market size 2023"
+              }
+            },
+            {
+              "id": "fetch_market_report_4d5e6f",
+              "name": "fetch_market_report",
+              "arguments": {
+                "industry": "coffee subscription",
+                "year": 2023
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "web_search_1a2b3c",
+          "content": "## Search results\n- The coffee subscription market in the US was valued at **$1.2\u202fB** in 2023, with an expected CAGR of **8\u202f%** through 2028. (Source: Statista)\n- 42\u202f% of millennials say they would consider a monthly coffee delivery service. (Source: Nielsen)\n- Top players include Trade Coffee, Bean Box, and Blue Bottle Subscriptions."
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_market_report_4d5e6f",
+          "content": "{\"market_size_usd\":1200000000,\"cagr_percent\":8,\"average_cac_usd\":30,\"average_ltv_usd\":300,\"key_trends\":[\"Sustainability packaging\",\"Personalized blends\",\"Convenient mobile ordering\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Got the data. I will now craft the canvas blocks.",
+          "tool_calls": [
+            {
+              "id": "generate_canvas_7g8h9i",
+              "name": "generate_canvas",
+              "arguments": {
+                "canvas_data": {
+                  "value_proposition": [
+                    "Curated, high\u2011quality coffee delivered monthly",
+                    "Sustainable packaging and carbon\u2011neutral shipping",
+                    "Personalized blend recommendations via a short quiz"
+                  ],
+                  "customer_segments": [
+                    "Urban millennials (aged 25\u201138) who value convenience and quality",
+                    "Remote workers seeking a home office perk"
+                  ],
+                  "channels": [
+                    "Mobile app & website",
+                    "Social media advertising (Instagram, TikTok)",
+                    "Partnerships with co\u2011working spaces"
+                  ],
+                  "customer_relationships": [
+                    "Subscription\u2011based with easy pause/resume",
+                    "Monthly coffee\u2011tasting newsletters",
+                    "Community forum for coffee lovers"
+                  ],
+                  "revenue_streams": [
+                    "Monthly subscription fees ($15\u2011$30)",
+                    "Premium add\u2011ons (single\u2011origin beans, brewing accessories)",
+                    "Affiliate commissions from coffee machine partners"
+                  ],
+                  "key_resources": [
+                    "Supply contracts with roasters",
+                    "Logistics & fulfillment network",
+                    "Data\u2011driven recommendation engine"
+                  ],
+                  "key_activities": [
+                    "Sourcing and roasting coordination",
+                    "Packaging & shipping",
+                    "Customer acquisition & retention marketing"
+                  ],
+                  "key_partners": [
+                    "Specialty roasters",
+                    "Eco\u2011friendly packaging suppliers",
+                    "Last\u2011mile delivery providers"
+                  ],
+                  "cost_structure": [
+                    "Cost of goods sold (coffee beans, packaging)",
+                    "Shipping & fulfillment",
+                    "Marketing & acquisition (CAC \u2248 $30)",
+                    "Technology stack (app, recommendation AI)"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_canvas_7g8h9i",
+          "content": "# Business Model Canvas \u2013 Coffee Subscription Startup\n\n**Value Proposition**\n- Curated, high\u2011quality coffee delivered monthly\n- Sustainable packaging and carbon\u2011neutral shipping\n- Personalized blend recommendations via a short quiz\n\n**Customer Segments**\n- Urban millennials (25\u201138) who value convenience & quality\n- Remote workers seeking a home\u2011office perk\n\n**Channels**\n- Mobile app & website\n- Social media ads (Instagram, TikTok)\n- Partnerships with co\u2011working spaces\n\n**Customer Relationships**\n- Subscription\u2011based with easy pause/resume\n- Monthly coffee\u2011tasting newsletters\n- Community forum for coffee lovers\n\n**Revenue Streams**\n- Monthly subscription fees ($15\u2011$30)\n- Premium add\u2011ons (single\u2011origin beans, accessories)\n- Affiliate commissions from coffee\u2011machine partners\n\n**Key Resources**\n- Supply contracts with specialty roasters\n- Logistics & fulfillment network\n- Data\u2011driven recommendation engine\n\n**Key Activities**\n- Sourcing & roasting coordination\n- Packaging & shipping\n- Customer acquisition & retention marketing\n\n**Key Partners**\n- Specialty roasters\n- Eco\u2011friendly packaging suppliers\n- Last\u2011mile delivery providers\n\n**Cost Structure**\n- COGS (beans, packaging)\n- Shipping & fulfillment\n- Marketing & acquisition (CAC \u2248 $30)\n- Technology stack (app, AI)\n"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the complete Business Model Canvas in markdown. Would you like me to export it as a PDF?",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User already has a SaaS canvas and wants alternative revenue streams and refined cost estimates. The assistant pulls comparable SaaS financials and competitor analysis, then updates the canvas.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are CanvasWizard, an AI specialist that can enrich, modify and re\u2011export Business Model Canvases using live data."
+        },
+        {
+          "role": "user",
+          "content": "I have a canvas for my project\u2011management SaaS aimed at small teams. I want to explore other revenue streams and get a better sense of typical costs. Can you help?"
+        },
+        {
+          "role": "assistant",
+          "content": "Sure! I will fetch financial benchmarks from a similar public SaaS and get a competitor landscape.",
+          "tool_calls": [
+            {
+              "id": "get_company_financials_a1b2c3",
+              "name": "get_company_financials",
+              "arguments": {
+                "company_name": "Asana"
+              }
+            },
+            {
+              "id": "get_competitor_analysis_d4e5f6",
+              "name": "get_competitor_analysis",
+              "arguments": {
+                "industry": "project management SaaS",
+                "top_n": 3
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_company_financials_a1b2c3",
+          "content": "{\"company\":\"Asana\",\"ARR_usd\":800000000,\"gross_margin_percent\":78,\"average_cac_usd\":250,\"average_churn_percent\":5,\"average_ltv_usd\":3000}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_competitor_analysis_d4e5f6",
+          "content": "[{\"name\":\"Monday.com\",\"pricing\":\"$8\u2011$25 per user/month\",\"market_share_percent\":12},{\"name\":\"ClickUp\",\"pricing\":\"$5\u2011$19 per user/month\",\"market_share_percent\":9},{\"name\":\"Trello (Atlassian)\",\"pricing\":\"$0\u2011$12 per user/month\",\"market_share_percent\":7}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Based on the benchmarks, here are a few alternative revenue ideas and a refined cost outlook. I will now regenerate the canvas with these updates.",
+          "tool_calls": [
+            {
+              "id": "generate_canvas_7g8h9i2",
+              "name": "generate_canvas",
+              "arguments": {
+                "canvas_data": {
+                  "value_proposition": [
+                    "All\u2011in\u2011one project\u2011management platform for small teams",
+                    "Real\u2011time collaboration & workflow automation"
+                  ],
+                  "customer_segments": [
+                    "Small businesses (5\u201120 employees)",
+                    "Remote teams looking for lightweight PM"
+                  ],
+                  "channels": [
+                    "Free\u2011to\u2011use web app",
+                    "Content marketing & webinars",
+                    "Partner integrations (Slack, Google Workspace)"
+                  ],
+                  "customer_relationships": [
+                    "Self\u2011service onboarding",
+                    "Community forums & knowledge base",
+                    "Premium support for paid tiers"
+                  ],
+                  "revenue_streams": [
+                    "Tiered subscription (Basic $8/user, Pro $15/user, Enterprise custom)",
+                    "Add\u2011on modules (Advanced reporting, API access)",
+                    "Marketplace of third\u2011party integrations (revenue share)",
+                    "Professional services (implementation, training)"
+                  ],
+                  "key_resources": [
+                    "Engineering team building core platform",
+                    "Cloud infrastructure (AWS)",
+                    "Customer success & support staff"
+                  ],
+                  "key_activities": [
+                    "Product development & continuous delivery",
+                    "Customer acquisition (SEO, webinars)",
+                    "Support & community management"
+                  ],
+                  "key_partners": [
+                    "Cloud service provider (AWS)",
+                    "Integration partners (Slack, Zapier)",
+                    "Channel partners (resellers)"
+                  ],
+                  "cost_structure": [
+                    "Cloud hosting (\u2248 25\u202f% of ARR)",
+                    "Engineering salaries",
+                    "Sales & marketing (CAC \u2248 $250, churn \u2248 5\u202f%)",
+                    "Customer support & success",
+                    "R&D for new add\u2011on modules"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_canvas_7g8h9i2",
+          "content": "# Updated Business Model Canvas \u2013 Project\u2011Management SaaS\n\n**Value Proposition**\n- All\u2011in\u2011one project\u2011management platform for small teams\n- Real\u2011time collaboration & workflow automation\n\n**Customer Segments**\n- Small businesses (5\u201120 employees)\n- Remote teams looking for lightweight PM\n\n**Channels**\n- Free\u2011to\u2011use web app\n- Content marketing & webinars\n- Partner integrations (Slack, Google Workspace)\n\n**Customer Relationships**\n- Self\u2011service onboarding\n- Community forums & knowledge base\n- Premium support for paid tiers\n\n**Revenue Streams**\n- Tiered subscription (Basic $8/user, Pro $15/user, Enterprise custom)\n- Add\u2011on modules (Advanced reporting, API access)\n- Marketplace of third\u2011party integrations (revenue share)\n- Professional services (implementation, training)\n\n**Key Resources**\n- Engineering team building core platform\n- Cloud infrastructure (AWS)\n- Customer success & support staff\n\n**Key Activities**\n- Product development & continuous delivery\n- Customer acquisition (SEO, webinars)\n- Support & community management\n\n**Key Partners**\n- Cloud service provider (AWS)\n- Integration partners (Slack, Zapier)\n- Channel partners (resellers)\n\n**Cost Structure**\n- Cloud hosting (\u2248\u202f25\u202f% of ARR)\n- Engineering salaries\n- Sales & marketing (CAC \u2248\u202f$250, churn \u2248\u202f5\u202f%)\n- Customer support & success\n- R&D for new add\u2011on modules\n"
+        },
+        {
+          "role": "assistant",
+          "content": "Here\u2019s the revised canvas with alternative revenue streams and a more detailed cost structure. Let me know if you\u2019d like a PDF export or any further tweaks.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

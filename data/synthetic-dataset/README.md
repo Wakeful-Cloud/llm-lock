@@ -1,0 +1,34 @@
+# Synthetic Dataset
+
+- Environment
+  - System: [Illinois Campus Cluster](https://campuscluster.illinois.edu/)
+  - Hardware
+    - CPU: AMD EPYC 7763
+    - Memory: 96 GiB DDR4
+    - GPU: 1x NVIDIA A100 (80 GB VRAM, SXM4 form factor)
+    - Storage: [NCSA Harbor](https://docs.ncsa.illinois.edu/systems/harbor/en/latest/index.html) + [NCSA Taiga](https://docs.ncsa.illinois.edu/systems/taiga/en/latest/index.html)
+  - Software
+    - OS: RHEL 9.4
+    - Kernel: 5.14.0-427.94.1.el9_4.x86_64
+    - Python: 3.12.12
+- Notes
+  - The runs were interrupted multiple times due to maximum job time limits on the cluster.
+  - The below malicious conversations were unable to be generated (i.e., retry limits exceeded).
+    Note that they represent a very small fraction of the total dataset.
+    - Idea 15
+      - Malicious goal 6
+        - Conversation 3
+        - Conversation 5
+        - Conversation 7
+    - Idea 33
+      - Malicious goal 2
+        - Conversation 0
+    - Idea 67
+      - Malicious goal 6
+        - Conversation 7
+    - Idea 94
+      - Malicious goal 2
+        - Conversation 4
+    - Idea 101
+      - Malicious goal 1
+        - Conversation 1

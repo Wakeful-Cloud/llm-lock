@@ -1,0 +1,430 @@
+{
+  "name": "Smart Contract Deployment Assistant",
+  "description": "An AI\u2011driven assistant that validates Solidity code, compiles contracts, estimates deployment gas fees, and auto\u2011generates ready\u2011to\u2011run deployment scripts for multiple EVM\u2011compatible blockchains, speeding up the launch of secure smart contracts.",
+  "tools": [
+    {
+      "name": "analyze_solidity_code",
+      "description": "Runs static analysis on the provided Solidity source, reporting syntax errors, compiler warnings, security issues, and recommends a compatible compiler version.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source_code": {
+            "type": "string",
+            "description": "Full Solidity source code to be analyzed."
+          },
+          "compiler_version": {
+            "type": "string",
+            "description": "Optional Solidity compiler version to target (e.g., \"0.8.20\")."
+          }
+        },
+        "required": [
+          "source_code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "compile_solidity",
+      "description": "Compiles Solidity source to EVM bytecode and ABI using the specified compiler version.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source_code": {
+            "type": "string",
+            "description": "Solidity source code to compile."
+          },
+          "compiler_version": {
+            "type": "string",
+            "description": "Solidity compiler version (e.g., \"0.8.20\")."
+          }
+        },
+        "required": [
+          "source_code",
+          "compiler_version"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_gas_price",
+      "description": "Retrieves the current suggested gas price (in gwei) for the chosen EVM network from a public fee oracle.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "network": {
+            "type": "string",
+            "description": "Target network identifier (e.g., \"ethereum\", \"polygon\", \"bsc\")."
+          }
+        },
+        "required": [
+          "network"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "estimate_gas_for_deployment",
+      "description": "Estimates the gas needed to deploy the given bytecode on the selected network using a simulation call.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "bytecode": {
+            "type": "string",
+            "description": "Hex\u2011encoded contract bytecode (0x\u2026 format)."
+          },
+          "network": {
+            "type": "string",
+            "description": "Target network identifier."
+          }
+        },
+        "required": [
+          "bytecode",
+          "network"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_deployment_script",
+      "description": "Creates a ready\u2011to\u2011run Hardhat deployment script (JavaScript) based on the provided ABI, bytecode, constructor arguments and network configuration.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "network": {
+            "type": "string",
+            "description": "Target network identifier."
+          },
+          "bytecode": {
+            "type": "string",
+            "description": "Hex\u2011encoded contract bytecode."
+          },
+          "abi": {
+            "type": "string",
+            "description": "JSON\u2011encoded contract ABI."
+          },
+          "constructor_args": {
+            "type": "array",
+            "description": "Array of constructor argument values as strings, in order.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "compiler_version": {
+            "type": "string",
+            "description": "Solidity compiler version used for the build."
+          }
+        },
+        "required": [
+          "network",
+          "bytecode",
+          "abi",
+          "constructor_args",
+          "compiler_version"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "verify_contract",
+      "description": "Submits the contract source and metadata to the explorer verification API (Etherscan\u2011compatible) and returns the verification status.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "network": {
+            "type": "string",
+            "description": "Network where the contract was deployed."
+          },
+          "address": {
+            "type": "string",
+            "description": "Deployed contract address (0x\u2026 format)."
+          },
+          "source_code": {
+            "type": "string",
+            "description": "Exact Solidity source code used for compilation."
+          },
+          "compiler_version": {
+            "type": "string",
+            "description": "Solidity compiler version used."
+          },
+          "etherscan_api_key": {
+            "type": "string",
+            "description": "API key for the relevant explorer (Etherscan, Polygonscan, BscScan, etc.)."
+          }
+        },
+        "required": [
+          "network",
+          "address",
+          "source_code",
+          "compiler_version",
+          "etherscan_api_key"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User provides an ERC\u201120 contract, wants to deploy on Ethereum mainnet. Assistant validates, compiles, estimates fees, and returns a Hardhat script.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the Smart Contract Deployment Assistant. Use the provided tools to analyze, compile, estimate gas, and generate deployment scripts for EVM networks. Always surface tool results to the user in plain language."
+        },
+        {
+          "role": "user",
+          "content": "Here is my ERC\u201120 contract:\n```solidity\npragma solidity ^0.8.0;\n\nimport \"@openzeppelin/contracts/token/ERC20/ERC20.sol\";\n\ncontract MyToken is ERC20 {\n    constructor(uint256 initialSupply) ERC20(\"MyToken\", \"MTK\") {\n        _mint(msg.sender, initialSupply);\n    }\n}\n```\nI want to deploy it on Ethereum mainnet with an initial supply of 1,000,000 tokens. Please check the code, estimate the deployment cost, and give me a Hardhat deployment script."
+        },
+        {
+          "role": "assistant",
+          "content": "Let me first run a static analysis on the Solidity source.",
+          "tool_calls": [
+            {
+              "id": "analyze_solidity_code_1a2b3c",
+              "name": "analyze_solidity_code",
+              "arguments": {
+                "source_code": "pragma solidity ^0.8.0;\n\nimport \"@openzeppelin/contracts/token/ERC20/ERC20.sol\";\n\ncontract MyToken is ERC20 {\n    constructor(uint256 initialSupply) ERC20(\"MyToken\", \"MTK\") {\n        _mint(msg.sender, initialSupply);\n    }\n}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "analyze_solidity_code_1a2b3c",
+          "content": "Analysis result:\n- No syntax errors.\n- No obvious security issues.\n- Recommended compiler version: 0.8.20 (latest stable).\n- Import of OpenZeppelin is resolved."
+        },
+        {
+          "role": "assistant",
+          "content": "Great, the code looks clean. I will now compile it with the recommended version.",
+          "tool_calls": [
+            {
+              "id": "compile_solidity_4d5e6f",
+              "name": "compile_solidity",
+              "arguments": {
+                "source_code": "pragma solidity ^0.8.0;\n\nimport \"@openzeppelin/contracts/token/ERC20/ERC20.sol\";\n\ncontract MyToken is ERC20 {\n    constructor(uint256 initialSupply) ERC20(\"MyToken\", \"MTK\") {\n        _mint(msg.sender, initialSupply);\n    }\n}",
+                "compiler_version": "0.8.20"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "compile_solidity_4d5e6f",
+          "content": "{\"bytecode\": \"0x608060405234801561001057600080fd5b5060405161013838038061013883398101604081905261002f9161005c565b...\",\"abi\": \"[{\\\"inputs\\\":[{\\\"internalType\\\":\\\"uint256\\\",\\\"name\\\":\\\"initialSupply\\\",\\\"type\\\":\\\"uint256\\\"}],\\\"stateMutability\\\":\\\"nonpayable\\\",\\\"type\\\":\\\"constructor\\\"},... ]\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Compilation succeeded. Next, I will fetch the current gas price on Ethereum mainnet.",
+          "tool_calls": [
+            {
+              "id": "fetch_gas_price_7g8h9i",
+              "name": "fetch_gas_price",
+              "arguments": {
+                "network": "ethereum"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_gas_price_7g8h9i",
+          "content": "{\"gas_price_gwei\": 31.2}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I will estimate the gas needed to deploy the contract.",
+          "tool_calls": [
+            {
+              "id": "estimate_gas_deploy_0j1k2l",
+              "name": "estimate_gas_for_deployment",
+              "arguments": {
+                "bytecode": "0x608060405234801561001057600080fd5b5060405161013838038061013883398101604081905261002f9161005c565b...",
+                "network": "ethereum"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "estimate_gas_deploy_0j1k2l",
+          "content": "{\"estimated_gas\": 1450000}"
+        },
+        {
+          "role": "assistant",
+          "content": "Finally, I will generate a Hardhat deployment script that includes your desired initial supply (1,000,000 * 10^18, assuming 18 decimals).",
+          "tool_calls": [
+            {
+              "id": "generate_script_m3n4o5",
+              "name": "generate_deployment_script",
+              "arguments": {
+                "network": "ethereum",
+                "bytecode": "0x608060405234801561001057600080fd5b5060405161013838038061013883398101604081905261002f9161005c565b...",
+                "abi": "[{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"initialSupply\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},...]",
+                "constructor_args": [
+                  "1000000e18"
+                ],
+                "compiler_version": "0.8.20"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_script_m3n4o5",
+          "content": "```javascript\n// hardhat-deploy.js\nconst hre = require('hardhat');\n\nasync function main() {\n  const [deployer] = await hre.ethers.getSigners();\n  console.log('Deploying with account:', deployer.address);\n  const initialSupply = hre.ethers.utils.parseUnits('1000000', 18);\n  const MyTokenFactory = await hre.ethers.getContractFactory('MyToken');\n  const myToken = await MyTokenFactory.deploy(initialSupply);\n  await myToken.deployed();\n  console.log('MyToken deployed at:', myToken.address);\n}\n\nmain()\n  .then(() => process.exit(0))\n  .catch(error => {\n    console.error(error);\n    process.exit(1);\n  });\n```"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 **Analysis** \u2013 No issues found, recommended compiler v0.8.20.\n\u2705 **Compilation** \u2013 Bytecode and ABI generated.\n\ud83d\udd0e **Current gas price** \u2013 31.2\u202fgwei.\n\u26fd **Estimated deployment gas** \u2013 1,450,000\u202fgas.\n\ud83d\udcb0 **Estimated cost** \u2013 \u2248\u202f0.045\u202fETH (1,450,000\u202f\u00d7\u202f31.2\u202fgwei).\n\ud83d\udee0\ufe0f **Deployment script** \u2013 See the Hardhat script above. You can run it with `npx hardhat run hardhat-deploy.js --network mainnet` after adding the appropriate RPC URL and your private key.\nLet me know if you would like to proceed with verification on Etherscan or need any tweaks.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User wants to deploy the same contract on Polygon Mumbai testnet with a custom name and symbol, and receive the verification status.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the Smart Contract Deployment Assistant. Use the tools to help the user compile, estimate fees, generate scripts, and verify contracts on EVM networks."
+        },
+        {
+          "role": "user",
+          "content": "I changed the contract to have a custom name and symbol and want to deploy it on Polygon Mumbai testnet with an initial supply of 500,000 tokens. Also, after deployment, please verify it on Polygonscan. Here\u2019s the updated source:\n```solidity\npragma solidity ^0.8.0;\n\nimport \"@openzeppelin/contracts/token/ERC20/ERC20.sol\";\n\ncontract MyToken is ERC20 {\n    constructor(uint256 initialSupply) ERC20(\"MyCustomToken\", \"MCT\") {\n        _mint(msg.sender, initialSupply);\n    }\n}\n```"
+        },
+        {
+          "role": "assistant",
+          "content": "First, let\u2019s run a static analysis on the new source.",
+          "tool_calls": [
+            {
+              "id": "analyze_solidity_code_a1b2c3",
+              "name": "analyze_solidity_code",
+              "arguments": {
+                "source_code": "pragma solidity ^0.8.0;\n\nimport \"@openzeppelin/contracts/token/ERC20/ERC20.sol\";\n\ncontract MyToken is ERC20 {\n    constructor(uint256 initialSupply) ERC20(\"MyCustomToken\", \"MCT\") {\n        _mint(msg.sender, initialSupply);\n    }\n}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "analyze_solidity_code_a1b2c3",
+          "content": "Analysis result:\n- No syntax errors.\n- No security warnings.\n- Recommended compiler version: 0.8.20.\n- OpenZeppelin import resolved."
+        },
+        {
+          "role": "assistant",
+          "content": "Now I will compile with the recommended version.",
+          "tool_calls": [
+            {
+              "id": "compile_solidity_d4e5f6",
+              "name": "compile_solidity",
+              "arguments": {
+                "source_code": "pragma solidity ^0.8.0;\n\nimport \"@openzeppelin/contracts/token/ERC20/ERC20.sol\";\n\ncontract MyToken is ERC20 {\n    constructor(uint256 initialSupply) ERC20(\"MyCustomToken\", \"MCT\") {\n        _mint(msg.sender, initialSupply);\n    }\n}",
+                "compiler_version": "0.8.20"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "compile_solidity_d4e5f6",
+          "content": "{\"bytecode\": \"0x608060405234801561001057600080fd5b506040516101\u2026\",\"abi\": \"[{\\\"inputs\\\":[{\\\"internalType\\\":\\\"uint256\\\",\\\"name\\\":\\\"initialSupply\\\",\\\"type\\\":\\\"uint256\\\"}],\\\"stateMutability\\\":\\\"nonpayable\\\",\\\"type\\\":\\\"constructor\\\"}, \u2026]\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching the current gas price on Polygon Mumbai.",
+          "tool_calls": [
+            {
+              "id": "fetch_gas_price_g7h8i9",
+              "name": "fetch_gas_price",
+              "arguments": {
+                "network": "polygon_mumbai"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_gas_price_g7h8i9",
+          "content": "{\"gas_price_gwei\": 1.5}"
+        },
+        {
+          "role": "assistant",
+          "content": "Estimating gas required for deployment on Mumbai.",
+          "tool_calls": [
+            {
+              "id": "estimate_gas_m10n11o",
+              "name": "estimate_gas_for_deployment",
+              "arguments": {
+                "bytecode": "0x608060405234801561001057600080fd5b506040516101\u2026",
+                "network": "polygon_mumbai"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "estimate_gas_m10n11o",
+          "content": "{\"estimated_gas\": 1300000}"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating a Hardhat deployment script for Mumbai with an initial supply of 500,000 tokens (18 decimals).",
+          "tool_calls": [
+            {
+              "id": "generate_script_p12q13r",
+              "name": "generate_deployment_script",
+              "arguments": {
+                "network": "polygon_mumbai",
+                "bytecode": "0x608060405234801561001057600080fd5b506040516101\u2026",
+                "abi": "[{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"initialSupply\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},\u2026]",
+                "constructor_args": [
+                  "500000e18"
+                ],
+                "compiler_version": "0.8.20"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_script_p12q13r",
+          "content": "```javascript\n// deploy-mumbai.js\nconst hre = require('hardhat');\n\nasync function main() {\n  const [deployer] = await hre.ethers.getSigners();\n  console.log('Deploying with', deployer.address);\n  const supply = hre.ethers.utils.parseUnits('500000', 18);\n  const MyTokenFactory = await hre.ethers.getContractFactory('MyToken');\n  const token = await MyTokenFactory.deploy(supply);\n  await token.deployed();\n  console.log('Deployed at', token.address);\n}\n\nmain().then(()=>process.exit(0)).catch(err=>{console.error(err);process.exit(1);});\n```"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 **Analysis** \u2013 Clean.\n\u2705 **Compilation** \u2013 Bytecode & ABI ready.\n\ud83d\udd0e **Current gas price (Mumbai)** \u2013 1.5\u202fgwei.\n\u26fd **Estimated deployment gas** \u2013 1,300,000\u202fgas.\n\ud83d\udcb0 **Estimated cost** \u2013 \u2248\u202f0.00195\u202fMATIC.\n\ud83d\udee0\ufe0f **Deployment script** \u2013 See the Hardhat script above.\nOnce you deploy, provide the contract address and your Polygonscan API key, and I will verify the source for you.",
+          "tool_calls": []
+        },
+        {
+          "role": "user",
+          "content": "I deployed it, the address is 0xAbC1234567890abcdef1234567890ABCDEF1234 and my Polygonscan API key is `P0LYG0N3SCR3T`."
+        },
+        {
+          "role": "assistant",
+          "content": "Verifying the contract on Polygonscan now.",
+          "tool_calls": [
+            {
+              "id": "verify_contract_s14t15u",
+              "name": "verify_contract",
+              "arguments": {
+                "network": "polygon_mumbai",
+                "address": "0xAbC1234567890abcdef1234567890ABCDEF1234",
+                "source_code": "pragma solidity ^0.8.0;\n\nimport \"@openzeppelin/contracts/token/ERC20/ERC20.sol\";\n\ncontract MyToken is ERC20 {\n    constructor(uint256 initialSupply) ERC20(\"MyCustomToken\", \"MCT\") {\n        _mint(msg.sender, initialSupply);\n    }\n}",
+                "compiler_version": "0.8.20",
+                "etherscan_api_key": "P0LYG0N3SCR3T"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "verify_contract_s14t15u",
+          "content": "{\"verification_status\": \"Success: Contract source verified on Polygonscan.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 **Verification result** \u2013 Success: Contract source verified on Polygonscan. Your contract is now publicly verified and viewable at https://mumbai.polygonscan.com/address/0xAbC1234567890abcdef1234567890ABCDEF1234.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,495 @@
+{
+  "name": "SmartLegalSettleAI",
+  "description": "An AI\u2011powered legal settlement analyzer that ingests case facts, jurisdictional statistics, and historic settlement agreements to provide data\u2011driven estimates of likely settlement ranges and concise risk reports for litigators, in\u2011house counsel, and insurers.",
+  "tools": [
+    {
+      "name": "search_legal_database",
+      "description": "Runs a full\u2011text search against a licensed legal case database (e.g., Westlaw, LexisNexis) and returns a markdown\u2011formatted list of matching cases with basic metadata (court, year, docket, summary).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The legal search query, including key terms, jurisdiction, and date range."
+          },
+          "max_results": {
+            "type": "integer",
+            "description": "Maximum number of cases to return (default 10).",
+            "default": 10
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "extract_text_from_document",
+      "description": "Extracts raw text from an uploaded PDF, DOCX, or image (via OCR) and returns the plain\u2011text content.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "Identifier of the file stored in the secure data store."
+          }
+        },
+        "required": [
+          "file_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "summarize_settlement",
+      "description": "Creates a concise summary (max 300 words) of a settlement agreement text, highlighting parties, claim type, amount, payment schedule, confidentiality clauses, and release language.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "settlement_text": {
+            "type": "string",
+            "description": "Full plain\u2011text content of the settlement agreement."
+          }
+        },
+        "required": [
+          "settlement_text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "compute_settlement_range",
+      "description": "Given a set of comparable cases and jurisdictional data, calculates a statistical settlement range (low, median, high) and confidence interval.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "comparables": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "type": "number",
+                  "description": "Settlement amount in USD."
+                },
+                "year": {
+                  "type": "integer",
+                  "description": "Year the settlement was reached."
+                },
+                "case_id": {
+                  "type": "string",
+                  "description": "Unique identifier of the comparable case."
+                }
+              },
+              "required": [
+                "amount",
+                "year",
+                "case_id"
+              ],
+              "additionalProperties": false
+            },
+            "description": "List of comparable settlements extracted from prior cases."
+          },
+          "inflation_rate": {
+            "type": "number",
+            "description": "Annual inflation rate (as a decimal) to adjust historic amounts to present\u2011day dollars.",
+            "default": 0.025
+          }
+        },
+        "required": [
+          "comparables"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_jurisdiction_stats",
+      "description": "Retrieves aggregated settlement statistics for a specific claim type and jurisdiction (e.g., average personal\u2011injury settlement in California for 2020\u20112023).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "jurisdiction": {
+            "type": "string",
+            "description": "State, province, or federal circuit (e.g., \"California\")."
+          },
+          "claim_type": {
+            "type": "string",
+            "description": "General category of the claim (e.g., \"personal injury\", \"employment discrimination\")."
+          },
+          "date_range": {
+            "type": "string",
+            "description": "ISO\u20118601 date range, e.g., \"2020-01-01/2023-12-31\"."
+          }
+        },
+        "required": [
+          "jurisdiction",
+          "claim_type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_report",
+      "description": "Compiles a structured markdown report containing case summary, comparable analysis, statistical range, risk assessment, and recommendations.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "case_summary": {
+            "type": "string",
+            "description": "Brief narrative of the user\u2019s case facts."
+          },
+          "comparables_summary": {
+            "type": "string",
+            "description": "Bullet\u2011point list of the most relevant comparable settlements."
+          },
+          "settlement_range": {
+            "type": "object",
+            "properties": {
+              "low": {
+                "type": "number",
+                "description": "Lower bound of the estimated range."
+              },
+              "median": {
+                "type": "number",
+                "description": "Median estimate."
+              },
+              "high": {
+                "type": "number",
+                "description": "Upper bound of the estimated range."
+              },
+              "confidence": {
+                "type": "string",
+                "description": "Confidence interval description (e.g., \"90% confidence\")."
+              }
+            },
+            "required": [
+              "low",
+              "median",
+              "high",
+              "confidence"
+            ],
+            "additionalProperties": false,
+            "description": "Statistical settlement estimate."
+          },
+          "risk_assessment": {
+            "type": "string",
+            "description": "High\u2011level qualitative risk rating (e.g., Low, Medium, High) with short justification."
+          },
+          "recommendations": {
+            "type": "string",
+            "description": "Actionable advice for negotiation strategy or litigation next steps."
+          }
+        },
+        "required": [
+          "case_summary",
+          "comparables_summary",
+          "settlement_range",
+          "risk_assessment",
+          "recommendations"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "secure_data_store",
+      "description": "Uploads a user\u2011provided file to encrypted storage and returns a reference ID; also allows retrieval of stored files when supplied with the ID.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "upload",
+              "download"
+            ],
+            "description": "Upload a new file or download an existing one."
+          },
+          "file_content_base64": {
+            "type": "string",
+            "description": "Base64\u2011encoded file bytes (required for upload)."
+          },
+          "file_name": {
+            "type": "string",
+            "description": "Original file name (required for upload)."
+          },
+          "file_id": {
+            "type": "string",
+            "description": "ID of the file to retrieve (required for download)."
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks for a settlement estimate for a 2023 California personal\u2011injury case involving a slip\u2011and\u2011fall, and the assistant pulls comparable cases and jurisdiction stats.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are SmartLegalSettleAI, an expert legal settlement analyst. Use the available tools to gather data, compute ranges, and present a concise markdown report to the user."
+        },
+        {
+          "role": "user",
+          "content": "I was injured in a slip\u2011and\u2011fall at a grocery store in Los Angeles in March 2023. The store\u2019s negligence is clear. Could you give me an estimated settlement range for a case like this in California?"
+        },
+        {
+          "role": "assistant",
+          "content": "Let me gather recent jurisdiction statistics and look for comparable settlements.",
+          "tool_calls": [
+            {
+              "id": "fetch_jurisdiction_stats_1a2b3c",
+              "name": "fetch_jurisdiction_stats",
+              "arguments": {
+                "jurisdiction": "California",
+                "claim_type": "personal injury",
+                "date_range": "2020-01-01/2023-12-31"
+              }
+            },
+            {
+              "id": "search_legal_database_4d5e6f",
+              "name": "search_legal_database",
+              "arguments": {
+                "query": "California slip and fall personal injury settlement 2020..2023",
+                "max_results": 5
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_jurisdiction_stats_1a2b3c",
+          "content": "Average settlement: $75,000; Median: $68,000; 25th\u2011pct: $45,000; 75th\u2011pct: $110,000."
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_legal_database_4d5e6f",
+          "content": "## Top 5 Comparable Cases\n1. **Doe v. FreshMart** (CA Superior Court, 2021) \u2013 $60,000 settlement for slip\u2011and\u2011fall with similar injuries.\n2. **Smith v. GroceryCo** (CA Court of Appeal, 2022) \u2013 $95,000 settlement after trial.\n3. **Lee v. MarketPlace** (CA Superior Court, 2020) \u2013 $48,000 settlement, minor injuries.\n4. **Garcia v. SuperStore** (CA Superior Court, 2023) \u2013 $110,000 settlement, severe injuries.\n5. **Patel v. FoodsInc** (CA Superior Court, 2022) \u2013 $70,000 settlement, moderate injuries."
+        },
+        {
+          "role": "assistant",
+          "content": "I have gathered recent California personal\u2011injury statistics and five comparable slip\u2011and\u2011fall settlements. I will now compute a settlement range adjusted for inflation.",
+          "tool_calls": [
+            {
+              "id": "compute_settlement_range_7g8h9i",
+              "name": "compute_settlement_range",
+              "arguments": {
+                "comparables": [
+                  {
+                    "amount": 60000,
+                    "year": 2021,
+                    "case_id": "Doe v. FreshMart"
+                  },
+                  {
+                    "amount": 95000,
+                    "year": 2022,
+                    "case_id": "Smith v. GroceryCo"
+                  },
+                  {
+                    "amount": 48000,
+                    "year": 2020,
+                    "case_id": "Lee v. MarketPlace"
+                  },
+                  {
+                    "amount": 110000,
+                    "year": 2023,
+                    "case_id": "Garcia v. SuperStore"
+                  },
+                  {
+                    "amount": 70000,
+                    "year": 2022,
+                    "case_id": "Patel v. FoodsInc"
+                  }
+                ],
+                "inflation_rate": 0.025
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "compute_settlement_range_7g8h9i",
+          "content": "{\"low\":62000,\"median\":78000,\"high\":115000,\"confidence\":\"90% confidence\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "### Preliminary Settlement Estimate\n- **Low bound:** $62,000\n- **Median:** $78,000\n- **High bound:** $115,000\n- **Confidence:** 90% confidence\n\nThese numbers reflect recent California slip\u2011and\u2011fall settlements adjusted for inflation. The median aligns closely with the jurisdictional average of $68,000, while the high end captures more severe injury cases.\n\n**Risk Assessment:** Medium \u2013 the case has clear negligence but injury severity will influence the final figure.\n\n**Recommendation:** Aim for an initial demand around $90,000 to leave room for negotiation while staying under the high\u2011end estimate.\n\nWould you like a full markdown report or additional analysis on specific comparable cases?",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User uploads a PDF of a settlement agreement and asks for a summary, a statistical comparison, and a ready\u2011to\u2011send report.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are SmartLegalSettleAI. Use the tools to extract text, summarize agreements, compute comparable ranges, and generate a formatted report."
+        },
+        {
+          "role": "user",
+          "content": "Here is the settlement agreement from my recent case (PDF attached). Please summarize it and tell me if the amount is in line with similar cases in New York."
+        },
+        {
+          "role": "assistant",
+          "content": "First I will store the PDF securely so I can process it.",
+          "tool_calls": [
+            {
+              "id": "secure_data_store_a1b2c3",
+              "name": "secure_data_store",
+              "arguments": {
+                "action": "upload",
+                "file_content_base64": "<BASE64_CONTENT_PLACEHOLDER>",
+                "file_name": "settlement_agreement.pdf"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "secure_data_store_a1b2c3",
+          "content": "{\"file_id\": \"file_987xyz\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I will extract the plain\u2011text from the PDF.",
+          "tool_calls": [
+            {
+              "id": "extract_text_from_document_d4e5f6",
+              "name": "extract_text_from_document",
+              "arguments": {
+                "file_id": "file_987xyz"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_text_from_document_d4e5f6",
+          "content": "Full settlement text ... (truncated for brevity) ... The parties agree to a total payment of $85,000 in two installments, confidentiality clause, and full release of claims."
+        },
+        {
+          "role": "assistant",
+          "content": "I will now create a concise summary of the agreement.",
+          "tool_calls": [
+            {
+              "id": "summarize_settlement_g7h8i9",
+              "name": "summarize_settlement",
+              "arguments": {
+                "settlement_text": "Full settlement text ... (truncated for brevity) ..."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_settlement_g7h8i9",
+          "content": "**Parties:** Plaintiff John Doe vs. Defendant XYZ Corp.\n**Claim:** Employment discrimination ( wrongful termination ).\n**Settlement Amount:** $85,000 ( two installments of $42,500 each ).\n**Key Clauses:** Confidentiality, mutual non\u2011disparagement, full release of all claims, no admission of liability."
+        },
+        {
+          "role": "assistant",
+          "content": "Next I will fetch New York employment\u2011discrimination settlement statistics and look for comparable cases.",
+          "tool_calls": [
+            {
+              "id": "fetch_jurisdiction_stats_j1k2l3",
+              "name": "fetch_jurisdiction_stats",
+              "arguments": {
+                "jurisdiction": "New York",
+                "claim_type": "employment discrimination",
+                "date_range": "2021-01-01/2023-12-31"
+              }
+            },
+            {
+              "id": "search_legal_database_m4n5o6",
+              "name": "search_legal_database",
+              "arguments": {
+                "query": "New York employment discrimination settlement 2021..2023 $80,000",
+                "max_results": 5
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_jurisdiction_stats_j1k2l3",
+          "content": "Average settlement: $92,000; Median: $88,000; 25th\u2011pct: $70,000; 75th\u2011pct: $110,000."
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_legal_database_m4n5o6",
+          "content": "## Comparable Cases\n1. **Brown v. TechSolutions** (NY Supreme Court, 2022) \u2013 $78,000 settlement.\n2. **Lee v. RetailCo** (NY Appellate Division, 2021) \u2013 $95,000 settlement.\n3. **Kim v. FinanceInc** (NY Supreme Court, 2023) \u2013 $82,000 settlement."
+        },
+        {
+          "role": "assistant",
+          "content": "I will now compute a statistical range using the comparables.",
+          "tool_calls": [
+            {
+              "id": "compute_settlement_range_p7q8r9",
+              "name": "compute_settlement_range",
+              "arguments": {
+                "comparables": [
+                  {
+                    "amount": 78000,
+                    "year": 2022,
+                    "case_id": "Brown v. TechSolutions"
+                  },
+                  {
+                    "amount": 95000,
+                    "year": 2021,
+                    "case_id": "Lee v. RetailCo"
+                  },
+                  {
+                    "amount": 82000,
+                    "year": 2023,
+                    "case_id": "Kim v. FinanceInc"
+                  }
+                ],
+                "inflation_rate": 0.023
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "compute_settlement_range_p7q8r9",
+          "content": "{\"low\":80000,\"median\":86000,\"high\":97000,\"confidence\":\"85% confidence\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "### Settlement Summary\n- **Parties:** John Doe vs. XYZ Corp.\n- **Claim:** Employment discrimination (wrongful termination).\n- **Settlement Amount:** $85,000 (two installments of $42,500).\n- **Key Clauses:** Confidentiality, non\u2011disparagement, full release, no admission of liability.\n\n### Comparative Analysis (New York)\n- **Statistical Range (85% confidence):** $80,000 \u2013 $97,000 (median $86,000).\n- **Jurisdictional Average:** $92,000; Median $88,000.\n- **Most Relevant Comparables:** $78k, $95k, $82k.\n\n**Interpretation:** The $85k settlement sits just above the low end of the comparable range and slightly below the jurisdictional median, suggesting the agreement is fairly consistent with recent New York employment\u2011discrimination settlements.\n\nWould you like me to generate a polished markdown report that you can forward to your counsel?",
+          "tool_calls": [
+            {
+              "id": "generate_report_s1t2u3",
+              "name": "generate_report",
+              "arguments": {
+                "case_summary": "John Doe vs. XYZ Corp., employment discrimination (wrongful termination), settlement of $85,000 in two installments.",
+                "comparables_summary": "- Brown v. TechSolutions (2022): $78,000\n- Lee v. RetailCo (2021): $95,000\n- Kim v. FinanceInc (2023): $82,000",
+                "settlement_range": {
+                  "low": 80000,
+                  "median": 86000,
+                  "high": 97000,
+                  "confidence": "85% confidence"
+                },
+                "risk_assessment": "Medium \u2013 the settlement aligns with market norms but could have been negotiated higher given the jurisdictional median.",
+                "recommendations": "Consider discussing a possible supplemental agreement if additional damages arise; maintain confidentiality as stipulated."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_report_s1t2u3",
+          "content": "# Settlement Analysis Report\n\n**Case:** John Doe vs. XYZ Corp.\n**Claim Type:** Employment discrimination (wrongful termination)\n**Settlement Amount:** $85,000 (two installments of $42,500)\n\n## Summary\nThe parties resolved the dispute through a confidential settlement that releases all claims. Key provisions include confidentiality, mutual non\u2011disparagement, and no admission of liability.\n\n## Comparable Cases (New York)\n- **Brown v. TechSolutions (2022)** \u2013 $78,000\n- **Lee v. RetailCo (2021)** \u2013 $95,000\n- **Kim v. FinanceInc (2023)** \u2013 $82,000\n\n## Statistical Settlement Range\n- **Low:** $80,000\n- **Median:** $86,000\n- **High:** $97,000\n- **Confidence:** 85% confidence\n\n## Risk Assessment\n**Medium** \u2013 The settlement is slightly below the jurisdictional median but falls within the expected range for comparable cases.\n\n## Recommendations\n- Use the settlement amount as a baseline for any future negotiations.\n- Preserve the confidentiality clause to avoid public disclosure.\n- If additional claims surface, assess the feasibility of a supplemental agreement.\n\n*Prepared by SmartLegalSettleAI*"
+        },
+        {
+          "role": "assistant",
+          "content": "The report has been generated and is ready for you to download. Let me know if you need any further analysis or a different format.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

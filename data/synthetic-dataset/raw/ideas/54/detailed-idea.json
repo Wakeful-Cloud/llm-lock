@@ -1,0 +1,476 @@
+{
+  "name": "LocaleGen Pro",
+  "description": "An AI\u2011powered Content Localization Bot that transforms source marketing copy into region\u2011specific assets by applying cultural guidelines, domain glossaries, tone analysis, and length constraints, then stores the final copy in the company's CMS.",
+  "tools": [
+    {
+      "name": "fetch_cultural_guidelines",
+      "description": "Retrieves cultural and stylistic guidelines for a given target market from an internal knowledge base or URL.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_market": {
+            "type": "string",
+            "description": "The name or code of the target market (e.g., \"japan\", \"brasil\")."
+          },
+          "guidelines_url": {
+            "type": "string",
+            "description": "Optional direct URL to a guideline document."
+          }
+        },
+        "required": [
+          "target_market"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "translate_text",
+      "description": "Calls an external translation API to produce a raw translation of the source text into the desired target language.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source_text": {
+            "type": "string",
+            "description": "The original marketing copy that needs translation."
+          },
+          "target_language": {
+            "type": "string",
+            "description": "ISO language code of the target language (e.g., \"ja\" for Japanese)."
+          }
+        },
+        "required": [
+          "source_text",
+          "target_language"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "glossary_lookup",
+      "description": "Looks up domain\u2011specific terms in a bilingual glossary to enforce consistent terminology across locales.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "terms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of unique terms (usually nouns or brand\u2011specific words) extracted from the source copy."
+          },
+          "target_language": {
+            "type": "string",
+            "description": "ISO language code of the target language."
+          }
+        },
+        "required": [
+          "terms",
+          "target_language"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "tone_analyzer",
+      "description": "Analyzes translated text against cultural guidelines and returns feedback on tone, formality, and cultural appropriateness.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The translated text to be evaluated."
+          },
+          "guidelines_text": {
+            "type": "string",
+            "description": "The textual representation of cultural guidelines fetched earlier."
+          }
+        },
+        "required": [
+          "text",
+          "guidelines_text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "validate_length",
+      "description": "Checks that a piece of localized copy respects specified character\u2011count limits for UI components or ad slots.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The text whose length is being validated."
+          },
+          "max_chars": {
+            "type": "integer",
+            "description": "Maximum allowed characters."
+          }
+        },
+        "required": [
+          "text",
+          "max_chars"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_localized_asset",
+      "description": "Uses the LLM to produce the final localized marketing asset, merging translation, glossary substitutions, tone feedback, and length\u2011validation results.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source_text": {
+            "type": "string",
+            "description": "Original source copy."
+          },
+          "translated_text": {
+            "type": "string",
+            "description": "Raw translation from the translate_text tool."
+          },
+          "glossary": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Key/value pairs where key is the source term and value is the approved target term."
+          },
+          "tone_feedback": {
+            "type": "string",
+            "description": "Comments returned by tone_analyzer that should be incorporated."
+          },
+          "length_constraints": {
+            "type": "object",
+            "properties": {
+              "max_chars": {
+                "type": "integer",
+                "description": "Maximum allowed characters for the final copy."
+              }
+            },
+            "required": [
+              "max_chars"
+            ],
+            "additionalProperties": false,
+            "description": "Optional length constraints to respect."
+          }
+        },
+        "required": [
+          "source_text",
+          "translated_text",
+          "glossary",
+          "tone_feedback"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "store_asset",
+      "description": "Saves the final localized asset to the company\u2019s Content Management System and returns a reference URL.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "asset_name": {
+            "type": "string",
+            "description": "A short, unique identifier for the asset (e.g., \"product_desc_jp\")."
+          },
+          "content": {
+            "type": "string",
+            "description": "The final localized copy."
+          },
+          "target_market": {
+            "type": "string",
+            "description": "Target market code (e.g., \"japan\")."
+          }
+        },
+        "required": [
+          "asset_name",
+          "content",
+          "target_market"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks to localize a product description for the Japanese market. The bot fetches guidelines, translates, applies glossary, checks tone, generates the final copy, stores it, and returns the URL.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LocaleGen Pro, an AI assistant that creates market\u2011specific marketing copy by orchestrating specialized tools."
+        },
+        {
+          "role": "user",
+          "content": "Please localize the following product description for Japan:\n\"The UltraFit smartwatch tracks your heart rate, sleep, and workouts with AI\u2011powered insights. Waterproof up to 50 meters.\"\nUse our internal style guide for Japan and store the final asset as \"ultrafit_desc_jp\"."
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching cultural guidelines for Japan\u2026",
+          "tool_calls": [
+            {
+              "id": "fetch_cultural_guidelines_a1b2c3",
+              "name": "fetch_cultural_guidelines",
+              "arguments": {
+                "target_market": "japan"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_cultural_guidelines_a1b2c3",
+          "content": "{\"tone\":\"formal\",\"preferred_units\":\"metric\",\"prohibited_phrases\":[]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Translating the source text into Japanese\u2026",
+          "tool_calls": [
+            {
+              "id": "translate_text_d4e5f6",
+              "name": "translate_text",
+              "arguments": {
+                "source_text": "The UltraFit smartwatch tracks your heart rate, sleep, and workouts with AI\u2011powered insights. Waterproof up to 50 meters.",
+                "target_language": "ja"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "translate_text_d4e5f6",
+          "content": "UltraFit \u30b9\u30de\u30fc\u30c8\u30a6\u30a9\u30c3\u30c1\u306f\u3001\u5fc3\u62cd\u6570\u3001\u7761\u7720\u3001\u30c8\u30ec\u30fc\u30cb\u30f3\u30b0\u3092 AI \u3067\u89e3\u6790\u3057\u3001\u30a4\u30f3\u30b5\u30a4\u30c8\u3092\u3054\u63d0\u4f9b\u3057\u307e\u3059\u3002\u9632\u6c34\u6027\u80fd\u306f 50 \u30e1\u30fc\u30c8\u30eb\u307e\u3067\u5bfe\u5fdc\u3002"
+        },
+        {
+          "role": "assistant",
+          "content": "Looking up domain\u2011specific terms in the glossary\u2026",
+          "tool_calls": [
+            {
+              "id": "glossary_lookup_778899",
+              "name": "glossary_lookup",
+              "arguments": {
+                "terms": [
+                  "smartwatch",
+                  "waterproof"
+                ],
+                "target_language": "ja"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "glossary_lookup_778899",
+          "content": "{\"smartwatch\":\"\u30b9\u30de\u30fc\u30c8\u30a6\u30a9\u30c3\u30c1\",\"waterproof\":\"\u9632\u6c34\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Analyzing tone against Japanese guidelines\u2026",
+          "tool_calls": [
+            {
+              "id": "tone_analyzer_112233",
+              "name": "tone_analyzer",
+              "arguments": {
+                "text": "UltraFit \u30b9\u30de\u30fc\u30c8\u30a6\u30a9\u30c3\u30c1\u306f\u3001\u5fc3\u62cd\u6570\u3001\u7761\u7720\u3001\u30c8\u30ec\u30fc\u30cb\u30f3\u30b0\u3092 AI \u3067\u89e3\u6790\u3057\u3001\u30a4\u30f3\u30b5\u30a4\u30c8\u3092\u3054\u63d0\u4f9b\u3057\u307e\u3059\u3002\u9632\u6c34\u6027\u80fd\u306f 50 \u30e1\u30fc\u30c8\u30eb\u307e\u3067\u5bfe\u5fdc\u3002",
+                "guidelines_text": "{\"tone\":\"formal\",\"preferred_units\":\"metric\",\"prohibited_phrases\":[]}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "tone_analyzer_112233",
+          "content": "Tone is appropriate; consider using \u300c\u3054\u5229\u7528\u3044\u305f\u3060\u3051\u307e\u3059\u300d instead of \u300c\u3054\u63d0\u4f9b\u3057\u307e\u3059\u300d for higher politeness."
+        },
+        {
+          "role": "assistant",
+          "content": "Generating the final localized asset\u2026",
+          "tool_calls": [
+            {
+              "id": "generate_localized_asset_aabbcc",
+              "name": "generate_localized_asset",
+              "arguments": {
+                "source_text": "The UltraFit smartwatch tracks your heart rate, sleep, and workouts with AI\u2011powered insights. Waterproof up to 50 meters.",
+                "translated_text": "UltraFit \u30b9\u30de\u30fc\u30c8\u30a6\u30a9\u30c3\u30c1\u306f\u3001\u5fc3\u62cd\u6570\u3001\u7761\u7720\u3001\u30c8\u30ec\u30fc\u30cb\u30f3\u30b0\u3092 AI \u3067\u89e3\u6790\u3057\u3001\u30a4\u30f3\u30b5\u30a4\u30c8\u3092\u3054\u63d0\u4f9b\u3057\u307e\u3059\u3002\u9632\u6c34\u6027\u80fd\u306f 50 \u30e1\u30fc\u30c8\u30eb\u307e\u3067\u5bfe\u5fdc\u3002",
+                "glossary": {
+                  "smartwatch": "\u30b9\u30de\u30fc\u30c8\u30a6\u30a9\u30c3\u30c1",
+                  "waterproof": "\u9632\u6c34"
+                },
+                "tone_feedback": "Tone is appropriate; consider using \u300c\u3054\u5229\u7528\u3044\u305f\u3060\u3051\u307e\u3059\u300d instead of \u300c\u3054\u63d0\u4f9b\u3057\u307e\u3059\u300d for higher politeness.",
+                "length_constraints": {
+                  "max_chars": 150
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_localized_asset_aabbcc",
+          "content": "UltraFit \u30b9\u30de\u30fc\u30c8\u30a6\u30a9\u30c3\u30c1\u306f\u3001\u5fc3\u62cd\u6570\u3001\u7761\u7720\u3001\u30c8\u30ec\u30fc\u30cb\u30f3\u30b0\u3092 AI \u3067\u89e3\u6790\u3057\u3001\u30a4\u30f3\u30b5\u30a4\u30c8\u3092\u3054\u5229\u7528\u3044\u305f\u3060\u3051\u307e\u3059\u3002\u9632\u6c34\u6027\u80fd\u306f 50 \u30e1\u30fc\u30c8\u30eb\u307e\u3067\u5bfe\u5fdc\u3002"
+        },
+        {
+          "role": "assistant",
+          "content": "Storing the asset in the CMS\u2026",
+          "tool_calls": [
+            {
+              "id": "store_asset_ddffee",
+              "name": "store_asset",
+              "arguments": {
+                "asset_name": "ultrafit_desc_jp",
+                "content": "UltraFit \u30b9\u30de\u30fc\u30c8\u30a6\u30a9\u30c3\u30c1\u306f\u3001\u5fc3\u62cd\u6570\u3001\u7761\u7720\u3001\u30c8\u30ec\u30fc\u30cb\u30f3\u30b0\u3092 AI \u3067\u89e3\u6790\u3057\u3001\u30a4\u30f3\u30b5\u30a4\u30c8\u3092\u3054\u5229\u7528\u3044\u305f\u3060\u3051\u307e\u3059\u3002\u9632\u6c34\u6027\u80fd\u306f 50 \u30e1\u30fc\u30c8\u30eb\u307e\u3067\u5bfe\u5fdc\u3002",
+                "target_market": "japan"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "store_asset_ddffee",
+          "content": "https://cms.example.com/assets/ultrafit_desc_jp"
+        },
+        {
+          "role": "assistant",
+          "content": "Your Japanese product description is ready and stored here: https://cms.example.com/assets/ultrafit_desc_jp",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User wants a Brazilian Portuguese email copy with a strict 20\u2011character call\u2011to\u2011action limit. The bot validates length before final generation.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LocaleGen Pro, helping marketers create locale\u2011aware copy."
+        },
+        {
+          "role": "user",
+          "content": "Create a promotional email for Brazil promoting our new fitness app. The CTA button text must not exceed 20 characters. Store the result as \"fitness_email_br\"."
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching cultural guidelines for Brazil\u2026",
+          "tool_calls": [
+            {
+              "id": "fetch_cultural_guidelines_zz99yy",
+              "name": "fetch_cultural_guidelines",
+              "arguments": {
+                "target_market": "brazil"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_cultural_guidelines_zz99yy",
+          "content": "{\"tone\":\"friendly\",\"preferred_units\":\"metric\",\"cta_style\":\"imperative\",\"prohibited_phrases\":[\"free trial\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Drafting a first\u2011pass Portuguese translation of the email body\u2026",
+          "tool_calls": [
+            {
+              "id": "translate_text_pp1122",
+              "name": "translate_text",
+              "arguments": {
+                "source_text": "Get fit faster with our new fitness app. Track workouts, monitor progress, and stay motivated!",
+                "target_language": "pt"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "translate_text_pp1122",
+          "content": "Fique em forma mais r\u00e1pido com nosso novo app de fitness. Acompanhe os treinos, monitore o progresso e mantenha a motiva\u00e7\u00e3o!"
+        },
+        {
+          "role": "assistant",
+          "content": "Checking CTA length (max 20 chars)\u2026",
+          "tool_calls": [
+            {
+              "id": "validate_length_cc3344",
+              "name": "validate_length",
+              "arguments": {
+                "text": "Comece agora!",
+                "max_chars": 20
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "validate_length_cc3344",
+          "content": "Valid"
+        },
+        {
+          "role": "assistant",
+          "content": "Analyzing tone against Brazilian guidelines\u2026",
+          "tool_calls": [
+            {
+              "id": "tone_analyzer_bb2211",
+              "name": "tone_analyzer",
+              "arguments": {
+                "text": "Fique em forma mais r\u00e1pido com nosso novo app de fitness. Acompanhe os treinos, monitore o progresso e mantenha a motiva\u00e7\u00e3o!",
+                "guidelines_text": "{\"tone\":\"friendly\",\"preferred_units\":\"metric\",\"cta_style\":\"imperative\",\"prohibited_phrases\":[\"free trial\"]}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "tone_analyzer_bb2211",
+          "content": "Tone is friendly; replace \"Fique em forma\" with \"Alcance seus objetivos\" for stronger impact."
+        },
+        {
+          "role": "assistant",
+          "content": "Generating the final email copy with CTA\u2026",
+          "tool_calls": [
+            {
+              "id": "generate_localized_asset_ee4455",
+              "name": "generate_localized_asset",
+              "arguments": {
+                "source_text": "Get fit faster with our new fitness app. Track workouts, monitor progress, and stay motivated!",
+                "translated_text": "Fique em forma mais r\u00e1pido com nosso novo app de fitness. Acompanhe os treinos, monitore o progresso e mantenha a motiva\u00e7\u00e3o!",
+                "glossary": {},
+                "tone_feedback": "Tone is friendly; replace \"Fique em forma\" with \"Alcance seus objetivos\" for stronger impact.",
+                "length_constraints": {
+                  "max_chars": 20
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_localized_asset_ee4455",
+          "content": "Alcance seus objetivos com nosso novo app de fitness. Acompanhe os treinos, monitore o progresso e mantenha a motiva\u00e7\u00e3o! \nCTA: Comece agora!"
+        },
+        {
+          "role": "assistant",
+          "content": "Storing the Brazilian email asset\u2026",
+          "tool_calls": [
+            {
+              "id": "store_asset_ff6677",
+              "name": "store_asset",
+              "arguments": {
+                "asset_name": "fitness_email_br",
+                "content": "Alcance seus objetivos com nosso novo app de fitness. Acompanhe os treinos, monitore o progresso e mantenha a motiva\u00e7\u00e3o! \nCTA: Comece agora!",
+                "target_market": "brazil"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "store_asset_ff6677",
+          "content": "https://cms.example.com/assets/fitness_email_br"
+        },
+        {
+          "role": "assistant",
+          "content": "Your Brazilian Portuguese email is ready and saved at: https://cms.example.com/assets/fitness_email_br",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

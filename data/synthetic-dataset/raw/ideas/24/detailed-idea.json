@@ -1,0 +1,485 @@
+{
+  "name": "ClauseClear",
+  "description": "ClauseClear is an AI\u2011powered legal contract summarizer that lets users upload PDF contracts, automatically extracts key clauses, generates plain\u2011language summaries, and flags risky language. The service delivers a concise, understandable briefing (Markdown or PDF) for non\u2011lawyers, helping them assess obligations and exposure without hiring a lawyer.",
+  "tools": [
+    {
+      "name": "upload_pdf",
+      "description": "Accepts a base64\u2011encoded PDF file from the user and returns a temporary file_id that can be used by downstream tools. The file is stored securely for the duration of the session.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_name": {
+            "type": "string",
+            "description": "Original name of the uploaded PDF (e.g., \"service_agreement.pdf\")."
+          },
+          "file_content_base64": {
+            "type": "string",
+            "description": "Base64\u2011encoded binary content of the PDF."
+          }
+        },
+        "required": [
+          "file_name",
+          "file_content_base64"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "extract_text",
+      "description": "Extracts raw, searchable text from a stored PDF using OCR when needed. Returns the full textual representation of the contract.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "Identifier returned by upload_pdf."
+          }
+        },
+        "required": [
+          "file_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "parse_clauses",
+      "description": "Analyzes the contract text, identifies standard legal clauses (termination, confidentiality, indemnification, payment, liability, etc.), and returns each clause's type, location, and raw text.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "contract_text": {
+            "type": "string",
+            "description": "Full text of the contract extracted by extract_text."
+          }
+        },
+        "required": [
+          "contract_text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "summarize_clause",
+      "description": "Generates a short plain\u2011language summary of a single legal clause, targeting a non\u2011lawyer audience.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "clause_type": {
+            "type": "string",
+            "description": "The identified type of the clause (e.g., \"termination\")."
+          },
+          "clause_text": {
+            "type": "string",
+            "description": "The raw text of the clause to be summarized."
+          }
+        },
+        "required": [
+          "clause_type",
+          "clause_text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_risk_flags",
+      "description": "Evaluates a list of extracted clauses for potentially risky or non\u2011standard language and returns an array of flag objects with explanations and suggested mitigations.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "clauses": {
+            "type": "array",
+            "description": "Array of clause objects as returned by parse_clauses.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "description": "Clause type."
+                },
+                "text": {
+                  "type": "string",
+                  "description": "Raw clause text."
+                }
+              },
+              "required": [
+                "type",
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "clauses"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "export_summary",
+      "description": "Compiles the plain\u2011language clause summaries and risk flags into a downloadable document (Markdown or PDF) and returns a temporary URL.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "summaries": {
+            "type": "array",
+            "description": "Array of objects each containing clause_type and summary_text.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "clause_type": {
+                  "type": "string",
+                  "description": "Clause type."
+                },
+                "summary_text": {
+                  "type": "string",
+                  "description": "Plain\u2011language summary."
+                }
+              },
+              "required": [
+                "clause_type",
+                "summary_text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "risk_flags": {
+            "type": "array",
+            "description": "Array of risk flag objects returned by generate_risk_flags.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "clause_type": {
+                  "type": "string",
+                  "description": "Clause type."
+                },
+                "risk": {
+                  "type": "string",
+                  "description": "Short description of the risk."
+                },
+                "explanation": {
+                  "type": "string",
+                  "description": "Why this is risky."
+                },
+                "mitigation": {
+                  "type": "string",
+                  "description": "Suggested mitigation."
+                }
+              },
+              "required": [
+                "clause_type",
+                "risk",
+                "explanation",
+                "mitigation"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "markdown",
+              "pdf"
+            ],
+            "description": "Desired output format for the final briefing."
+          }
+        },
+        "required": [
+          "summaries",
+          "risk_flags",
+          "format"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User uploads a service agreement PDF and receives a full plain\u2011language briefing with risk flags in Markdown.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are ClauseClear, an AI legal\u2011contract summarizer. Use the provided tools to extract, analyze, summarize, and export contract information. Always keep the user informed about each step."
+        },
+        {
+          "role": "user",
+          "content": "I just received this service agreement. Please give me a plain\u2011language summary of the key clauses and highlight any risky terms. Here is the PDF (base64 omitted for brevity)."
+        },
+        {
+          "role": "assistant",
+          "content": "Got it! I\u2019ll first store the PDF so I can work with it.",
+          "tool_calls": [
+            {
+              "id": "upload_pdf_1a2b3c",
+              "name": "upload_pdf",
+              "arguments": {
+                "file_name": "service_agreement.pdf",
+                "file_content_base64": "<BASE64_STRING>"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "upload_pdf_1a2b3c",
+          "content": "{\"file_id\": \"file_9z8y7x\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "PDF stored. Extracting the full text now (including OCR if needed).",
+          "tool_calls": [
+            {
+              "id": "extract_text_4d5e6f",
+              "name": "extract_text",
+              "arguments": {
+                "file_id": "file_9z8y7x"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_text_4d5e6f",
+          "content": "{\"contract_text\": \"...full contract text here...\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Parsing the contract to locate the major clauses.",
+          "tool_calls": [
+            {
+              "id": "parse_clauses_a1b2c3",
+              "name": "parse_clauses",
+              "arguments": {
+                "contract_text": "...full contract text here..."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "parse_clauses_a1b2c3",
+          "content": "{\"clauses\": [{\"type\": \"termination\", \"text\": \"Either party may terminate ...\"}, {\"type\": \"confidentiality\", \"text\": \"Recipient shall keep ...\"}, {\"type\": \"indemnification\", \"text\": \"Indemnitor shall defend ...\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Summarizing each identified clause.",
+          "tool_calls": [
+            {
+              "id": "summarize_clause_t1",
+              "name": "summarize_clause",
+              "arguments": {
+                "clause_type": "termination",
+                "clause_text": "Either party may terminate ..."
+              }
+            },
+            {
+              "id": "summarize_clause_t2",
+              "name": "summarize_clause",
+              "arguments": {
+                "clause_type": "confidentiality",
+                "clause_text": "Recipient shall keep ..."
+              }
+            },
+            {
+              "id": "summarize_clause_t3",
+              "name": "summarize_clause",
+              "arguments": {
+                "clause_type": "indemnification",
+                "clause_text": "Indemnitor shall defend ..."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_clause_t1",
+          "content": "{\"summary_text\": \"Either side can end the agreement early, usually with 30 days notice, and may have to pay a termination fee if they do so without cause.\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_clause_t2",
+          "content": "{\"summary_text\": \"Both parties must keep each other's confidential information secret and can only use it for the purpose defined in the contract.\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_clause_t3",
+          "content": "{\"summary_text\": \"If something goes wrong, the party that caused the problem will cover the other side's legal costs and damages.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating risk flags based on the raw clause texts.",
+          "tool_calls": [
+            {
+              "id": "risk_flags_7g8h9i",
+              "name": "generate_risk_flags",
+              "arguments": {
+                "clauses": [
+                  {
+                    "type": "termination",
+                    "text": "Either party may terminate ..."
+                  },
+                  {
+                    "type": "confidentiality",
+                    "text": "Recipient shall keep ..."
+                  },
+                  {
+                    "type": "indemnification",
+                    "text": "Indemnitor shall defend ..."
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "risk_flags_7g8h9i",
+          "content": "{\"risk_flags\": [{\"clause_type\": \"termination\", \"risk\": \"Broad termination rights\", \"explanation\": \"Either party can end the contract with short notice, which could leave you without service.\", \"mitigation\": \"Negotiate a minimum notice period and a termination fee for early exit.\"}, {\"clause_type\": \"indemnification\", \"risk\": \"One\u2011sided indemnity\", \"explanation\": \"Indemnitor bears all costs, potentially exposing you to unlimited liability.\", \"mitigation\": \"Cap indemnity at a reasonable amount and add reciprocal language.\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Compiling the final briefing and preparing a Markdown download.",
+          "tool_calls": [
+            {
+              "id": "export_abc123",
+              "name": "export_summary",
+              "arguments": {
+                "summaries": [
+                  {
+                    "clause_type": "termination",
+                    "summary_text": "Either side can end the agreement early, usually with 30 days notice, and may have to pay a termination fee if they do so without cause."
+                  },
+                  {
+                    "clause_type": "confidentiality",
+                    "summary_text": "Both parties must keep each other's confidential information secret and can only use it for the purpose defined in the contract."
+                  },
+                  {
+                    "clause_type": "indemnification",
+                    "summary_text": "If something goes wrong, the party that caused the problem will cover the other side's legal costs and damages."
+                  }
+                ],
+                "risk_flags": [
+                  {
+                    "clause_type": "termination",
+                    "risk": "Broad termination rights",
+                    "explanation": "Either party can end the contract with short notice, which could leave you without service.",
+                    "mitigation": "Negotiate a minimum notice period and a termination fee for early exit."
+                  },
+                  {
+                    "clause_type": "indemnification",
+                    "risk": "One\u2011sided indemnity",
+                    "explanation": "Indemnitor bears all costs, potentially exposing you to unlimited liability.",
+                    "mitigation": "Cap indemnity at a reasonable amount and add reciprocal language."
+                  }
+                ],
+                "format": "markdown"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "export_abc123",
+          "content": "{\"download_url\": \"https://example.com/temp/briefing_2025_12_07.md\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 All done! Here\u2019s your plain\u2011language briefing (Markdown) with highlighted risks: https://example.com/temp/briefing_2025_12_07.md\nFeel free to download it and let me know if you\u2019d like any clause explained in more detail.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User wants only the termination clause from a lease agreement and a short plain\u2011language explanation.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are ClauseClear, an AI contract summarizer. Use the given tools to extract the requested clause and provide a concise non\u2011legal explanation."
+        },
+        {
+          "role": "user",
+          "content": "I have a lease agreement PDF. Could you give me a short, plain\u2011language summary of the termination clause only?"
+        },
+        {
+          "role": "assistant",
+          "content": "Sure! Please upload the PDF so I can process it.",
+          "tool_calls": [
+            {
+              "id": "upload_pdf_zz9yy8",
+              "name": "upload_pdf",
+              "arguments": {
+                "file_name": "lease_agreement.pdf",
+                "file_content_base64": "<BASE64_STRING>"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "upload_pdf_zz9yy8",
+          "content": "{\"file_id\": \"file_abc123\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Got the file. Extracting its text now.",
+          "tool_calls": [
+            {
+              "id": "extract_text_222333",
+              "name": "extract_text",
+              "arguments": {
+                "file_id": "file_abc123"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_text_222333",
+          "content": "{\"contract_text\": \"...full lease text...\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Finding the termination clause.",
+          "tool_calls": [
+            {
+              "id": "parse_clauses_term",
+              "name": "parse_clauses",
+              "arguments": {
+                "contract_text": "...full lease text..."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "parse_clauses_term",
+          "content": "{\"clauses\": [{\"type\": \"termination\", \"text\": \"The landlord may terminate this lease upon 60 days written notice if the tenant fails to pay rent for two consecutive months...\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Summarizing the termination clause you asked for.",
+          "tool_calls": [
+            {
+              "id": "summarize_clause_term",
+              "name": "summarize_clause",
+              "arguments": {
+                "clause_type": "termination",
+                "clause_text": "The landlord may terminate this lease upon 60 days written notice if the tenant fails to pay rent for two consecutive months..."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_clause_term",
+          "content": "{\"summary_text\": \"If you miss two months of rent in a row, the landlord can end the lease after giving you 60 days\u2019 notice.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Here\u2019s a plain\u2011language summary of the termination clause:\n\n**Termination Clause:** If you miss two consecutive months of rent, the landlord can terminate the lease with 60 days\u2019 written notice.\n\nLet me know if you\u2019d like any additional details or want the full clause text.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

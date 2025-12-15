@@ -1,0 +1,704 @@
+{
+  "name": "TaxMate AI",
+  "description": "TaxMate AI is an AI\u2011powered personal finance assistant that securely gathers bank statements, credit\u2011card CSVs, and receipt images, applies the latest IRS and state tax law updates, automatically calculates eligible deductions and credits, fills the appropriate federal and state tax forms, and files them electronically on the user's behalf.",
+  "tools": [
+    {
+      "name": "upload_document",
+      "description": "Accepts a user\u2011uploaded file (PDF, image, CSV) containing financial data such as bank statements, receipts, or W\u20112 forms and stores it temporarily for further processing.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_name": {
+            "type": "string",
+            "description": "Original name of the uploaded file, including extension."
+          },
+          "file_content_base64": {
+            "type": "string",
+            "description": "Base64\u2011encoded binary content of the file."
+          },
+          "document_type": {
+            "type": "string",
+            "enum": [
+              "bank_statement",
+              "credit_card_statement",
+              "receipt",
+              "w2",
+              "1099"
+            ],
+            "description": "The type of financial document being uploaded."
+          }
+        },
+        "required": [
+          "file_name",
+          "file_content_base64",
+          "document_type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "extract_transactions",
+      "description": "Parses a previously uploaded bank or credit\u2011card statement and returns a list of structured transaction records (date, amount, merchant, category).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "upload_id": {
+            "type": "string",
+            "description": "Identifier returned by the upload_document tool that references the stored file."
+          }
+        },
+        "required": [
+          "upload_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "categorize_expense",
+      "description": "Runs a machine\u2011learning model to assign each transaction to a tax\u2011relevant expense category (e.g., medical, charitable, home office).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "transactions": {
+            "type": "array",
+            "description": "Array of transaction objects as returned by extract_transactions.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "format": "date",
+                  "description": "Transaction date."
+                },
+                "amount": {
+                  "type": "number",
+                  "description": "Transaction amount in USD."
+                },
+                "merchant": {
+                  "type": "string",
+                  "description": "Merchant name."
+                },
+                "raw_category": {
+                  "type": "string",
+                  "description": "Original merchant category code or description."
+                }
+              },
+              "required": [
+                "date",
+                "amount",
+                "merchant",
+                "raw_category"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "transactions"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_tax_law_updates",
+      "description": "Queries a maintained tax\u2011law knowledge base for the latest federal and state deductions, credits, and filing thresholds applicable to the user\u2019s filing year and state of residence.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "tax_year": {
+            "type": "integer",
+            "description": "Fiscal year for which tax law updates are required, e.g., 2024."
+          },
+          "state": {
+            "type": "string",
+            "description": "Two\u2011letter US state abbreviation for state\u2011specific rules."
+          }
+        },
+        "required": [
+          "tax_year",
+          "state"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "calculate_deductions",
+      "description": "Aggregates categorized expenses with the fetched tax law rules to compute total deductible amounts, eligible credits, and estimated tax liability.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "categorized_expenses": {
+            "type": "array",
+            "description": "List of expense objects with tax categories.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "amount": {
+                  "type": "number"
+                },
+                "tax_category": {
+                  "type": "string",
+                  "description": "Tax\u2011relevant category, e.g., 'charitable', 'medical'."
+                }
+              },
+              "required": [
+                "date",
+                "amount",
+                "tax_category"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "tax_law_rules": {
+            "type": "object",
+            "description": "Structured rules returned by fetch_tax_law_updates."
+          }
+        },
+        "required": [
+          "categorized_expenses",
+          "tax_law_rules"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fill_tax_form",
+      "description": "Populates the appropriate IRS 1040 (and state) form fields using the user\u2019s personal data, calculated deductions, and income information, returning a machine\u2011readable JSON representation of the completed form.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "personal_info": {
+            "type": "object",
+            "description": "User\u2019s personal details required for the header of the form.",
+            "properties": {
+              "first_name": {
+                "type": "string"
+              },
+              "last_name": {
+                "type": "string"
+              },
+              "ssn": {
+                "type": "string",
+                "description": "SSN in XXX\u2011XX\u2011XXXX format."
+              },
+              "address": {
+                "type": "string"
+              },
+              "filing_status": {
+                "type": "string",
+                "enum": [
+                  "single",
+                  "married_filing_jointly",
+                  "married_filing_separately",
+                  "head_of_household",
+                  "qualifying_widow"
+                ]
+              }
+            },
+            "required": [
+              "first_name",
+              "last_name",
+              "ssn",
+              "address",
+              "filing_status"
+            ],
+            "additionalProperties": false
+          },
+          "income_summary": {
+            "type": "object",
+            "description": "Aggregated income figures (W\u20112 wages, 1099\u2011NEC, interest, etc.).",
+            "properties": {
+              "w2_wages": {
+                "type": "number"
+              },
+              "self_employment_income": {
+                "type": "number"
+              },
+              "interest_income": {
+                "type": "number"
+              },
+              "dividend_income": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "w2_wages"
+            ],
+            "additionalProperties": false
+          },
+          "deductions": {
+            "type": "object",
+            "description": "Total deductions and credits calculated earlier.",
+            "properties": {
+              "standard_deduction": {
+                "type": "number"
+              },
+              "itemized_deductions": {
+                "type": "number"
+              },
+              "tax_credits": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "standard_deduction",
+              "itemized_deductions",
+              "tax_credits"
+            ],
+            "additionalProperties": false
+          },
+          "tax_year": {
+            "type": "integer",
+            "description": "Tax year to file for."
+          },
+          "state": {
+            "type": "string",
+            "description": "Two\u2011letter state abbreviation."
+          }
+        },
+        "required": [
+          "personal_info",
+          "income_summary",
+          "deductions",
+          "tax_year",
+          "state"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "efile_submission",
+      "description": "Securely transmits the completed tax form JSON to the IRS (and state agency if applicable) via the authorized e\u2011file API and returns a filing confirmation receipt.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "filled_form": {
+            "type": "object",
+            "description": "JSON representation of the completed tax return as returned by fill_tax_form."
+          },
+          "tax_year": {
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "filled_form",
+          "tax_year",
+          "state"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "send_email_summary",
+      "description": "Emails the user a human\u2011readable summary of the filing, including key numbers, attached PDF of the return, and the e\u2011file receipt.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "to_address": {
+            "type": "string",
+            "format": "email",
+            "description": "Recipient email address."
+          },
+          "subject": {
+            "type": "string",
+            "description": "Email subject line."
+          },
+          "html_body": {
+            "type": "string",
+            "description": "HTML\u2011formatted body of the email."
+          },
+          "attachments": {
+            "type": "array",
+            "description": "Base64\u2011encoded files to attach (e.g., PDF return, receipt).",
+            "items": {
+              "type": "object",
+              "properties": {
+                "filename": {
+                  "type": "string"
+                },
+                "content_base64": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "filename",
+                "content_base64"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "to_address",
+          "subject",
+          "html_body"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User initiates a full tax filing for 2024, uploads statements, and receives confirmation after e\u2011filing.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are TaxMate AI, an autonomous tax\u2011preparation assistant. Use the provided tools to collect documents, extract data, calculate deductions, fill the appropriate IRS and state forms, and submit them electronically. Keep all personal data secure and confirm each step to the user."
+        },
+        {
+          "role": "user",
+          "content": "I want to file my 2024 taxes. I have a PDF of my bank statement, a photo of my receipts folder, and my W\u20112 as a PDF. Can you handle everything and file for me?"
+        },
+        {
+          "role": "assistant",
+          "content": "Sure! I\u2019ll start by uploading each document. Please confirm the files you\u2019d like to send.",
+          "tool_calls": [
+            {
+              "id": "upload_document_001a",
+              "name": "upload_document",
+              "arguments": {
+                "file_name": "bank_statement.pdf",
+                "file_content_base64": "<BASE64_STRING>",
+                "document_type": "bank_statement"
+              }
+            },
+            {
+              "id": "upload_document_002b",
+              "name": "upload_document",
+              "arguments": {
+                "file_name": "receipts.zip",
+                "file_content_base64": "<BASE64_STRING>",
+                "document_type": "receipt"
+              }
+            },
+            {
+              "id": "upload_document_003c",
+              "name": "upload_document",
+              "arguments": {
+                "file_name": "w2_2024.pdf",
+                "file_content_base64": "<BASE64_STRING>",
+                "document_type": "w2"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "upload_document_001a",
+          "content": "{\"upload_id\":\"up_abc123\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "upload_document_002b",
+          "content": "{\"upload_id\":\"up_def456\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "upload_document_003c",
+          "content": "{\"upload_id\":\"up_ghi789\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "All files are uploaded. I\u2019ll now extract the transactions from your bank statement.",
+          "tool_calls": [
+            {
+              "id": "extract_transactions_01d4",
+              "name": "extract_transactions",
+              "arguments": {
+                "upload_id": "up_abc123"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_transactions_01d4",
+          "content": "{\"transactions\":[{\"date\":\"2024-02-10\",\"amount\":-120.45,\"merchant\":\"Office Depot\",\"raw_category\":\"Office Supplies\"},{\"date\":\"2024-03-15\",\"amount\":-55.00,\"merchant\":\"Charity Org\",\"raw_category\":\"Charitable Donation\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Got the transactions. Next, I\u2019ll categorize them for tax purposes.",
+          "tool_calls": [
+            {
+              "id": "categorize_expense_a7f9",
+              "name": "categorize_expense",
+              "arguments": {
+                "transactions": [
+                  {
+                    "date": "2024-02-10",
+                    "amount": -120.45,
+                    "merchant": "Office Depot",
+                    "raw_category": "Office Supplies"
+                  },
+                  {
+                    "date": "2024-03-15",
+                    "amount": -55.0,
+                    "merchant": "Charity Org",
+                    "raw_category": "Charitable Donation"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "categorize_expense_a7f9",
+          "content": "{\"categorized_expenses\":[{\"date\":\"2024-02-10\",\"amount\":-120.45,\"tax_category\":\"home_office\"},{\"date\":\"2024-03-15\",\"amount\":-55.00,\"tax_category\":\"charitable\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Now I\u2019ll fetch the latest tax law updates for 2024 for my state (CA).",
+          "tool_calls": [
+            {
+              "id": "fetch_tax_law_updates_9c2e",
+              "name": "fetch_tax_law_updates",
+              "arguments": {
+                "tax_year": 2024,
+                "state": "CA"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_tax_law_updates_9c2e",
+          "content": "{\"standard_deduction\":13850,\"charitable_credit_limit\":300,\"home_office_percent\":20}"
+        },
+        {
+          "role": "assistant",
+          "content": "With the data, I\u2019ll calculate your deductions and credits.",
+          "tool_calls": [
+            {
+              "id": "calculate_deductions_f3b1",
+              "name": "calculate_deductions",
+              "arguments": {
+                "categorized_expenses": [
+                  {
+                    "date": "2024-02-10",
+                    "amount": -120.45,
+                    "tax_category": "home_office"
+                  },
+                  {
+                    "date": "2024-03-15",
+                    "amount": -55.0,
+                    "tax_category": "charitable"
+                  }
+                ],
+                "tax_law_rules": {
+                  "standard_deduction": 13850,
+                  "charitable_credit_limit": 300,
+                  "home_office_percent": 20
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "calculate_deductions_f3b1",
+          "content": "{\"standard_deduction\":13850,\"itemized_deductions\":175.45,\"tax_credits\":55}"
+        },
+        {
+          "role": "assistant",
+          "content": "Great. Please provide a few personal details to complete the filing.",
+          "tool_calls": []
+        },
+        {
+          "role": "user",
+          "content": "John Doe, SSN 123-45-6789, 123 Main St, Anytown, CA, filing single. My W\u20112 shows $68,000 wages."
+        },
+        {
+          "role": "assistant",
+          "content": "Thanks, John. I\u2019ll now fill the 2024 federal 1040 and CA state return.",
+          "tool_calls": [
+            {
+              "id": "fill_tax_form_88d2",
+              "name": "fill_tax_form",
+              "arguments": {
+                "personal_info": {
+                  "first_name": "John",
+                  "last_name": "Doe",
+                  "ssn": "123-45-6789",
+                  "address": "123 Main St, Anytown, CA",
+                  "filing_status": "single"
+                },
+                "income_summary": {
+                  "w2_wages": 68000
+                },
+                "deductions": {
+                  "standard_deduction": 13850,
+                  "itemized_deductions": 175.45,
+                  "tax_credits": 55
+                },
+                "tax_year": 2024,
+                "state": "CA"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fill_tax_form_88d2",
+          "content": "{\"filled_form\":{ \"federal\": {\"line1_wages\":68000,\"line12_standardDeduction\":13850,\"line14_totalDeductions\":14025.45,\"line16_taxableIncome\":53974.55}, \"state_CA\": {\"lineA_wages\":68000,\"lineB_deductions\":14025.45,\"lineC_taxableIncome\":53974.55 }}}"
+        },
+        {
+          "role": "assistant",
+          "content": "All forms are filled. I\u2019ll now submit them to the IRS and the California Franchise Tax Board.",
+          "tool_calls": [
+            {
+              "id": "efile_submission_5e6a",
+              "name": "efile_submission",
+              "arguments": {
+                "filled_form": {
+                  "federal": {
+                    "line1_wages": 68000,
+                    "line12_standardDeduction": 13850,
+                    "line14_totalDeductions": 14025.45,
+                    "line16_taxableIncome": 53974.55
+                  },
+                  "state_CA": {
+                    "lineA_wages": 68000,
+                    "lineB_deductions": 14025.45,
+                    "lineC_taxableIncome": 53974.55
+                  }
+                },
+                "tax_year": 2024,
+                "state": "CA"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "efile_submission_5e6a",
+          "content": "{\"receipt_id\":\"REC-2024-00012345\",\"status\":\"accepted\",\"submission_timestamp\":\"2025-01-15T10:23:00Z\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Your tax return has been successfully filed! Here is your filing receipt:\n\nReceipt ID: REC-2024-00012345\nSubmitted: 2025\u201101\u201115 10:23\u202fUTC\nStatus: Accepted\n\nWould you like me to email you a summary and PDF copy of the return?",
+          "tool_calls": []
+        },
+        {
+          "role": "user",
+          "content": "Yes, please email it to john.doe@example.com."
+        },
+        {
+          "role": "assistant",
+          "content": "Preparing the email now.",
+          "tool_calls": [
+            {
+              "id": "send_email_summary_ef7c",
+              "name": "send_email_summary",
+              "arguments": {
+                "to_address": "john.doe@example.com",
+                "subject": "Your 2024 Tax Return \u2013 Filed and Received",
+                "html_body": "<p>Hi John,</p><p>Your 2024 federal and CA state tax returns have been filed successfully. Below are the key numbers:</p><ul><li>Total Income: $68,000</li><li>Total Deductions: $14,025.45</li><li>Taxable Income: $53,974.55</li></ul><p>The attached PDF contains the full return and the filing receipt.</p><p>Best regards,<br/>TaxMate AI</p>",
+                "attachments": [
+                  {
+                    "filename": "2024_Tax_Return.pdf",
+                    "content_base64": "<BASE64_PDF>"
+                  },
+                  {
+                    "filename": "Filing_Receipt.txt",
+                    "content_base64": "UmVjZWlwdDogUkVDLTIwMjQtMDAwMTIzNDUKU3RhdHVzOiBBY2NlcHRlZApTdWJtaXNzaW9uIERhdGU6IDIwMjUtMDEtMTUgVDEwOjIzOjAwIFVUQw=="
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_email_summary_ef7c",
+          "content": "{\"email_id\":\"email_987654\",\"status\":\"sent\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "\u2705 Email sent! You should receive it shortly. Let me know if there\u2019s anything else I can help with.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User asks for a quarterly estimated tax payment estimate based on year\u2011to\u2011date income and deductions.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are TaxMate AI, an autonomous tax assistant. Use the provided tools to gather data, perform calculations, and answer the user\u2019s tax questions."
+        },
+        {
+          "role": "user",
+          "content": "I earned $30,000 so far this year from my freelance work and expect $10,000 more by year\u2011end. I\u2019ve already had $5,000 withheld from my W\u20112 job. How much should I pay for my Q2 estimated tax?"
+        },
+        {
+          "role": "assistant",
+          "content": "To provide an accurate estimate I need the current tax rates and the standard deduction for 2024. I\u2019ll fetch the latest tax law data for federal taxes.",
+          "tool_calls": [
+            {
+              "id": "fetch_tax_law_updates_q2",
+              "name": "fetch_tax_law_updates",
+              "arguments": {
+                "tax_year": 2024,
+                "state": "US"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_tax_law_updates_q2",
+          "content": "{\"standard_deduction\":13850,\"tax_brackets_federal\":[{\"rate\":0.10,\"up_to\":11000},{\"rate\":0.12,\"up_to\":44725},{\"rate\":0.22,\"up_to\":95375}],\"self_employment_tax_rate\":0.153}"
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll now calculate your estimated taxable income and the self\u2011employment tax. Then I\u2019ll compute the quarterly payment you should make for Q2 (the second quarter).",
+          "tool_calls": [
+            {
+              "id": "calculate_deductions_q2",
+              "name": "calculate_deductions",
+              "arguments": {
+                "categorized_expenses": [],
+                "tax_law_rules": {
+                  "standard_deduction": 13850,
+                  "tax_brackets_federal": [
+                    {
+                      "rate": 0.1,
+                      "up_to": 11000
+                    },
+                    {
+                      "rate": 0.12,
+                      "up_to": 44725
+                    },
+                    {
+                      "rate": 0.22,
+                      "up_to": 95375
+                    }
+                  ],
+                  "self_employment_tax_rate": 0.153
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "calculate_deductions_q2",
+          "content": "{\"estimated_self_employment_income\":40000,\"estimated_self_employment_tax\": 0.153 * 40000 * 0.9235 }"
+        },
+        {
+          "role": "assistant",
+          "content": "Based on the data:\n- Total expected self\u2011employment income: $40,000\n- Self\u2011employment tax (\u2248\u202f15.3\u202f% of 92.35\u202f% of income): $5,655\n- Federal income tax (using 2024 brackets, after the $13,850 standard deduction): $3,200 (approx.)\n- Total tax liability for the year: $8,855\n- Taxes already paid via withholding: $5,000\n- Remaining liability: $3,855\nSince there are four quarterly payments, the Q2 payment (the second of the year) should be roughly $3,855\u202f\u00f7\u202f4\u202f\u2248\u202f$964.\n\nSo you should remit about **$960\u202f\u2013\u202f$970** for your Q2 estimated tax.\n\nWould you like me to generate a payment voucher or set a reminder for the due date?",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

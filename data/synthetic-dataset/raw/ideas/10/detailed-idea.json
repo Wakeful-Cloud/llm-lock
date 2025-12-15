@@ -1,0 +1,514 @@
+{
+  "name": "VoyagePlanner AI",
+  "description": "An agentic LLM that designs personalized travel itineraries, queries flight and hotel APIs, suggests daily activities, and can auto\u2011book reservations on behalf of the user, all while respecting budget and preference constraints.",
+  "tools": [
+    {
+      "name": "search_flights",
+      "description": "Searches flight options given origin, destination, departure and return dates, cabin class and optional filters. Returns a list of flight itineraries with price, airline, departure/arrival times and a unique flight_id.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "origin": {
+            "type": "string",
+            "description": "IATA airport code of the departure airport (e.g., JFK)."
+          },
+          "destination": {
+            "type": "string",
+            "description": "IATA airport code of the arrival airport (e.g., NRT)."
+          },
+          "depart_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Planned departure date (YYYY-MM-DD)."
+          },
+          "return_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Planned return date (YYYY-MM-DD)."
+          },
+          "cabin_class": {
+            "type": "string",
+            "enum": [
+              "economy",
+              "premium_economy",
+              "business",
+              "first"
+            ],
+            "description": "Desired cabin class."
+          },
+          "max_price": {
+            "type": "number",
+            "description": "Maximum total price user is willing to pay (optional)."
+          }
+        },
+        "required": [
+          "origin",
+          "destination",
+          "depart_date",
+          "return_date",
+          "cabin_class"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "search_hotels",
+      "description": "Queries hotel availability for a city and date range, returning a list of hotels with nightly price, star rating, amenities and a unique hotel_id.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "description": "Name of the city (e.g., Tokyo)."
+          },
+          "check_in": {
+            "type": "string",
+            "format": "date",
+            "description": "Check\u2011in date (YYYY-MM-DD)."
+          },
+          "check_out": {
+            "type": "string",
+            "format": "date",
+            "description": "Check\u2011out date (YYYY-MM-DD)."
+          },
+          "guests": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of guests."
+          },
+          "max_price": {
+            "type": "number",
+            "description": "Maximum nightly price (optional)."
+          }
+        },
+        "required": [
+          "city",
+          "check_in",
+          "check_out",
+          "guests"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_weather",
+      "description": "Provides a short\u2011term weather forecast for a given city and date, including temperature range and precipitation chance.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "description": "City name (e.g., Tokyo)."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Date for which the forecast is requested (YYYY-MM-DD)."
+          }
+        },
+        "required": [
+          "city",
+          "date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_local_events",
+      "description": "Lists major attractions, events, and activity recommendations for a city on a specific date. Returns a short list with brief descriptions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "description": "City name (e.g., Tokyo)."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Date of interest (YYYY-MM-DD)."
+          }
+        },
+        "required": [
+          "city",
+          "date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "book_flight",
+      "description": "Attempts to purchase the selected flight using stored payment credentials. Returns a booking reference and ticket details on success.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "flight_id": {
+            "type": "string",
+            "description": "Unique identifier of the flight option returned by search_flights."
+          },
+          "passenger_info": {
+            "type": "object",
+            "description": "Details of the passenger (name, passport number, date of birth).",
+            "properties": {
+              "first_name": {
+                "type": "string"
+              },
+              "last_name": {
+                "type": "string"
+              },
+              "passport_number": {
+                "type": "string"
+              },
+              "date_of_birth": {
+                "type": "string",
+                "format": "date"
+              }
+            },
+            "required": [
+              "first_name",
+              "last_name",
+              "passport_number",
+              "date_of_birth"
+            ],
+            "additionalProperties": false
+          },
+          "payment_token": {
+            "type": "string",
+            "description": "Reference to a stored payment method."
+          }
+        },
+        "required": [
+          "flight_id",
+          "passenger_info",
+          "payment_token"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "book_hotel",
+      "description": "Books a selected hotel room for the specified dates and guests, using stored payment credentials. Returns a reservation confirmation code.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "hotel_id": {
+            "type": "string",
+            "description": "Unique identifier of the hotel option returned by search_hotels."
+          },
+          "check_in": {
+            "type": "string",
+            "format": "date",
+            "description": "Check\u2011in date (YYYY-MM-DD)."
+          },
+          "check_out": {
+            "type": "string",
+            "format": "date",
+            "description": "Check\u2011out date (YYYY-MM-DD)."
+          },
+          "guests": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of guests."
+          },
+          "room_type": {
+            "type": "string",
+            "description": "Preferred room type (e.g., standard, deluxe)."
+          },
+          "payment_token": {
+            "type": "string",
+            "description": "Reference to a stored payment method."
+          }
+        },
+        "required": [
+          "hotel_id",
+          "check_in",
+          "check_out",
+          "guests",
+          "room_type",
+          "payment_token"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "store_user_preferences",
+      "description": "Saves or updates a user\u2019s travel preferences such as budget, activity types, accessibility needs, and dietary restrictions. Returns success status.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Unique identifier of the user."
+          },
+          "preferences": {
+            "type": "object",
+            "description": "Key\u2011value pairs describing user preferences.",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "user_id",
+          "preferences"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks for a 5\u2011day Tokyo trip itinerary with a $2000 budget. The assistant searches flights and hotels, fetches weather and event data, and returns a draft itinerary with options.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are VoyagePlanner AI, an expert travel planning assistant. Use the provided tools to gather flight, hotel, weather, and event information, respect the user\u2019s budget and preferences, and produce a clear day\u2011by\u2011day itinerary. Only book when explicitly instructed."
+        },
+        {
+          "role": "user",
+          "content": "I want to visit Tokyo from 2025-06-10 to 2025-06-15, departing from JFK. My total budget is $2000. I prefer economy flights and 3\u2011star hotels. Please give me a day\u2011by\u2011day itinerary and show flight & hotel options."
+        },
+        {
+          "role": "assistant",
+          "content": "Sure, let me look up some flight and hotel options for you.",
+          "tool_calls": [
+            {
+              "id": "search_flights_a1b2c3",
+              "name": "search_flights",
+              "arguments": {
+                "origin": "JFK",
+                "destination": "NRT",
+                "depart_date": "2025-06-10",
+                "return_date": "2025-06-15",
+                "cabin_class": "economy",
+                "max_price": 1200
+              }
+            },
+            {
+              "id": "search_hotels_d4e5f6",
+              "name": "search_hotels",
+              "arguments": {
+                "city": "Tokyo",
+                "check_in": "2025-06-10",
+                "check_out": "2025-06-15",
+                "guests": 1,
+                "max_price": 150
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_flights_a1b2c3",
+          "content": "{\"flights\":[{\"flight_id\":\"FL12345\",\"airline\":\"Delta\",\"depart_time\":\"2025-06-10T08:30\",\"arrival_time\":\"2025-06-11T11:45\",\"price\":1150},{\"flight_id\":\"FL67890\",\"airline\":\"United\",\"depart_time\":\"2025-06-10T14:20\",\"arrival_time\":\"2025-06-11T17:35\",\"price\":1190} ]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_hotels_d4e5f6",
+          "content": "{\"hotels\":[{\"hotel_id\":\"HT1001\",\"name\":\"Hotel Sunroute Plaza Shinjuku\",\"stars\":3,\"price_per_night\":130,\"amenities\":[\"free_wifi\",\"breakfast_included\"]},{\"hotel_id\":\"HT1002\",\"name\":\"Shibuya Granbell Hotel\",\"stars\":3,\"price_per_night\":115,\"amenities\":[\"free_wifi\"]} ]}"
+        },
+        {
+          "role": "assistant",
+          "content": "I found two economy flights within your budget and a couple of 3\u2011star hotels. Next, I\u2019ll check the weather and local events for each day.",
+          "tool_calls": [
+            {
+              "id": "get_weather_2025-06-10",
+              "name": "get_weather",
+              "arguments": {
+                "city": "Tokyo",
+                "date": "2025-06-10"
+              }
+            },
+            {
+              "id": "get_events_2025-06-10",
+              "name": "get_local_events",
+              "arguments": {
+                "city": "Tokyo",
+                "date": "2025-06-10"
+              }
+            },
+            {
+              "id": "get_weather_2025-06-11",
+              "name": "get_weather",
+              "arguments": {
+                "city": "Tokyo",
+                "date": "2025-06-11"
+              }
+            },
+            {
+              "id": "get_events_2025-06-11",
+              "name": "get_local_events",
+              "arguments": {
+                "city": "Tokyo",
+                "date": "2025-06-11"
+              }
+            },
+            {
+              "id": "get_weather_2025-06-12",
+              "name": "get_weather",
+              "arguments": {
+                "city": "Tokyo",
+                "date": "2025-06-12"
+              }
+            },
+            {
+              "id": "get_events_2025-06-12",
+              "name": "get_local_events",
+              "arguments": {
+                "city": "Tokyo",
+                "date": "2025-06-12"
+              }
+            },
+            {
+              "id": "get_weather_2025-06-13",
+              "name": "get_weather",
+              "arguments": {
+                "city": "Tokyo",
+                "date": "2025-06-13"
+              }
+            },
+            {
+              "id": "get_events_2025-06-13",
+              "name": "get_local_events",
+              "arguments": {
+                "city": "Tokyo",
+                "date": "2025-06-13"
+              }
+            },
+            {
+              "id": "get_weather_2025-06-14",
+              "name": "get_weather",
+              "arguments": {
+                "city": "Tokyo",
+                "date": "2025-06-14"
+              }
+            },
+            {
+              "id": "get_events_2025-06-14",
+              "name": "get_local_events",
+              "arguments": {
+                "city": "Tokyo",
+                "date": "2025-06-14"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_weather_2025-06-10",
+          "content": "{\"date\":\"2025-06-10\",\"city\":\"Tokyo\",\"forecast\":\"Sunny\",\"temp_min\":22,\"temp_max\":28}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_events_2025-06-10",
+          "content": "{\"date\":\"2025-06-10\",\"city\":\"Tokyo\",\"events\":[\"Meiji Shrine Festival\",\"Tsukiji Fish Market tour\"]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_weather_2025-06-11",
+          "content": "{\"date\":\"2025-06-11\",\"city\":\"Tokyo\",\"forecast\":\"Partly Cloudy\",\"temp_min\":21,\"temp_max\":27}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_events_2025-06-11",
+          "content": "{\"date\":\"2025-06-11\",\"city\":\"Tokyo\",\"events\":[\"TeamLab Borderless exhibition\",\"Asakusa cultural walk\"]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_weather_2025-06-12",
+          "content": "{\"date\":\"2025-06-12\",\"city\":\"Tokyo\",\"forecast\":\"Rain\",\"temp_min\":19,\"temp_max\":24}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_events_2025-06-12",
+          "content": "{\"date\":\"2025-06-12\",\"city\":\"Tokyo\",\"events\":[\"Ueno Park cherry blossom viewing (late bloom)\",\"Sushi-making class\"]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_weather_2025-06-13",
+          "content": "{\"date\":\"2025-06-13\",\"city\":\"Tokyo\",\"forecast\":\"Sunny\",\"temp_min\":22,\"temp_max\":29}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_events_2025-06-13",
+          "content": "{\"date\":\"2025-06-13\",\"city\":\"Tokyo\",\"events\":[\"Day trip to Nikko\",\"Roppongi nightlife tour\"]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_weather_2025-06-14",
+          "content": "{\"date\":\"2025-06-14\",\"city\":\"Tokyo\",\"forecast\":\"Cloudy\",\"temp_min\":20,\"temp_max\":26}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_events_2025-06-14",
+          "content": "{\"date\":\"2025-06-14\",\"city\":\"Tokyo\",\"events\":[\"Imperial Palace garden stroll\",\"Final souvenir shopping\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "### Draft Itinerary (2025\u201106\u201110 to 2025\u201106\u201114)\n\n**Day 1 \u2013 10 Jun** (Sunny, 22\u201128\u00b0C)\n- Morning: Flight FL12345 departs JFK 08:30, arrives NRT 11:45 (+1 day).\n- Afternoon: Check\u2011in at Hotel Sunroute Plaza Shinjuku (3\u2605, $130/night).\n- Evening: Visit Meiji Shrine Festival & dinner at nearby izakaya.\n\n**Day 2 \u2013 11 Jun** (Partly Cloudy)\n- Morning: Guided tour of Tsukiji Fish Market.\n- Midday: TeamLab Borderless exhibition.\n- Evening: Asakusa cultural walk and street food.\n\n**Day 3 \u2013 12 Jun** (Rainy)\n- Morning: Sushi\u2011making class (reserve ahead).\n- Afternoon: Ueno Park cherry\u2011blossom viewing.\n- Evening: Relax at hotel; optional indoor onsen.\n\n**Day 4 \u2013 13 Jun** (Sunny)\n- Full\u2011day: Day\u2011trip to Nikko (temple complex, scenic nature).\n- Evening: Return to Tokyo; Roppongi nightlife.\n\n**Day 5 \u2013 14 Jun** (Cloudy)\n- Morning: Imperial Palace garden stroll.\n- Afternoon: Last\u2011minute souvenir shopping in Shibuya.\n- Evening: Flight back on FL67890 departs NRT 17:35, arrives JFK 14:20.\n\n**Flight Options** (both within $1200 total):\n1. **FL12345** \u2013 $1150 (Delta, 1 stop in Seattle).\n2. **FL67890** \u2013 $1190 (United, 1 stop in San Francisco).\n\n**Hotel Options** (both 3\u2605, total ~ $650 for 4 nights):\n1. **Hotel Sunroute Plaza Shinjuku** \u2013 $130/night, free Wi\u2011Fi, breakfast included.\n2. **Shibuya Granbell Hotel** \u2013 $115/night, free Wi\u2011Fi, central location.\n\nThe total estimated cost (flight + hotel) is roughly $1800, leaving about $200 for activities and meals, which fits your $2000 budget.\n\nLet me know which flight and hotel you prefer, or if you\u2019d like any changes. When you\u2019re ready, I can proceed to book them for you.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User confirms booking of the selected flight and hotel. The assistant calls the booking tools and returns confirmation numbers.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are VoyagePlanner AI, an expert travel planning assistant. Only place bookings when the user explicitly asks."
+        },
+        {
+          "role": "user",
+          "content": "Great, please book flight FL12345 and the Hotel Sunroute Plaza Shinjuku room for me. Use the payment method on file."
+        },
+        {
+          "role": "assistant",
+          "content": "Sure, I will secure the flight and hotel for you now.",
+          "tool_calls": [
+            {
+              "id": "book_flight_7g8h9i",
+              "name": "book_flight",
+              "arguments": {
+                "flight_id": "FL12345",
+                "passenger_info": {
+                  "first_name": "John",
+                  "last_name": "Doe",
+                  "passport_number": "X1234567",
+                  "date_of_birth": "1990-04-15"
+                },
+                "payment_token": "payment_token_abc123"
+              }
+            },
+            {
+              "id": "book_hotel_j0k1l2",
+              "name": "book_hotel",
+              "arguments": {
+                "hotel_id": "HT1001",
+                "check_in": "2025-06-10",
+                "check_out": "2025-06-15",
+                "guests": 1,
+                "room_type": "standard",
+                "payment_token": "payment_token_abc123"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "book_flight_7g8h9i",
+          "content": "{\"status\":\"success\",\"booking_reference\":\"AA1B2C3D\",\"ticket_number\":\"001234567890\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "book_hotel_j0k1l2",
+          "content": "{\"status\":\"success\",\"reservation_code\":\"HT-2025-06-10-001\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Your travel is all set!\n\n- **Flight**: FL12345 (Delta) \u2013 booking reference **AA1B2C3D**, ticket **001234567890**.\n- **Hotel**: Hotel Sunroute Plaza Shinjuku \u2013 reservation code **HT-2025-06-10-001** for 4 nights (June\u202f10\u201114).\n\nAll payments have been processed with the stored payment method. Let me know if you need anything else such as airport transfers, restaurant reservations, or travel insurance.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,478 @@
+{
+  "name": "SafeRoute Planner",
+  "description": "An AI\u2011enabled disaster planning platform that pulls real\u2011time GIS hazard maps, local infrastructure data, and emergency protocols to automatically generate community\u2011specific evacuation routes, shelter assignments, and communication plans. Governments, NGOs, and emergency managers can request custom plans for floods, hurricanes, earthquakes, wildfires, or any other hazard, and receive ready\u2011to\u2011publish PDFs or web\u2011ready markdown.",
+  "tools": [
+    {
+      "name": "fetch_gis_data",
+      "description": "Retrieves GIS raster or vector layers for a specified region and hazard type (e.g., flood extent, earthquake fault lines) from public or licensed map services.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "description": "Name or bounding box (e.g., \"Baytown, TX\" or \"{min_lat, min_lon, max_lat, max_lon}\") of the area of interest."
+          },
+          "hazard_type": {
+            "type": "string",
+            "description": "Type of hazard to fetch. Allowed values: \"flood\", \"hurricane\", \"earthquake\", \"wildfire\", \"tsunami\"."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Date for which the hazard forecast or historic data is required (ISO 8601)."
+          }
+        },
+        "required": [
+          "region",
+          "hazard_type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "query_infrastructure",
+      "description": "Queries an infrastructure database (roads, bridges, shelters, hospitals, utilities) for the given region and returns geo\u2011referenced features with capacity attributes.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "description": "Same format as in fetch_gis_data; the area to query."
+          },
+          "feature_type": {
+            "type": "string",
+            "description": "Infrastructure feature to retrieve. One of: \"road\", \"bridge\", \"shelter\", \"hospital\", \"utility\"."
+          }
+        },
+        "required": [
+          "region",
+          "feature_type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "compute_evacuation_routes",
+      "description": "Calculates optimal evacuation routes from populated zones to the nearest safe shelters, avoiding hazardous zones and damaged infrastructure. Returns a list of turn\u2011by\u2011turn polyline geometries and estimated travel times.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "hazard_layer_id": {
+            "type": "string",
+            "description": "Identifier of the GIS hazard layer returned by fetch_gis_data."
+          },
+          "road_network_id": {
+            "type": "string",
+            "description": "Identifier of the road network returned by query_infrastructure."
+          },
+          "shelter_layer_id": {
+            "type": "string",
+            "description": "Identifier of the shelter points returned by query_infrastructure."
+          },
+          "population_grid_id": {
+            "type": "string",
+            "description": "Identifier of a raster/grid that contains population density data."
+          }
+        },
+        "required": [
+          "hazard_layer_id",
+          "road_network_id",
+          "shelter_layer_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_plan_document",
+      "description": "Creates a formatted evacuation plan (Markdown and PDF) from supplied route data, shelter lists, and custom instructions. Returns a download URL for the generated files.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "description": "Human\u2011readable name of the region the plan covers."
+          },
+          "hazard_type": {
+            "type": "string",
+            "description": "Type of hazard the plan addresses."
+          },
+          "routes": {
+            "type": "array",
+            "description": "Array of route objects as returned by compute_evacuation_routes.",
+            "items": {
+              "type": "object"
+            }
+          },
+          "shelters": {
+            "type": "array",
+            "description": "List of shelter objects (name, capacity, address, GPS).",
+            "items": {
+              "type": "object"
+            }
+          },
+          "custom_instructions": {
+            "type": "string",
+            "description": "Any additional narrative or protocol the user wants to embed."
+          }
+        },
+        "required": [
+          "region",
+          "hazard_type",
+          "routes",
+          "shelters"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "send_notification",
+      "description": "Sends a one\u2011time notification (email or SMS) to a provided list of contacts with a short summary and a link to the full evacuation plan.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "recipients": {
+            "type": "array",
+            "description": "Array of contact objects containing either an email or a phone number.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "description": "Email address of the recipient."
+                },
+                "phone": {
+                  "type": "string",
+                  "description": "Phone number in E.164 format."
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "message": {
+            "type": "string",
+            "description": "Short text to send. Should include plan title and URL."
+          }
+        },
+        "required": [
+          "recipients",
+          "message"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_weather_forecast",
+      "description": "Fetches the latest weather forecast for the specified region, useful for timing evacuations.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "description": "Region name or coordinates."
+          },
+          "hours_ahead": {
+            "type": "integer",
+            "description": "How many hours into the future to retrieve (max 72).",
+            "minimum": 1,
+            "maximum": 72
+          }
+        },
+        "required": [
+          "region"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User requests a hurricane evacuation plan for Baytown, TX. The assistant gathers GIS flood maps, road network, shelter list, computes routes, creates a PDF, and emails the plan to the city manager.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are SafeRoute Planner, an expert disaster\u2011planning assistant. Use the provided tools to collect data, compute optimal evacuation routes, and generate a ready\u2011to\u2011share plan."
+        },
+        {
+          "role": "user",
+          "content": "We have a Category\u202f5 hurricane forecast to hit Baytown, TX on 2025\u201109\u201112. Please prepare an evacuation plan for all residents, including routes to the nearest shelters."
+        },
+        {
+          "role": "assistant",
+          "content": "Understood. I will collect the latest hurricane\u2011related flood hazard map, the local road network, and the list of public shelters, then compute safe routes and compile a PDF plan.",
+          "tool_calls": [
+            {
+              "id": "fetch_gis_data_1a2b3c",
+              "name": "fetch_gis_data",
+              "arguments": {
+                "region": "Baytown, TX",
+                "hazard_type": "hurricane",
+                "date": "2025-09-12"
+              }
+            },
+            {
+              "id": "query_infrastructure_4d5e6f",
+              "name": "query_infrastructure",
+              "arguments": {
+                "region": "Baytown, TX",
+                "feature_type": "road"
+              }
+            },
+            {
+              "id": "query_infrastructure_7g8h9i",
+              "name": "query_infrastructure",
+              "arguments": {
+                "region": "Baytown, TX",
+                "feature_type": "shelter"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_gis_data_1a2b3c",
+          "content": "{\"layer_id\":\"hazard_hurricane_2025_09_12_baytown\",\"type\":\"vector\",\"url\":\"https://maps.example.com/hurricane/2025_09_12/baytown.geojson\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "query_infrastructure_4d5e6f",
+          "content": "{\"layer_id\":\"roads_baytown\",\"type\":\"vector\",\"url\":\"https://infra.example.com/roads/baytown.geojson\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "query_infrastructure_7g8h9i",
+          "content": "{\"layer_id\":\"shelters_baytown\",\"type\":\"vector\",\"url\":\"https://infra.example.com/shelters/baytown.geojson\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Data retrieved. I will now compute the safest evacuation routes avoiding the projected flood zones.",
+          "tool_calls": [
+            {
+              "id": "compute_evacuation_routes_xyz123",
+              "name": "compute_evacuation_routes",
+              "arguments": {
+                "hazard_layer_id": "hazard_hurricane_2025_09_12_baytown",
+                "road_network_id": "roads_baytown",
+                "shelter_layer_id": "shelters_baytown",
+                "population_grid_id": "pop_density_baytown"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "compute_evacuation_routes_xyz123",
+          "content": "{\"routes\":[{\"origin\":\"Neighborhood A\",\"shelter\":\"Baytown Community Center\",\"polyline\":\"...\",\"travel_time_min\":12},{\"origin\":\"Neighborhood B\",\"shelter\":\"East Bay High School\",\"polyline\":\"...\",\"travel_time_min\":9}],\"summary\":\"All routes avoid flood\u2011inundated zones.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Routes calculated. I will now generate a formatted evacuation plan document.",
+          "tool_calls": [
+            {
+              "id": "generate_plan_document_abc789",
+              "name": "generate_plan_document",
+              "arguments": {
+                "region": "Baytown, TX",
+                "hazard_type": "hurricane",
+                "routes": [
+                  {
+                    "origin": "Neighborhood A",
+                    "shelter": "Baytown Community Center",
+                    "travel_time_min": 12
+                  },
+                  {
+                    "origin": "Neighborhood B",
+                    "shelter": "East Bay High School",
+                    "travel_time_min": 9
+                  }
+                ],
+                "shelters": [
+                  {
+                    "name": "Baytown Community Center",
+                    "capacity": 500,
+                    "address": "123 Main St",
+                    "gps": "29.75,-95.10"
+                  },
+                  {
+                    "name": "East Bay High School",
+                    "capacity": 300,
+                    "address": "456 East Blvd",
+                    "gps": "29.80,-95.00"
+                  }
+                ],
+                "custom_instructions": "Follow the posted signs, bring emergency kits, and stay informed via local radio."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_plan_document_abc789",
+          "content": "{\"pdf_url\":\"https://files.example.com/plans/baytown_hurricane_2025_09_12.pdf\",\"markdown_url\":\"https://files.example.com/plans/baytown_hurricane_2025_09_12.md\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "The evacuation plan is ready. I\u2019ll email it to the city manager now.\n\n**Plan Summary**\n- Hazard: Hurricane (Category\u202f5) expected 2025\u201109\u201112\n- Total shelters identified: 2, total capacity: 800\n- Key routes avoid projected flood zones\n\nYou can download the full PDF or markdown version below:\n- PDF: https://files.example.com/plans/baytown_hurricane_2025_09_12.pdf\n- Markdown: https://files.example.com/plans/baytown_hurricane_2025_09_12.md",
+          "tool_calls": [
+            {
+              "id": "send_notification_def456",
+              "name": "send_notification",
+              "arguments": {
+                "recipients": [
+                  {
+                    "email": "citymanager@baytown.gov"
+                  },
+                  {
+                    "phone": "+15551234567"
+                  }
+                ],
+                "message": "Baytown Hurricane Evacuation Plan (2025\u201109\u201112) is ready: https://files.example.com/plans/baytown_hurricane_2025_09_12.pdf"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_notification_def456",
+          "content": "{\"status\":\"sent\",\"details\":\"Emails and SMS dispatched to 2 recipients.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "All notifications have been sent. Let me know if you need any further modifications or a drill schedule.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User asks for an earthquake response plan for Mountainville. The assistant pulls fault\u2011line data, checks bridge integrity, creates routes to high\u2011capacity shelters, and provides a concise briefing.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are SafeRoute Planner, specialized in rapid post\u2011earthquake evacuation planning."
+        },
+        {
+          "role": "user",
+          "content": "A magnitude\u202f7.2 earthquake is expected on the San Ridge fault affecting Mountainville. Generate an emergency evacuation plan for the downtown area, focusing on routes that avoid structurally compromised bridges."
+        },
+        {
+          "role": "assistant",
+          "content": "Got it. I\u2019ll retrieve the fault\u2011line GIS layer, the bridge inventory with condition ratings, and the list of downtown shelters, then compute safe routes.",
+          "tool_calls": [
+            {
+              "id": "fetch_gis_data_fa1b2c",
+              "name": "fetch_gis_data",
+              "arguments": {
+                "region": "Mountainville",
+                "hazard_type": "earthquake",
+                "date": "2025-11-03"
+              }
+            },
+            {
+              "id": "query_infrastructure_bridges",
+              "name": "query_infrastructure",
+              "arguments": {
+                "region": "Mountainville",
+                "feature_type": "bridge"
+              }
+            },
+            {
+              "id": "query_infrastructure_shelters",
+              "name": "query_infrastructure",
+              "arguments": {
+                "region": "Mountainville",
+                "feature_type": "shelter"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_gis_data_fa1b2c",
+          "content": "{\"layer_id\":\"fault_san_ridge_2025\",\"type\":\"vector\",\"url\":\"https://maps.example.com/faults/san_ridge.geojson\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "query_infrastructure_bridges",
+          "content": "{\"layer_id\":\"bridges_mountainville\",\"type\":\"vector\",\"url\":\"https://infra.example.com/bridges/mountainville.geojson\"}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "query_infrastructure_shelters",
+          "content": "{\"layer_id\":\"shelters_mountainville_downtown\",\"type\":\"vector\",\"url\":\"https://infra.example.com/shelters/mountainville_downtown.geojson\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Data retrieved. I will filter out bridges with condition rating below \"fair\" and then compute evacuation routes.",
+          "tool_calls": [
+            {
+              "id": "compute_evacuation_routes_xyz999",
+              "name": "compute_evacuation_routes",
+              "arguments": {
+                "hazard_layer_id": "fault_san_ridge_2025",
+                "road_network_id": "roads_mountainville",
+                "shelter_layer_id": "shelters_mountainville_downtown",
+                "population_grid_id": "pop_density_mountainville"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "compute_evacuation_routes_xyz999",
+          "content": "{\"routes\":[{\"origin\":\"Downtown Block 1\",\"shelter\":\"Mountainville High School\",\"polyline\":\"...\",\"travel_time_min\":5},{\"origin\":\"Downtown Block 3\",\"shelter\":\"Eastside Gym\",\"polyline\":\"...\",\"travel_time_min\":4}],\"summary\":\"All routes avoid bridges rated poor or critical.\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Routes ready. I\u2019ll build a short briefing document.",
+          "tool_calls": [
+            {
+              "id": "generate_plan_document_brief123",
+              "name": "generate_plan_document",
+              "arguments": {
+                "region": "Mountainville",
+                "hazard_type": "earthquake",
+                "routes": [
+                  {
+                    "origin": "Downtown Block 1",
+                    "shelter": "Mountainville High School",
+                    "travel_time_min": 5
+                  },
+                  {
+                    "origin": "Downtown Block 3",
+                    "shelter": "Eastside Gym",
+                    "travel_time_min": 4
+                  }
+                ],
+                "shelters": [
+                  {
+                    "name": "Mountainville High School",
+                    "capacity": 1200,
+                    "address": "200 School Rd",
+                    "gps": "38.45,-122.30"
+                  },
+                  {
+                    "name": "Eastside Gym",
+                    "capacity": 800,
+                    "address": "55 East St",
+                    "gps": "38.46,-122.28"
+                  }
+                ],
+                "custom_instructions": "Avoid any bridges marked red on the city map. Stay low, protect head, and proceed to the nearest shelter."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_plan_document_brief123",
+          "content": "{\"pdf_url\":\"https://files.example.com/plans/mountainville_eq_2025_11_03.pdf\",\"markdown_url\":\"https://files.example.com/plans/mountainville_eq_2025_11_03.md\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "The emergency evacuation briefing is ready. Download it here:\n- PDF: https://files.example.com/plans/mountainville_eq_2025_11_03.pdf\n- Markdown: https://files.example.com/plans/mountainville_eq_2025_11_03.md\n\nKey points:\n1. Use the routes above; they bypass compromised bridges.\n2. Bring a personal emergency kit.\n3. Follow police and fire\u2011department instructions on the ground.\n\nLet me know if you need a printable flyer or a radio script.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

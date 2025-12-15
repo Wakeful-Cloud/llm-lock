@@ -1,0 +1,114 @@
+{
+  "description": "A coordinator uploads trial eligibility text, the AI parses it, queries the EMR for matching patients, sends a secure portal message to a patient, the patient replies consenting to be contacted, and the AI records the consent for compliance.",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are TrialMatchAI, an AI\u2011enhanced clinical trial recruiter. Your job is to translate free\u2011text eligibility criteria into structured queries, search the EMR for matching patients, securely message patients through the portal, and record any consent responses with audit\u2011ready timestamps."
+    },
+    {
+      "role": "user",
+      "content": "We have a new Phase II trial for metastatic non\u2011small cell lung cancer (NSCLC). Eligibility:\n\nInclusion:\n- Age 18\u201180 years\n- Histologically confirmed metastatic NSCLC\n- EGFR\u2011wild type (no prior EGFR inhibitor therapy)\n- ECOG performance status \u2264 2\n- Measurable disease per RECIST 1.1\n\nExclusion:\n- Prior chemotherapy for metastatic disease\n- Active CNS metastases\n- Uncontrolled cardiovascular disease\n\nPlease find patients who match and reach out to the first eligible patient."
+    },
+    {
+      "role": "assistant",
+      "content": "Parsing the free\u2011text eligibility into a structured JSON schema\u2026",
+      "tool_calls": [
+        {
+          "id": "eligibility_parser_1a2b3c",
+          "name": "eligibility_parser",
+          "arguments": {
+            "eligibility_text": "Inclusion:\n- Age 18\u201180 years\n- Histologically confirmed metastatic NSCLC\n- EGFR\u2011wild type (no prior EGFR inhibitor therapy)\n- ECOG performance status \u2264 2\n- Measurable disease per RECIST 1.1\n\nExclusion:\n- Prior chemotherapy for metastatic disease\n- Active CNS metastases\n- Uncontrolled cardiovascular disease"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "eligibility_parser_1a2b3c",
+      "content": "{\"inclusion\": {\"age_min\": 18, \"age_max\": 80, \"diagnosis\": \"metastatic NSCLC\", \"egfr_wild_type\": true, \"ecog_max\": 2, \"measurable_disease\": true}, \"exclusion\": {\"prior_chemotherapy\": true, \"active_cns_metastases\": true, \"uncontrolled_cvd\": true}}"
+    },
+    {
+      "role": "assistant",
+      "content": "Searching the EMR for patients that satisfy the parsed criteria (limit 5)\u2026",
+      "tool_calls": [
+        {
+          "id": "emr_query_4d5e6f",
+          "name": "emr_query",
+          "arguments": {
+            "criteria": {
+              "age_min": 18,
+              "age_max": 80,
+              "diagnosis": "metastatic NSCLC",
+              "egfr_wild_type": true,
+              "ecog_max": 2,
+              "measurable_disease": true,
+              "prior_chemotherapy": false,
+              "active_cns_metastases": false,
+              "uncontrolled_cvd": false
+            },
+            "limit": 5
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "emr_query_4d5e6f",
+      "content": "[{\"patient_id\": \"PAT12345\", \"age\": 65, \"gender\": \"Female\", \"last_visit\": \"2024-11-12\"}, {\"patient_id\": \"PAT67890\", \"age\": 58, \"gender\": \"Male\", \"last_visit\": \"2024-10-30\"}]"
+    },
+    {
+      "role": "assistant",
+      "content": "Sending a secure portal message to the first matching patient (PAT12345) with trial details and a request for consent\u2026",
+      "tool_calls": [
+        {
+          "id": "secure_message_send_7g8h9i",
+          "name": "secure_message_send",
+          "arguments": {
+            "patient_id": "PAT12345",
+            "subject": "Invitation to Join a Phase II NSCLC Clinical Trial",
+            "body": "## Dear Patient,\n\nYou have been identified as a potential candidate for a Phase\u202fII trial studying a new therapy for metastatic non\u2011small cell lung cancer (NSCLC). \n\n**Key eligibility highlights**:\n- Age 18\u201180\n- EGFR\u2011wild type\n- ECOG \u2264\u202f2\n- No prior chemotherapy for metastatic disease\n\nIf you are interested in learning more or would like to be contacted by the study team, please reply **YES** to this message.\n\nThank you for your time.\n\n*The Clinical Trials Team*"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "secure_message_send_7g8h9i",
+      "content": "{\"delivery_status\": \"sent\", \"timestamp\": \"2025-12-09T14:22:31Z\", \"message_id\": \"MSG001\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "The secure message has been delivered to patient PAT12345 (Message ID: MSG001). I will monitor the portal for a response.",
+      "tool_calls": []
+    },
+    {
+      "role": "user",
+      "content": "YES, I would like to learn more about the trial and consent to be contacted."
+    },
+    {
+      "role": "assistant",
+      "content": "Recording the patient\u2019s consent for contact\u2026",
+      "tool_calls": [
+        {
+          "id": "consent_capture_ab12cd",
+          "name": "consent_capture",
+          "arguments": {
+            "patient_id": "PAT12345",
+            "consent_given": true,
+            "timestamp": "2025-12-09T14:45:07Z"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "consent_capture_ab12cd",
+      "content": "{\"patient_id\": \"PAT12345\", \"consent_given\": true, \"recorded_at\": \"2025-12-09T14:45:07Z\", \"audit_id\": \"AUDIT7890\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "\u2705 Consent recorded for patient PAT12345 (Audit ID: AUDIT7890). I will now arrange a virtual meeting with the study coordinator. Would you like me to propose a time?",
+      "tool_calls": []
+    }
+  ]
+}

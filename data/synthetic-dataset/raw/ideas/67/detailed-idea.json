@@ -1,0 +1,576 @@
+{
+  "name": "StageVision AI",
+  "description": "StageVision AI is an autonomous virtual\u2011home\u2011staging service. Real\u2011estate agents upload property photos or an address, select a design style, and the LLM orchestrates photo retrieval, room analysis, trend research, catalog search, AI\u2011based image synthesis and cloud storage to deliver ready\u2011to\u2011publish staged images for listings.",
+  "tools": [
+    {
+      "name": "fetch_property_photos",
+      "description": "Retrieves property images based on a full street address or a list of pre\u2011hosted image URLs supplied by the user. Returns a JSON object with a field `photo_urls` containing an array of accessible image URLs.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "Full street address of the property (e.g., \"123 Main St, Springfield, IL\")."
+          },
+          "photo_urls": {
+            "type": "array",
+            "description": "List of image URLs already hosted online.",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "analyze_room_layout",
+      "description": "Runs computer\u2011vision on a single room image to extract dimensions, wall colour, floor type, existing furniture and suggested placement zones. Returns a JSON object with those attributes.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "image_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL of the room photo to be analysed."
+          }
+        },
+        "required": [
+          "image_url"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_design_trends",
+      "description": "Fetches the latest interior\u2011design trends for a given style and season. Returns a JSON object containing colour palette, recommended materials and key furniture types.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "style": {
+            "type": "string",
+            "description": "Desired design style (e.g., \"modern minimal\", \"scandinavian\")."
+          },
+          "season": {
+            "type": "string",
+            "description": "Season or quarter to tailor trends (e.g., \"spring 2025\")."
+          }
+        },
+        "required": [
+          "style"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "search_furniture_catalog",
+      "description": "Searches partnered furniture supplier catalogs for items matching the requested style, category, colour and optional price ceiling. Returns a JSON object with an `items` array where each element includes a `catalog_id`, a thumbnail URL and price.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "style": {
+            "type": "string",
+            "description": "Design style to match."
+          },
+          "category": {
+            "type": "string",
+            "description": "Furniture category (e.g., \"sofa\", \"coffee table\")."
+          },
+          "color": {
+            "type": "string",
+            "description": "Preferred colour (optional)."
+          },
+          "price_max": {
+            "type": "number",
+            "description": "Maximum price in USD (optional)."
+          }
+        },
+        "required": [
+          "style",
+          "category"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_staged_image",
+      "description": "Calls a depth\u2011aware image\u2011synthesis model to insert the selected furniture items into the original room photo. Returns a base\u201164\u2011encoded PNG of the staged scene.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "base_image_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL of the original empty\u2011room photo."
+          },
+          "furniture_items": {
+            "type": "array",
+            "description": "List of furniture objects to render into the scene.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "catalog_id": {
+                  "type": "string",
+                  "description": "ID of the furniture item from the catalog."
+                },
+                "position": {
+                  "type": "object",
+                  "description": "2\u2011D floor\u2011plan coordinates expressed as percentages of image width/height.",
+                  "properties": {
+                    "x": {
+                      "type": "number",
+                      "description": "Horizontal offset 0\u2011100."
+                    },
+                    "y": {
+                      "type": "number",
+                      "description": "Vertical offset 0\u2011100."
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "y"
+                  ]
+                },
+                "scale": {
+                  "type": "number",
+                  "description": "Relative size factor (default 1.0)."
+                },
+                "rotation": {
+                  "type": "number",
+                  "description": "Rotation in degrees clockwise (default 0)."
+                }
+              },
+              "required": [
+                "catalog_id",
+                "position"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "output_resolution": {
+            "type": "string",
+            "description": "Desired output size, e.g., \"1024x768\". Optional."
+          }
+        },
+        "required": [
+          "base_image_url",
+          "furniture_items"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "store_image",
+      "description": "Uploads a base\u201164\u2011encoded PNG/JPEG to cloud storage and returns a publicly accessible URL. Optional folder parameter lets you organise images.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "image_base64": {
+            "type": "string",
+            "description": "Base\u201164 string of the generated image."
+          },
+          "folder": {
+            "type": "string",
+            "description": "Folder path for organization (optional)."
+          }
+        },
+        "required": [
+          "image_base64"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User provides an address and requests a modern\u2011minimal living\u2011room staging. The assistant fetches photos, analyses the layout, gets current trends, selects sofa, coffee table and lamp, generates a staged image and returns a shareable URL.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are StageVision AI, an autonomous virtual\u2011staging assistant. Use the provided tools to obtain photos, analyse rooms, lookup trends, find furniture, generate staged renders and store the results."
+        },
+        {
+          "role": "user",
+          "content": "I have a listing at 123 Main St, Springfield. Please give me a modern\u2011minimal living\u2011room staging."
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching property photos for the address...",
+          "tool_calls": [
+            {
+              "id": "fetch_property_photos_1a2b3c",
+              "name": "fetch_property_photos",
+              "arguments": {
+                "address": "123 Main St, Springfield"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_property_photos_1a2b3c",
+          "content": "{\"photo_urls\": [\"https://cdn.example.com/prop123/living1.jpg\", \"https://cdn.example.com/prop123/living2.jpg\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Analyzing the first living\u2011room photo to understand dimensions and existing features.",
+          "tool_calls": [
+            {
+              "id": "analyze_room_layout_4d5e6f",
+              "name": "analyze_room_layout",
+              "arguments": {
+                "image_url": "https://cdn.example.com/prop123/living1.jpg"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "analyze_room_layout_4d5e6f",
+          "content": "{\"width_ft\": 18, \"depth_ft\": 14, \"wall_color\": \"soft white\", \"floor\": \"light oak\", \"existing_furniture\": [], \"placement_zones\": [{\"zone\": \"center\", \"x\": 50, \"y\": 55}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching the latest modern\u2011minimal trends for spring\u202f2025.",
+          "tool_calls": [
+            {
+              "id": "get_design_trends_7g8h9i",
+              "name": "get_design_trends",
+              "arguments": {
+                "style": "modern minimal",
+                "season": "spring 2025"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_design_trends_7g8h9i",
+          "content": "{\"palette\": [\"charcoal\", \"warm gray\", \"natural wood\"], \"materials\": [\"matte metal\", \"woven linen\"], \"key_items\": [\"low\u2011profile sofa\", \"transparent coffee table\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Searching the catalogue for a charcoal low\u2011profile sofa.",
+          "tool_calls": [
+            {
+              "id": "search_furniture_catalog_sofa_abc123",
+              "name": "search_furniture_catalog",
+              "arguments": {
+                "style": "modern minimal",
+                "category": "sofa",
+                "color": "charcoal",
+                "price_max": 2000
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_furniture_catalog_sofa_abc123",
+          "content": "{\"items\": [{\"catalog_id\": \"SOFA123\", \"thumbnail\": \"https://catalog.example.com/sofas/sofa123.jpg\", \"price\": 1850}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Searching for a natural\u2011wood transparent coffee table.",
+          "tool_calls": [
+            {
+              "id": "search_furniture_catalog_table_def456",
+              "name": "search_furniture_catalog",
+              "arguments": {
+                "style": "modern minimal",
+                "category": "coffee table",
+                "color": "natural wood",
+                "price_max": 2000
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_furniture_catalog_table_def456",
+          "content": "{\"items\": [{\"catalog_id\": \"TABLE456\", \"thumbnail\": \"https://catalog.example.com/tables/table456.jpg\", \"price\": 1190}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Searching for a warm\u2011gray matte\u2011metal floor lamp.",
+          "tool_calls": [
+            {
+              "id": "search_furniture_catalog_lamp_ghi789",
+              "name": "search_furniture_catalog",
+              "arguments": {
+                "style": "modern minimal",
+                "category": "lamp",
+                "color": "warm gray",
+                "price_max": 2000
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_furniture_catalog_lamp_ghi789",
+          "content": "{\"items\": [{\"catalog_id\": \"LAMP789\", \"thumbnail\": \"https://catalog.example.com/lamps/lamp789.jpg\", \"price\": 350}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating a staged image with the selected sofa, coffee table and lamp.",
+          "tool_calls": [
+            {
+              "id": "generate_staged_image_jkl012",
+              "name": "generate_staged_image",
+              "arguments": {
+                "base_image_url": "https://cdn.example.com/prop123/living1.jpg",
+                "furniture_items": [
+                  {
+                    "catalog_id": "SOFA123",
+                    "position": {
+                      "x": 45,
+                      "y": 55
+                    },
+                    "scale": 1.0,
+                    "rotation": 0
+                  },
+                  {
+                    "catalog_id": "TABLE456",
+                    "position": {
+                      "x": 50,
+                      "y": 60
+                    },
+                    "scale": 0.9,
+                    "rotation": 0
+                  },
+                  {
+                    "catalog_id": "LAMP789",
+                    "position": {
+                      "x": 70,
+                      "y": 50
+                    },
+                    "scale": 0.8,
+                    "rotation": 0
+                  }
+                ],
+                "output_resolution": "1024x768"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_staged_image_jkl012",
+          "content": "{\"image_base64\": \"iVBORw0KGgoAAAANSUhEUgAAA... (truncated)\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Storing the final rendered image.",
+          "tool_calls": [
+            {
+              "id": "store_image_mno345",
+              "name": "store_image",
+              "arguments": {
+                "image_base64": "iVBORw0KGgoAAAANSUhEUgAAA... (truncated)",
+                "folder": "staged/123_main_st"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "store_image_mno345",
+          "content": "{\"url\": \"https://storage.example.com/staged/123_main_st/render_1.png\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is your modern\u2011minimal living\u2011room staging: https://storage.example.com/staged/123_main_st/render_1.png",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User supplies a bedroom photo URL and wants a cozy Scandinavian staging. The assistant analyses the room, gets trend data, selects a bed, nightstand and rug, generates the staged image, stores it and returns the link.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are StageVision AI, an autonomous virtual\u2011staging assistant. Use the defined tools to produce a staged bedroom image."
+        },
+        {
+          "role": "user",
+          "content": "Here is a photo of a bedroom: https://img.example.com/bedroom1.jpg. Please stage it in a cozy Scandinavian style."
+        },
+        {
+          "role": "assistant",
+          "content": "Analyzing the bedroom photo to extract layout details.",
+          "tool_calls": [
+            {
+              "id": "analyze_room_layout_001",
+              "name": "analyze_room_layout",
+              "arguments": {
+                "image_url": "https://img.example.com/bedroom1.jpg"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "analyze_room_layout_001",
+          "content": "{\"width_ft\": 12, \"depth_ft\": 10, \"wall_color\": \"light gray\", \"floor\": \"white oak\", \"existing_furniture\": [], \"placement_zones\": [{\"zone\": \"center\", \"x\": 50, \"y\": 55}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching current cozy Scandinavian trends for fall\u202f2024.",
+          "tool_calls": [
+            {
+              "id": "get_design_trends_002",
+              "name": "get_design_trends",
+              "arguments": {
+                "style": "scandinavian",
+                "season": "fall 2024"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_design_trends_002",
+          "content": "{\"palette\": [\"soft white\", \"dusty blue\", \"warm beige\"], \"materials\": [\"textured wool\", \"light birch\", \"ceramic\"], \"key_items\": [\"low\u2011profile platform bed\", \"woven rug\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Searching for a soft\u2011white platform bed.",
+          "tool_calls": [
+            {
+              "id": "search_furniture_catalog_003",
+              "name": "search_furniture_catalog",
+              "arguments": {
+                "style": "scandinavian",
+                "category": "bed",
+                "color": "soft white",
+                "price_max": 2500
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_furniture_catalog_003",
+          "content": "{\"items\": [{\"catalog_id\": \"BED321\", \"thumbnail\": \"https://catalog.example.com/beds/bed321.jpg\", \"price\": 2200}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Searching for a warm\u2011beige nightstand.",
+          "tool_calls": [
+            {
+              "id": "search_furniture_catalog_004",
+              "name": "search_furniture_catalog",
+              "arguments": {
+                "style": "scandinavian",
+                "category": "nightstand",
+                "color": "warm beige",
+                "price_max": 800
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_furniture_catalog_004",
+          "content": "{\"items\": [{\"catalog_id\": \"NIGHTSTAND654\", \"thumbnail\": \"https://catalog.example.com/nightstands/nt654.jpg\", \"price\": 450}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Searching for a dusty\u2011blue woven rug.",
+          "tool_calls": [
+            {
+              "id": "search_furniture_catalog_005",
+              "name": "search_furniture_catalog",
+              "arguments": {
+                "style": "scandinavian",
+                "category": "rug",
+                "color": "dusty blue",
+                "price_max": 600
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_furniture_catalog_005",
+          "content": "{\"items\": [{\"catalog_id\": \"RUG987\", \"thumbnail\": \"https://catalog.example.com/rugs/rug987.jpg\", \"price\": 300}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating the staged bedroom image with the selected pieces.",
+          "tool_calls": [
+            {
+              "id": "generate_staged_image_006",
+              "name": "generate_staged_image",
+              "arguments": {
+                "base_image_url": "https://img.example.com/bedroom1.jpg",
+                "furniture_items": [
+                  {
+                    "catalog_id": "BED321",
+                    "position": {
+                      "x": 50,
+                      "y": 55
+                    },
+                    "scale": 1.0,
+                    "rotation": 0
+                  },
+                  {
+                    "catalog_id": "NIGHTSTAND654",
+                    "position": {
+                      "x": 30,
+                      "y": 55
+                    },
+                    "scale": 0.7,
+                    "rotation": 0
+                  },
+                  {
+                    "catalog_id": "RUG987",
+                    "position": {
+                      "x": 50,
+                      "y": 70
+                    },
+                    "scale": 0.9,
+                    "rotation": 0
+                  }
+                ],
+                "output_resolution": "1024x768"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_staged_image_006",
+          "content": "{\"image_base64\": \"iVBORw0KGgoAAAANSUhEUgAAA... (truncated)\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Storing the staged bedroom render.",
+          "tool_calls": [
+            {
+              "id": "store_image_007",
+              "name": "store_image",
+              "arguments": {
+                "image_base64": "iVBORw0KGgoAAAANSUhEUgAAA... (truncated)",
+                "folder": "staged/bedroom1"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "store_image_007",
+          "content": "{\"url\": \"https://storage.example.com/staged/bedroom1/render.png\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Your cozy Scandinavian bedroom staging is ready: https://storage.example.com/staged/bedroom1/render.png",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

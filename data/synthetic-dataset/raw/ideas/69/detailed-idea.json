@@ -1,0 +1,541 @@
+{
+  "name": "StudySync Scheduler",
+  "description": "An AI\u2011driven personal study scheduling assistant that syncs academic calendars, pulls assignment deadlines, learns a student's energy rhythms, and generates optimal study timetables with reminders.",
+  "tools": [
+    {
+      "name": "calendar_sync",
+      "description": "Retrieves events from the user's academic calendar (classes, exams, study blocks) for a given date range.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "The first day (inclusive) for which calendar events should be fetched, in YYYY-MM-DD format."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "The last day (inclusive) for which calendar events should be fetched, in YYYY-MM-DD format."
+          },
+          "user_id": {
+            "type": "string",
+            "description": "Unique identifier of the user whose calendar is being accessed."
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date",
+          "user_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "assignment_fetcher",
+      "description": "Pulls assignment titles, due dates, and brief descriptions from the user's learning management system for the specified period.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Start of the window for which assignments should be retrieved."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "End of the window for which assignments should be retrieved."
+          },
+          "courses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional list of course codes to filter assignments."
+          },
+          "user_id": {
+            "type": "string",
+            "description": "Unique identifier of the user."
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date",
+          "user_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "energy_profile_analyzer",
+      "description": "Analyzes a user's self\u2011reported or wearable\u2011derived energy data and returns optimal study windows for a given day.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Unique identifier of the user."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "The date for which the energy profile should be computed."
+          },
+          "energy_data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "string",
+                  "format": "time",
+                  "description": "Start time of the energy block (hh:mm)."
+                },
+                "end": {
+                  "type": "string",
+                  "format": "time",
+                  "description": "End time of the energy block (hh:mm)."
+                },
+                "level": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 5,
+                  "description": "Energy level on a 1\u20115 scale (5 = peak)."
+                }
+              },
+              "required": [
+                "start",
+                "end",
+                "level"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Array of energy measurements for the day."
+          }
+        },
+        "required": [
+          "user_id",
+          "date",
+          "energy_data"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "schedule_generator",
+      "description": "Creates a personalized study timetable using calendar events, assignment deadlines, energy windows, and user preferences.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "calendar_events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "description": "Name of the event (e.g., \"Biology Lecture\")."
+                },
+                "start": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "ISO\u20118601 start timestamp."
+                },
+                "end": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "ISO\u20118601 end timestamp."
+                }
+              },
+              "required": [
+                "title",
+                "start",
+                "end"
+              ],
+              "additionalProperties": false
+            },
+            "description": "List of busy periods from the user's calendar."
+          },
+          "assignments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "description": "Assignment name."
+                },
+                "due_date": {
+                  "type": "string",
+                  "format": "date",
+                  "description": "Deadline date."
+                },
+                "estimated_hours": {
+                  "type": "number",
+                  "description": "How many study hours the user thinks are needed."
+                }
+              },
+              "required": [
+                "title",
+                "due_date",
+                "estimated_hours"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Assignments that need to be scheduled."
+          },
+          "energy_pattern": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "string",
+                  "format": "time",
+                  "description": "Start of high\u2011energy window."
+                },
+                "end": {
+                  "type": "string",
+                  "format": "time",
+                  "description": "End of high\u2011energy window."
+                }
+              },
+              "required": [
+                "start",
+                "end"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Preferred study windows derived from the energy profile."
+          },
+          "preferences": {
+            "type": "object",
+            "properties": {
+              "session_length_minutes": {
+                "type": "integer",
+                "description": "Typical length of a focused study session."
+              },
+              "break_length_minutes": {
+                "type": "integer",
+                "description": "Break length between sessions."
+              },
+              "max_daily_study_hours": {
+                "type": "number",
+                "description": "Upper bound of total study time per day."
+              }
+            },
+            "required": [
+              "session_length_minutes",
+              "break_length_minutes"
+            ],
+            "additionalProperties": false
+          },
+          "user_id": {
+            "type": "string",
+            "description": "Unique identifier of the user."
+          }
+        },
+        "required": [
+          "calendar_events",
+          "assignments",
+          "energy_pattern",
+          "preferences",
+          "user_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "notification_sender",
+      "description": "Sends a reminder to the user (via email, push, or SMS) about an upcoming study session.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Unique identifier of the recipient."
+          },
+          "message": {
+            "type": "string",
+            "description": "The reminder text."
+          },
+          "scheduled_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the notification should be delivered."
+          }
+        },
+        "required": [
+          "user_id",
+          "message",
+          "scheduled_time"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "feedback_logger",
+      "description": "Records user feedback about a completed study session to improve future scheduling decisions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Unique identifier of the user."
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Identifier of the study session being reviewed."
+          },
+          "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "description": "Star rating (1\u20115) reflecting how productive the session felt."
+          },
+          "comments": {
+            "type": "string",
+            "description": "Optional free\u2011form comment."
+          }
+        },
+        "required": [
+          "user_id",
+          "session_id",
+          "rating"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks for a study timetable for a busy week; the assistant gathers calendar events, assignments, analyzes energy, generates a schedule, and returns it.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are StudySync Scheduler, an agent that creates optimal study timetables by combining academic calendars, assignment deadlines, and the student's personal energy patterns."
+        },
+        {
+          "role": "user",
+          "content": "I have classes on Mon/Wed/Fri 9\u201111\u202fam, an essay due Thursday, and I study best in the evenings. Can you build a schedule for me from Monday to Friday?"
+        },
+        {
+          "role": "assistant",
+          "content": "Sure, I\u2019ll first fetch your calendar events and upcoming assignments.",
+          "tool_calls": [
+            {
+              "id": "calendar_sync_1a2b3c",
+              "name": "calendar_sync",
+              "arguments": {
+                "user_id": "user_123",
+                "start_date": "2025-12-09",
+                "end_date": "2025-12-13"
+              }
+            },
+            {
+              "id": "assignment_fetcher_4d5e6f",
+              "name": "assignment_fetcher",
+              "arguments": {
+                "user_id": "user_123",
+                "start_date": "2025-12-09",
+                "end_date": "2025-12-13"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "calendar_sync_1a2b3c",
+          "content": "[{\"title\":\"Calculus Lecture\",\"start\":\"2025-12-09T09:00:00\",\"end\":\"2025-12-09T11:00:00\"},{\"title\":\"Physics Lecture\",\"start\":\"2025-12-11T09:00:00\",\"end\":\"2025-12-11T11:00:00\"},{\"title\":\"Chemistry Lecture\",\"start\":\"2025-12-13T09:00:00\",\"end\":\"2025-12-13T11:00:00\"}]"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "assignment_fetcher_4d5e6f",
+          "content": "[{\"title\":\"History Essay\",\"due_date\":\"2025-12-12\",\"estimated_hours\":6}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Got the events and assignment. I\u2019ll now analyze your energy pattern for the evenings.",
+          "tool_calls": [
+            {
+              "id": "energy_profile_analyzer_7g8h9i",
+              "name": "energy_profile_analyzer",
+              "arguments": {
+                "user_id": "user_123",
+                "date": "2025-12-09",
+                "energy_data": [
+                  {
+                    "start": "16:00",
+                    "end": "22:00",
+                    "level": 5
+                  },
+                  {
+                    "start": "08:00",
+                    "end": "12:00",
+                    "level": 2
+                  }
+                ]
+              }
+            },
+            {
+              "id": "schedule_generator_abcd12",
+              "name": "schedule_generator",
+              "arguments": {
+                "user_id": "user_123",
+                "calendar_events": [
+                  {
+                    "title": "Calculus Lecture",
+                    "start": "2025-12-09T09:00:00",
+                    "end": "2025-12-09T11:00:00"
+                  },
+                  {
+                    "title": "Physics Lecture",
+                    "start": "2025-12-11T09:00:00",
+                    "end": "2025-12-11T11:00:00"
+                  },
+                  {
+                    "title": "Chemistry Lecture",
+                    "start": "2025-12-13T09:00:00",
+                    "end": "2025-12-13T11:00:00"
+                  }
+                ],
+                "assignments": [
+                  {
+                    "title": "History Essay",
+                    "due_date": "2025-12-12",
+                    "estimated_hours": 6
+                  }
+                ],
+                "energy_pattern": [
+                  {
+                    "start": "16:00",
+                    "end": "22:00"
+                  }
+                ],
+                "preferences": {
+                  "session_length_minutes": 90,
+                  "break_length_minutes": 15,
+                  "max_daily_study_hours": 4
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "energy_profile_analyzer_7g8h9i",
+          "content": "{\"date\":\"2025-12-09\",\"high_energy_windows\":[{\"start\":\"16:00\",\"end\":\"22:00\"}]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "schedule_generator_abcd12",
+          "content": "{\"schedule\":[{\"date\":\"2025-12-09\",\"sessions\":[{\"start\":\"16:00\",\"end\":\"17:30\",\"task\":\"History Essay \u2013 Research\"}]},{\"date\":\"2025-12-10\",\"sessions\":[{\"start\":\"16:00\",\"end\":\"17:30\",\"task\":\"History Essay \u2013 Outline\"}]},{\"date\":\"2025-12-11\",\"sessions\":[{\"start\":\"16:00\",\"end\":\"17:30\",\"task\":\"History Essay \u2013 Draft\"}]},{\"date\":\"2025-12-12\",\"sessions\":[{\"start\":\"16:00\",\"end\":\"18:00\",\"task\":\"History Essay \u2013 Final Edit\"}]}] }"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is your personalized study timetable:\n\n**Monday (12/9)** 16:00\u201117:30 \u2192 History Essay \u2013 Research\n**Tuesday (12/10)** 16:00\u201117:30 \u2192 History Essay \u2013 Outline\n**Wednesday (12/11)** 16:00\u201117:30 \u2192 History Essay \u2013 Draft\n**Thursday (12/12)** 16:00\u201118:00 \u2192 History Essay \u2013 Final Edit\n\nI\u2019ll also schedule reminder notifications for each session.\nSetting up reminders...",
+          "tool_calls": [
+            {
+              "id": "notification_sender_f1e2d3",
+              "name": "notification_sender",
+              "arguments": {
+                "user_id": "user_123",
+                "message": "Study session: History Essay \u2013 Research starts now.",
+                "scheduled_time": "2025-12-09T16:00:00"
+              }
+            },
+            {
+              "id": "notification_sender_f4g5h6",
+              "name": "notification_sender",
+              "arguments": {
+                "user_id": "user_123",
+                "message": "Study session: History Essay \u2013 Outline starts now.",
+                "scheduled_time": "2025-12-10T16:00:00"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "notification_sender_f1e2d3",
+          "content": "Notification scheduled for 2025-12-09T16:00:00."
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "notification_sender_f4g5h6",
+          "content": "Notification scheduled for 2025-12-10T16:00:00."
+        },
+        {
+          "role": "assistant",
+          "content": "All reminders are set! Let me know if anything changes.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User reports lower morning energy and asks to shift study sessions later; the assistant logs feedback and generates an updated schedule.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are StudySync Scheduler, an agent that builds and adapts study timetables based on calendars, assignments, and personal energy trends."
+        },
+        {
+          "role": "user",
+          "content": "I've been feeling sleepy in the mornings lately. Can we push my study sessions for the next three days to start after 1\u202fpm?"
+        },
+        {
+          "role": "assistant",
+          "content": "Understood. I\u2019ll log this energy change and recompute your schedule.",
+          "tool_calls": [
+            {
+              "id": "feedback_logger_ab12cd",
+              "name": "feedback_logger",
+              "arguments": {
+                "user_id": "user_123",
+                "session_id": "morning_energy_adjust_2025-12-09",
+                "rating": 2,
+                "comments": "Low energy before 1pm, prefer later study."
+              }
+            },
+            {
+              "id": "schedule_generator_ef34gh",
+              "name": "schedule_generator",
+              "arguments": {
+                "user_id": "user_123",
+                "calendar_events": [],
+                "assignments": [],
+                "energy_pattern": [
+                  {
+                    "start": "13:00",
+                    "end": "22:00"
+                  }
+                ],
+                "preferences": {
+                  "session_length_minutes": 90,
+                  "break_length_minutes": 15,
+                  "max_daily_study_hours": 3
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "feedback_logger_ab12cd",
+          "content": "Feedback recorded for session morning_energy_adjust_2025-12-09."
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "schedule_generator_ef34gh",
+          "content": "{\"schedule\":[{\"date\":\"2025-12-09\",\"sessions\":[{\"start\":\"13:30\",\"end\":\"15:00\",\"task\":\"Review Chemistry notes\"}]},{\"date\":\"2025-12-10\",\"sessions\":[{\"start\":\"14:00\",\"end\":\"15:30\",\"task\":\"Math problem set\"}]},{\"date\":\"2025-12-11\",\"sessions\":[{\"start\":\"13:30\",\"end\":\"15:00\",\"task\":\"Biology reading\"}]}] }"
+        },
+        {
+          "role": "assistant",
+          "content": "Your updated study plan (starting after 1\u202fpm) is:\n\n**Thu 12/9** 13:30\u201115:00 \u2192 Review Chemistry notes\n**Fri 12/10** 14:00\u201115:30 \u2192 Math problem set\n**Sat 12/11** 13:30\u201115:00 \u2192 Biology reading\n\nLet me know if you\u2019d like any further tweaks.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

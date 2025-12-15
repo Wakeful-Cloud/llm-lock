@@ -1,0 +1,671 @@
+{
+  "name": "ScholarAssist",
+  "description": "ScholarAssist is an AI\u2011powered Academic Research Assistant that autonomously searches scholarly databases (PubMed, arXiv), extracts key findings, formats citations, and drafts literature\u2011review sections. Researchers can ask for a review on any topic and receive a polished, citation\u2011rich write\u2011up ready for inclusion in manuscripts or grant proposals.",
+  "tools": [
+    {
+      "name": "search_database",
+      "description": "Search a scholarly database (PubMed or arXiv) with a free\u2011text query and return up to `max_results` items. Each result includes title, authors, year, DOI/arXiv\u2011ID, and a short abstract snippet formatted in Markdown.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The research query or keywords."
+          },
+          "database": {
+            "type": "string",
+            "enum": [
+              "pubmed",
+              "arxiv"
+            ],
+            "description": "Which database to query."
+          },
+          "max_results": {
+            "type": "integer",
+            "default": 5,
+            "description": "Maximum number of results to return."
+          }
+        },
+        "required": [
+          "query",
+          "database"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_paper",
+      "description": "Retrieve the full metadata (title, authors, abstract, journal, year, DOI/arXiv\u2011ID, link) for a paper given its unique identifier.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "description": "DOI (for PubMed) or arXiv ID."
+          },
+          "id_type": {
+            "type": "string",
+            "enum": [
+              "doi",
+              "arxiv"
+            ],
+            "description": "Specifies whether the identifier is a DOI or an arXiv ID."
+          }
+        },
+        "required": [
+          "identifier",
+          "id_type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "extract_findings",
+      "description": "Analyse an abstract or a full\u2011text passage and return the core methods, results, and conclusions as concise bullet points.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The abstract or passage to analyse."
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "format_citation",
+      "description": "Format a citation from supplied metadata into a chosen citation style (APA or MLA). Returns the citation as a plain string.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Paper title."
+          },
+          "authors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of author names in \"First Last\" order."
+          },
+          "year": {
+            "type": "integer",
+            "description": "Publication year."
+          },
+          "journal": {
+            "type": "string",
+            "description": "Journal or conference name (optional for arXiv papers)."
+          },
+          "doi": {
+            "type": "string",
+            "description": "Digital Object Identifier (optional for arXiv papers)."
+          },
+          "style": {
+            "type": "string",
+            "enum": [
+              "apa",
+              "mla"
+            ],
+            "description": "Citation style to use."
+          }
+        },
+        "required": [
+          "title",
+          "authors",
+          "year",
+          "style"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "summarize_section",
+      "description": "Create a narrative paragraph that synthesises a list of extracted findings into a coherent literature\u2011review segment of roughly `target_length` words.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Bullet\u2011point findings from multiple papers."
+          },
+          "target_length": {
+            "type": "integer",
+            "default": 150,
+            "description": "Desired word count of the summary."
+          }
+        },
+        "required": [
+          "findings"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "draft_review_section",
+      "description": "Combine one or more summary paragraphs and their associated citations into a polished literature\u2011review section. Allows selection of tone (formal or neutral).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "topic": {
+            "type": "string",
+            "description": "The specific sub\u2011topic of the review (e.g., \"intermittent fasting and insulin sensitivity\")."
+          },
+          "summaries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "One or more summary paragraphs."
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Formatted citation strings that correspond to the summaries."
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "formal",
+              "neutral"
+            ],
+            "description": "Desired writing tone."
+          }
+        },
+        "required": [
+          "topic",
+          "summaries",
+          "citations"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks for a short literature\u2011review on intermittent fasting and metabolic health. The assistant searches PubMed, retrieves two key papers, extracts findings, formats APA citations, summarises, and drafts a paragraph.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are ScholarAssist, an autonomous research assistant. Use the provided tools to gather evidence, cite sources, and draft concise literature\u2011review text."
+        },
+        {
+          "role": "user",
+          "content": "I need a brief literature\u2011review (\u2248150 words) on how intermittent fasting affects insulin sensitivity. Include APA citations."
+        },
+        {
+          "role": "assistant",
+          "content": "Let me find recent PubMed articles on this topic.",
+          "tool_calls": [
+            {
+              "id": "search_database_1a2b3c",
+              "name": "search_database",
+              "arguments": {
+                "query": "intermittent fasting insulin sensitivity",
+                "database": "pubmed",
+                "max_results": 3
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_database_1a2b3c",
+          "content": "[\n  {\n    \"title\": \"Intermittent fasting improves insulin sensitivity in humans.\",\n    \"authors\": [\"Harvey, S.\", \"Lee, J.\", \"Miller, K.\"],\n    \"year\": 2022,\n    \"doi\": \"10.1016/j.metabol.2022.154987\",\n    \"snippet\": \"A randomized controlled trial shows that alternate\u2011day fasting improves peripheral insulin sensitivity...\"\n  },\n  {\n    \"title\": \"Time\u2011restricted feeding restores insulin sensitivity in obese mice.\",\n    \"authors\": [\"Cheng, Y.\", \"Zhang, L.\"],\n    \"year\": 2021,\n    \"doi\": \"10.1038/s41591-021-01345\",\n    \"snippet\": \"In a mouse model, 8\u2011hour feeding windows rescued diet\u2011induced insulin resistance...\"\n  }\n]"
+        },
+        {
+          "role": "assistant",
+          "content": "I will fetch the full abstracts for those two papers.",
+          "tool_calls": [
+            {
+              "id": "fetch_paper_a1b2c3",
+              "name": "fetch_paper",
+              "arguments": {
+                "identifier": "10.1016/j.metabol.2022.154987",
+                "id_type": "doi"
+              }
+            },
+            {
+              "id": "fetch_paper_d4e5f6",
+              "name": "fetch_paper",
+              "arguments": {
+                "identifier": "10.1038/s41591-021-01345",
+                "id_type": "doi"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_paper_a1b2c3",
+          "content": "{ \"title\": \"Intermittent fasting improves insulin sensitivity in humans.\", \"authors\": [\"Harvey, S.\", \"Lee, J.\", \"Miller, K.\"], \"year\": 2022, \"journal\": \"Metabolism\", \"doi\": \"10.1016/j.metabol.2022.154987\", \"abstract\": \"In this 12\u2011week RCT, participants practicing alternate\u2011day fasting showed a 15% increase in peripheral insulin sensitivity measured by euglycemic clamp...\" }"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_paper_d4e5f6",
+          "content": "{ \"title\": \"Time\u2011restricted feeding restores insulin sensitivity in obese mice.\", \"authors\": [\"Cheng, Y.\", \"Zhang, L.\"], \"year\": 2021, \"journal\": \"Nature Medicine\", \"doi\": \"10.1038/s41591-021-01345\", \"abstract\": \"Obese mice were subjected to an 8\u2011hour feeding window for 8 weeks, resulting in normalization of fasting glucose and improved insulin signaling pathways...\" }"
+        },
+        {
+          "role": "assistant",
+          "content": "Extracting the main findings from each abstract.",
+          "tool_calls": [
+            {
+              "id": "extract_findings_abc123",
+              "name": "extract_findings",
+              "arguments": {
+                "text": "In this 12\u2011week RCT, participants practicing alternate\u2011day fasting showed a 15% increase in peripheral insulin sensitivity measured by euglycemic clamp..."
+              }
+            },
+            {
+              "id": "extract_findings_def456",
+              "name": "extract_findings",
+              "arguments": {
+                "text": "Obese mice were subjected to an 8\u2011hour feeding window for 8 weeks, resulting in normalization of fasting glucose and improved insulin signaling pathways..."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_findings_abc123",
+          "content": "- Alternate\u2011day fasting for 12 weeks increased peripheral insulin sensitivity by ~15% in humans.\n- Improvement confirmed via gold\u2011standard euglycemic clamp.\n- No adverse effects on body weight reported."
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_findings_def456",
+          "content": "- 8\u2011hour time\u2011restricted feeding for 8 weeks restored insulin sensitivity in diet\u2011induced obese mice.\n- Fasting glucose levels returned to normal.\n- Enhanced insulin signaling (IRS\u20111/AKT pathway) observed."
+        },
+        {
+          "role": "assistant",
+          "content": "Formatting APA citations for the two papers.",
+          "tool_calls": [
+            {
+              "id": "format_citation_ghi789",
+              "name": "format_citation",
+              "arguments": {
+                "title": "Intermittent fasting improves insulin sensitivity in humans.",
+                "authors": [
+                  "Harvey, S.",
+                  "Lee, J.",
+                  "Miller, K."
+                ],
+                "year": 2022,
+                "journal": "Metabolism",
+                "doi": "10.1016/j.metabol.2022.154987",
+                "style": "apa"
+              }
+            },
+            {
+              "id": "format_citation_jkl012",
+              "name": "format_citation",
+              "arguments": {
+                "title": "Time\u2011restricted feeding restores insulin sensitivity in obese mice.",
+                "authors": [
+                  "Cheng, Y.",
+                  "Zhang, L."
+                ],
+                "year": 2021,
+                "journal": "Nature Medicine",
+                "doi": "10.1038/s41591-021-01345",
+                "style": "apa"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "format_citation_ghi789",
+          "content": "Harvey, S., Lee, J., & Miller, K. (2022). Intermittent fasting improves insulin sensitivity in humans. *Metabolism*, 123, 154987. https://doi.org/10.1016/j.metabol.2022.154987"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "format_citation_jkl012",
+          "content": "Cheng, Y., & Zhang, L. (2021). Time\u2011restricted feeding restores insulin sensitivity in obese mice. *Nature Medicine*, 27, 01345. https://doi.org/10.1038/s41591-021-01345"
+        },
+        {
+          "role": "assistant",
+          "content": "Summarising the extracted findings into a ~150\u2011word paragraph.",
+          "tool_calls": [
+            {
+              "id": "summarize_section_mno345",
+              "name": "summarize_section",
+              "arguments": {
+                "findings": [
+                  "- Alternate\u2011day fasting for 12 weeks increased peripheral insulin sensitivity by ~15% in humans.\n- Improvement confirmed via gold\u2011standard euglycemic clamp.\n- No adverse effects on body weight reported.",
+                  "- 8\u2011hour time\u2011restricted feeding for 8 weeks restored insulin sensitivity in diet\u2011induced obese mice.\n- Fasting glucose levels returned to normal.\n- Enhanced insulin signaling (IRS\u20111/AKT pathway) observed."
+                ],
+                "target_length": 150
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_section_mno345",
+          "content": "Recent controlled studies demonstrate that intermittent fasting markedly improves insulin sensitivity across species. In a 12\u2011week human trial, alternate\u2011day fasting raised peripheral insulin sensitivity by approximately 15% without weight loss, as measured by euglycemic clamp (Harvey et al., 2022). Parallel work in obese mice showed that an 8\u2011hour time\u2011restricted feeding window for eight weeks normalized fasting glucose and reactivated key insulin\u2011signaling pathways (Cheng & Zhang, 2021). Together, these findings suggest that restricting the daily eating window can serve as a potent, non\u2011pharmacological strategy to enhance metabolic health."
+        },
+        {
+          "role": "assistant",
+          "content": "Drafting the final literature\u2011review segment with APA citations.",
+          "tool_calls": [
+            {
+              "id": "draft_review_section_pqr678",
+              "name": "draft_review_section",
+              "arguments": {
+                "topic": "Intermittent fasting and insulin sensitivity",
+                "summaries": [
+                  "Recent controlled studies demonstrate that intermittent fasting markedly improves insulin sensitivity across species. In a 12\u2011week human trial, alternate\u2011day fasting raised peripheral insulin sensitivity by approximately 15% without weight loss, as measured by euglycemic clamp (Harvey et al., 2022). Parallel work in obese mice showed that an 8\u2011hour time\u2011restricted feeding window for eight weeks normalized fasting glucose and reactivated key insulin\u2011signaling pathways (Cheng & Zhang, 2021). Together, these findings suggest that restricting the daily eating window can serve as a potent, non\u2011pharmacological strategy to enhance metabolic health."
+                ],
+                "citations": [
+                  "Harvey, S., Lee, J., & Miller, K. (2022). Intermittent fasting improves insulin sensitivity in humans. *Metabolism*, 123, 154987. https://doi.org/10.1016/j.metabol.2022.154987",
+                  "Cheng, Y., & Zhang, L. (2021). Time\u2011restricted feeding restores insulin sensitivity in obese mice. *Nature Medicine*, 27, 01345. https://doi.org/10.1038/s41591-021-01345"
+                ],
+                "tone": "formal"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "draft_review_section_pqr678",
+          "content": "Recent controlled studies demonstrate that intermittent fasting markedly improves insulin sensitivity across species. In a 12\u2011week human trial, alternate\u2011day fasting raised peripheral insulin sensitivity by approximately 15% without weight loss, as measured by euglycemic clamp (Harvey et al., 2022). Parallel work in obese mice showed that an 8\u2011hour time\u2011restricted feeding window for eight weeks normalized fasting glucose and reactivated key insulin\u2011signaling pathways (Cheng & Zhang, 2021). Together, these findings suggest that restricting the daily eating window can serve as a potent, non\u2011pharmacological strategy to enhance metabolic health.\n\nHarvey, S., Lee, J., & Miller, K. (2022). Intermittent fasting improves insulin sensitivity in humans. *Metabolism*, 123, 154987. https://doi.org/10.1016/j.metabol.2022.154987\n\nCheng, Y., & Zhang, L. (2021). Time\u2011restricted feeding restores insulin sensitivity in obese mice. *Nature Medicine*, 27, 01345. https://doi.org/10.1038/s41591-021-01345"
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the literature\u2011review paragraph you requested:\n\n---\n\nRecent controlled studies demonstrate that intermittent fasting markedly improves insulin sensitivity across species. In a 12\u2011week human trial, alternate\u2011day fasting raised peripheral insulin sensitivity by approximately 15% without weight loss, as measured by euglycemic clamp (Harvey et al., 2022). Parallel work in obese mice showed that an 8\u2011hour time\u2011restricted feeding window for eight weeks normalized fasting glucose and reactivated key insulin\u2011signaling pathways (Cheng & Zhang, 2021). Together, these findings suggest that restricting the daily eating window can serve as a potent, non\u2011pharmacological strategy to enhance metabolic health.\n\nHarvey, S., Lee, J., & Miller, K. (2022). Intermittent fasting improves insulin sensitivity in humans. *Metabolism*, 123, 154987. https://doi.org/10.1016/j.metabol.2022.154987\n\nCheng, Y., & Zhang, L. (2021). Time\u2011restricted feeding restores insulin sensitivity in obese mice. *Nature Medicine*, 27, 01345. https://doi.org/10.1038/s41591-021-01345\n---\n\nLet me know if you need a longer review or additional references.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User requests a bullet\u2011point overview of the latest arXiv papers on quantum machine learning, with MLA citations. The assistant searches arXiv, extracts key contributions, formats MLA citations, and returns a concise list.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are ScholarAssist, an autonomous AI research assistant. Use the tools to locate, extract, and cite recent arXiv work."
+        },
+        {
+          "role": "user",
+          "content": "Give me a bullet list (max 5 items) of the newest arXiv papers on quantum machine learning, each with a one\u2011sentence description of the main contribution and an MLA citation."
+        },
+        {
+          "role": "assistant",
+          "content": "Searching arXiv for the most recent quantum machine learning papers.",
+          "tool_calls": [
+            {
+              "id": "search_database_9x8y7z",
+              "name": "search_database",
+              "arguments": {
+                "query": "quantum machine learning",
+                "database": "arxiv",
+                "max_results": 5
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_database_9x8y7z",
+          "content": "[\n  {\n    \"title\": \"Variational Quantum Classifiers with Adaptive Data Encoding\",\n    \"authors\": [\"Kumar, A.\", \"Sanchez, L.\"],\n    \"year\": 2024,\n    \"identifier\": \"arXiv:2403.01567\",\n    \"snippet\": \"We propose a new adaptive encoding scheme for variational quantum classifiers that reduces circuit depth...\"\n  },\n  {\n    \"title\": \"Quantum Neural Networks for Graph Data\",\n    \"authors\": [\"Zhou, Y.\", \"Patel, R.\"],\n    \"year\": 2024,\n    \"identifier\": \"arXiv:2402.10234\",\n    \"snippet\": \"A quantum neural network architecture that naturally handles graph\u2011structured inputs...\"\n  },\n  {\n    \"title\": \"Benchmarking Quantum Kernel Methods on Real\u2011World Datasets\",\n    \"authors\": [\"Nguyen, T.\", \"Lee, H.\"],\n    \"year\": 2024,\n    \"identifier\": \"arXiv:2401.08891\",\n    \"snippet\": \"We evaluate several quantum kernel approaches on benchmark datasets from chemistry and finance...\"\n  },\n  {\n    \"title\": \"Hybrid Quantum\u2011Classical Reinforcement Learning\",\n    \"authors\": [\"Alam, S.\", \"Kwon, J.\"],\n    \"year\": 2024,\n    \"identifier\": \"arXiv:2403.04512\",\n    \"snippet\": \"A hybrid algorithm that combines quantum policy networks with classical value estimation...\"\n  },\n  {\n    \"title\": \"Error\u2011Mitigated Quantum Gradient Descent\",\n    \"authors\": [\"Miller, D.\", \"Chen, X.\"],\n    \"year\": 2024,\n    \"identifier\": \"arXiv:2402.06789\",\n    \"snippet\": \"Introducing a noise\u2011robust gradient descent method for training quantum models on NISQ devices...\"\n  }\n]"
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching abstracts for each of the five papers.",
+          "tool_calls": [
+            {
+              "id": "fetch_paper_111aaa",
+              "name": "fetch_paper",
+              "arguments": {
+                "identifier": "arXiv:2403.01567",
+                "id_type": "arxiv"
+              }
+            },
+            {
+              "id": "fetch_paper_222bbb",
+              "name": "fetch_paper",
+              "arguments": {
+                "identifier": "arXiv:2402.10234",
+                "id_type": "arxiv"
+              }
+            },
+            {
+              "id": "fetch_paper_333ccc",
+              "name": "fetch_paper",
+              "arguments": {
+                "identifier": "arXiv:2401.08891",
+                "id_type": "arxiv"
+              }
+            },
+            {
+              "id": "fetch_paper_444ddd",
+              "name": "fetch_paper",
+              "arguments": {
+                "identifier": "arXiv:2403.04512",
+                "id_type": "arxiv"
+              }
+            },
+            {
+              "id": "fetch_paper_555eee",
+              "name": "fetch_paper",
+              "arguments": {
+                "identifier": "arXiv:2402.06789",
+                "id_type": "arxiv"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_paper_111aaa",
+          "content": "{ \"title\": \"Variational Quantum Classifiers with Adaptive Data Encoding\", \"authors\": [\"Kumar, A.\", \"Sanchez, L.\"], \"year\": 2024, \"identifier\": \"arXiv:2403.01567\", \"abstract\": \"We propose a new adaptive encoding scheme for variational quantum classifiers that reduces circuit depth while preserving expressivity. Experiments on synthetic and MNIST\u2011encoded data show a 30% reduction in gate count with comparable accuracy.\" }"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_paper_222bbb",
+          "content": "{ \"title\": \"Quantum Neural Networks for Graph Data\", \"authors\": [\"Zhou, Y.\", \"Patel, R.\"], \"year\": 2024, \"identifier\": \"arXiv:2402.10234\", \"abstract\": \"A quantum neural network architecture that naturally handles graph\u2011structured inputs by encoding adjacency information into multi\u2011qubit entanglement patterns. Demonstrated on citation\u2011network classification tasks, achieving state\u2011of\u2011the\u2011art performance with fewer parameters than classical GNNs.\" }"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_paper_333ccc",
+          "content": "{ \"title\": \"Benchmarking Quantum Kernel Methods on Real\u2011World Datasets\", \"authors\": [\"Nguyen, T.\", \"Lee, H.\"], \"year\": 2024, \"identifier\": \"arXiv:2401.08891\", \"abstract\": \"We evaluate several quantum kernel approaches on benchmark datasets from chemistry (QM9) and finance (stock\u2011price prediction). Results highlight regimes where quantum kernels outperform classical RBF kernels, especially with limited training samples.\" }"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_paper_444ddd",
+          "content": "{ \"title\": \"Hybrid Quantum\u2011Classical Reinforcement Learning\", \"authors\": [\"Alam, S.\", \"Kwon, J.\"], \"year\": 2024, \"identifier\": \"arXiv:2403.04512\", \"abstract\": \"A hybrid algorithm that combines quantum policy networks with classical value estimation. Tested on OpenAI Gym environments, the method converges faster than purely classical deep RL baselines.\" }"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_paper_555eee",
+          "content": "{ \"title\": \"Error\u2011Mitigated Quantum Gradient Descent\", \"authors\": [\"Miller, D.\", \"Chen, X.\"], \"year\": 2024, \"identifier\": \"arXiv:2402.06789\", \"abstract\": \"Introducing a noise\u2011robust gradient descent method for training quantum models on NISQ devices by integrating zero\u2011noise extrapolation and Pauli\u2011twirling. Experiments on a 27\u2011qubit IBM device show up to 2\u00d7 improvement in training fidelity.\" }"
+        },
+        {
+          "role": "assistant",
+          "content": "Extracting a one\u2011sentence contribution summary from each abstract.",
+          "tool_calls": [
+            {
+              "id": "extract_findings_aaa111",
+              "name": "extract_findings",
+              "arguments": {
+                "text": "We propose a new adaptive encoding scheme for variational quantum classifiers that reduces circuit depth while preserving expressivity. Experiments on synthetic and MNIST\u2011encoded data show a 30% reduction in gate count with comparable accuracy."
+              }
+            },
+            {
+              "id": "extract_findings_bbb222",
+              "name": "extract_findings",
+              "arguments": {
+                "text": "A quantum neural network architecture that naturally handles graph\u2011structured inputs by encoding adjacency information into multi\u2011qubit entanglement patterns. Demonstrated on citation\u2011network classification tasks, achieving state\u2011of\u2011the\u2011art performance with fewer parameters than classical GNNs."
+              }
+            },
+            {
+              "id": "extract_findings_ccc333",
+              "name": "extract_findings",
+              "arguments": {
+                "text": "We evaluate several quantum kernel approaches on benchmark datasets from chemistry (QM9) and finance (stock\u2011price prediction). Results highlight regimes where quantum kernels outperform classical RBF kernels, especially with limited training samples."
+              }
+            },
+            {
+              "id": "extract_findings_ddd444",
+              "name": "extract_findings",
+              "arguments": {
+                "text": "A hybrid algorithm that combines quantum policy networks with classical value estimation. Tested on OpenAI Gym environments, the method converges faster than purely classical deep RL baselines."
+              }
+            },
+            {
+              "id": "extract_findings_eee555",
+              "name": "extract_findings",
+              "arguments": {
+                "text": "Introducing a noise\u2011robust gradient descent method for training quantum models on NISQ devices by integrating zero\u2011noise extrapolation and Pauli\u2011twirling. Experiments on a 27\u2011qubit IBM device show up to 2\u00d7 improvement in training fidelity."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_findings_aaa111",
+          "content": "Introduces adaptive data encoding for variational quantum classifiers, cutting circuit depth by ~30% while keeping accuracy comparable."
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_findings_bbb222",
+          "content": "Presents a quantum neural network that directly encodes graph structures, achieving state\u2011of\u2011the\u2011art graph\u2011classification with fewer parameters."
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_findings_ccc333",
+          "content": "Benchmarks quantum kernel methods on chemistry and finance datasets, showing advantage over classical kernels when training data is scarce."
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_findings_ddd444",
+          "content": "Combines quantum policy networks with classical value functions, yielding faster convergence in standard RL benchmarks."
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "extract_findings_eee555",
+          "content": "Applies error\u2011mitigation (zero\u2011noise extrapolation + Pauli\u2011twirling) to quantum gradient descent, doubling training fidelity on a 27\u2011qubit device."
+        },
+        {
+          "role": "assistant",
+          "content": "Formatting MLA citations for the five papers.",
+          "tool_calls": [
+            {
+              "id": "format_citation_mla_1",
+              "name": "format_citation",
+              "arguments": {
+                "title": "Variational Quantum Classifiers with Adaptive Data Encoding",
+                "authors": [
+                  "Kumar, A.",
+                  "Sanchez, L."
+                ],
+                "year": 2024,
+                "journal": "",
+                "doi": "",
+                "style": "mla"
+              }
+            },
+            {
+              "id": "format_citation_mla_2",
+              "name": "format_citation",
+              "arguments": {
+                "title": "Quantum Neural Networks for Graph Data",
+                "authors": [
+                  "Zhou, Y.",
+                  "Patel, R."
+                ],
+                "year": 2024,
+                "journal": "",
+                "doi": "",
+                "style": "mla"
+              }
+            },
+            {
+              "id": "format_citation_mla_3",
+              "name": "format_citation",
+              "arguments": {
+                "title": "Benchmarking Quantum Kernel Methods on Real\u2011World Datasets",
+                "authors": [
+                  "Nguyen, T.",
+                  "Lee, H."
+                ],
+                "year": 2024,
+                "journal": "",
+                "doi": "",
+                "style": "mla"
+              }
+            },
+            {
+              "id": "format_citation_mla_4",
+              "name": "format_citation",
+              "arguments": {
+                "title": "Hybrid Quantum\u2011Classical Reinforcement Learning",
+                "authors": [
+                  "Alam, S.",
+                  "Kwon, J."
+                ],
+                "year": 2024,
+                "journal": "",
+                "doi": "",
+                "style": "mla"
+              }
+            },
+            {
+              "id": "format_citation_mla_5",
+              "name": "format_citation",
+              "arguments": {
+                "title": "Error\u2011Mitigated Quantum Gradient Descent",
+                "authors": [
+                  "Miller, D.",
+                  "Chen, X."
+                ],
+                "year": 2024,
+                "journal": "",
+                "doi": "",
+                "style": "mla"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "format_citation_mla_1",
+          "content": "Kumar, A., and L. Sanchez. \u201cVariational Quantum Classifiers with Adaptive Data Encoding.\u201d arXiv preprint arXiv:2403.01567 (2024)."
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "format_citation_mla_2",
+          "content": "Zhou, Y., and R. Patel. \u201cQuantum Neural Networks for Graph Data.\u201d arXiv preprint arXiv:2402.10234 (2024)."
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "format_citation_mla_3",
+          "content": "Nguyen, T., and H. Lee. \u201cBenchmarking Quantum Kernel Methods on Real\u2011World Datasets.\u201d arXiv preprint arXiv:2401.08891 (2024)."
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "format_citation_mla_4",
+          "content": "Alam, S., and J. Kwon. \u201cHybrid Quantum\u2011Classical Reinforcement Learning.\u201d arXiv preprint arXiv:2403.04512 (2024)."
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "format_citation_mla_5",
+          "content": "Miller, D., and X. Chen. \u201cError\u2011Mitigated Quantum Gradient Descent.\u201d arXiv preprint arXiv:2402.06789 (2024)."
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the requested bullet\u2011point overview:\n\n- **Variational Quantum Classifiers with Adaptive Data Encoding** \u2013 Introduces adaptive data encoding for variational quantum classifiers, cutting circuit depth by ~30% while keeping accuracy comparable. *Kumar, A., and L. Sanchez. \u201cVariational Quantum Classifiers with Adaptive Data Encoding.\u201d arXiv preprint arXiv:2403.01567 (2024).* \n- **Quantum Neural Networks for Graph Data** \u2013 Presents a quantum neural network that directly encodes graph structures, achieving state\u2011of\u2011the\u2011art graph\u2011classification with fewer parameters. *Zhou, Y., and R. Patel. \u201cQuantum Neural Networks for Graph Data.\u201d arXiv preprint arXiv:2402.10234 (2024).* \n- **Benchmarking Quantum Kernel Methods on Real\u2011World Datasets** \u2013 Benchmarks quantum kernel methods on chemistry and finance datasets, showing advantage over classical kernels when training data is scarce. *Nguyen, T., and H. Lee. \u201cBenchmarking Quantum Kernel Methods on Real\u2011World Datasets.\u201d arXiv preprint arXiv:2401.08891 (2024).* \n- **Hybrid Quantum\u2011Classical Reinforcement Learning** \u2013 Combines quantum policy networks with classical value functions, yielding faster convergence in standard RL benchmarks. *Alam, S., and J. Kwon. \u201cHybrid Quantum\u2011Classical Reinforcement Learning.\u201d arXiv preprint arXiv:2403.04512 (2024).* \n- **Error\u2011Mitigated Quantum Gradient Descent** \u2013 Applies error\u2011mitigation (zero\u2011noise extrapolation + Pauli\u2011twirling) to quantum gradient descent, doubling training fidelity on a 27\u2011qubit device. *Miller, D., and X. Chen. \u201cError\u2011Mitigated Quantum Gradient Descent.\u201d arXiv preprint arXiv:2402.06789 (2024).*",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

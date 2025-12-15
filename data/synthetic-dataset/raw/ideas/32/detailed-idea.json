@@ -1,0 +1,480 @@
+{
+  "name": "LegalDiscoveryPro",
+  "description": "An AI\u2011driven Legal Discovery Assistant that ingests massive document collections, automatically tags and indexes relevant evidence, retrieves supporting case\u2011law precedents, and drafts precise discovery requests for litigation teams.",
+  "tools": [
+    {
+      "name": "ingest_documents",
+      "description": "Takes a remote archive (zip, tar, or folder URL) containing raw case files, extracts the files, stores them in the system index, and returns a batch ID for later reference.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source_url": {
+            "type": "string",
+            "description": "Publicly accessible URL of the archive to ingest."
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Optional free\u2011form metadata (e.g., case name, docket number)."
+          }
+        },
+        "required": [
+          "source_url"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "search_documents",
+      "description": "Runs a full\u2011text search over the indexed corpus using Boolean keywords, date ranges, document type filters, and returns matching document IDs with context snippets.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search query supporting Boolean operators and phrase search."
+          },
+          "doc_type": {
+            "type": "string",
+            "description": "Optional filter: e.g., 'email', 'pdf', 'text'."
+          },
+          "date_range": {
+            "type": "object",
+            "description": "Optional start and end dates to narrow results.",
+            "properties": {
+              "start": {
+                "type": "string",
+                "format": "date",
+                "description": "Start date (inclusive)."
+              },
+              "end": {
+                "type": "string",
+                "format": "date",
+                "description": "End date (inclusive)."
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          },
+          "max_results": {
+            "type": "integer",
+            "description": "Maximum number of hits to return (default 20).",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "tag_evidence",
+      "description": "Applies one or more semantic tags (e.g., 'contract', 'privilege', 'confidential') to a specific document ID, optionally with a confidence score.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "doc_id": {
+            "type": "string",
+            "description": "Unique identifier of the document to tag."
+          },
+          "tags": {
+            "type": "array",
+            "description": "List of tags to assign.",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "confidence": {
+            "type": "number",
+            "description": "Optional confidence (0\u20111) that the tags are correct.",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "doc_id",
+          "tags"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "summarize_document",
+      "description": "Generates a concise natural\u2011language summary of a document identified by its ID. Length can be short (1\u20112 sentences), medium (paragraph), or long (full page).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "doc_id": {
+            "type": "string",
+            "description": "Identifier of the document to summarize."
+          },
+          "length": {
+            "type": "string",
+            "enum": [
+              "short",
+              "medium",
+              "long"
+            ],
+            "description": "Desired summary length."
+          }
+        },
+        "required": [
+          "doc_id",
+          "length"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "retrieve_case_law",
+      "description": "Searches an external legal database for published opinions matching jurisdiction, topic, and keywords, returning citations and brief holdings.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "jurisdiction": {
+            "type": "string",
+            "description": "e.g., 'federal', 'california', 'ny'."
+          },
+          "topic": {
+            "type": "string",
+            "description": "Legal issue to search, e.g., 'privilege', 'electronic discovery'."
+          },
+          "keywords": {
+            "type": "array",
+            "description": "List of keywords to narrow the search.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "max_results": {
+            "type": "integer",
+            "description": "Maximum number of opinions to return.",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "jurisdiction",
+          "topic"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_discovery_request",
+      "description": "Creates a formatted discovery request (e.g., Requests for Production) using case details, selected evidence IDs, and cited case\u2011law precedents.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "case_name": {
+            "type": "string",
+            "description": "Full case caption, e.g., 'Doe v. Acme Corp.'."
+          },
+          "court": {
+            "type": "string",
+            "description": "Court where the case is pending."
+          },
+          "request_type": {
+            "type": "string",
+            "enum": [
+              "interrogatories",
+              "requests_for_production",
+              "requests_for_admission"
+            ],
+            "description": "Type of discovery request to generate."
+          },
+          "evidence_ids": {
+            "type": "array",
+            "description": "Document IDs to be referenced in the request.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "case_law_citations": {
+            "type": "array",
+            "description": "Array of citation strings to support the request.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "additional_instructions": {
+            "type": "string",
+            "description": "Any custom language or limits the attorney wants included."
+          }
+        },
+        "required": [
+          "case_name",
+          "court",
+          "request_type",
+          "evidence_ids",
+          "case_law_citations"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "export_results",
+      "description": "Converts a supplied Markdown or plain\u2011text block into a downloadable file (PDF or DOCX) and returns a secure URL.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "docx"
+            ],
+            "description": "Desired output format."
+          },
+          "content": {
+            "type": "string",
+            "description": "The full text (Markdown allowed) to be exported."
+          }
+        },
+        "required": [
+          "format",
+          "content"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "Finding and tagging all emails between Alice Smith and Bob Jones that mention the word \"settlement\".",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LegalDiscoveryPro, an AI assistant that searches, tags, and summarizes legal documents for discovery purposes."
+        },
+        {
+          "role": "user",
+          "content": "Locate every email between Alice Smith and Bob Jones that contains the term \"settlement\" and tag them as 'settlement_evidence'."
+        },
+        {
+          "role": "assistant",
+          "content": "Sure, I\u2019ll search for the relevant emails first.",
+          "tool_calls": [
+            {
+              "id": "search_documents_1a2b3c",
+              "name": "search_documents",
+              "arguments": {
+                "query": "\"Alice Smith\" AND \"Bob Jones\" AND settlement",
+                "doc_type": "email",
+                "max_results": 50
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_documents_1a2b3c",
+          "content": "{\"hits\": [{\"doc_id\": \"email_2023_04_15_001\", \"snippet\": \"...settlement discussion...\"}, {\"doc_id\": \"email_2023_05_02_017\", \"snippet\": \"...proposed settlement...\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "I found 2 matching emails. I will now tag them with the requested label.",
+          "tool_calls": [
+            {
+              "id": "tag_evidence_4d5e6f",
+              "name": "tag_evidence",
+              "arguments": {
+                "doc_id": "email_2023_04_15_001",
+                "tags": [
+                  "settlement_evidence"
+                ]
+              }
+            },
+            {
+              "id": "tag_evidence_7g8h9i",
+              "name": "tag_evidence",
+              "arguments": {
+                "doc_id": "email_2023_05_02_017",
+                "tags": [
+                  "settlement_evidence"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "tag_evidence_4d5e6f",
+          "content": "{\"status\": \"success\", \"doc_id\": \"email_2023_04_15_001\", \"tags\": [\"settlement_evidence\"]}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "tag_evidence_7g8h9i",
+          "content": "{\"status\": \"success\", \"doc_id\": \"email_2023_05_02_017\", \"tags\": [\"settlement_evidence\"]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Both emails have been successfully tagged. Let me provide a brief summary of each.",
+          "tool_calls": [
+            {
+              "id": "summarize_document_a1b2c3",
+              "name": "summarize_document",
+              "arguments": {
+                "doc_id": "email_2023_04_15_001",
+                "length": "short"
+              }
+            },
+            {
+              "id": "summarize_document_d4e5f6",
+              "name": "summarize_document",
+              "arguments": {
+                "doc_id": "email_2023_05_02_017",
+                "length": "short"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_document_a1b2c3",
+          "content": "\"Alice proposes a $150,000 settlement to Bob, citing recent case law on breach of contract.\""
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_document_d4e5f6",
+          "content": "\"Bob requests clarification on the settlement terms before responding.\""
+        },
+        {
+          "role": "assistant",
+          "content": "Summaries:\n1. Alice proposes a $150,000 settlement to Bob, citing recent case law on breach of contract.\n2. Bob requests clarification on the settlement terms before responding.\nBoth documents are now tagged and ready for inclusion in discovery.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "Drafting a Request for Production of medical records for a personal\u2011injury case, citing relevant case law.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are LegalDiscoveryPro, an AI assistant that helps litigators compile discovery requests backed by case\u2011law authority."
+        },
+        {
+          "role": "user",
+          "content": "Prepare a Request for Production of all medical records related to the plaintiff\u2019s back injury for the case Doe v. Acme Corp., citing any precedent that supports broad medical\u2011records discovery."
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll first find recent case law on medical\u2011records discovery.",
+          "tool_calls": [
+            {
+              "id": "retrieve_case_law_abc123",
+              "name": "retrieve_case_law",
+              "arguments": {
+                "jurisdiction": "federal",
+                "topic": "medical records discovery",
+                "keywords": [
+                  "broad",
+                  "scope",
+                  "personal injury"
+                ],
+                "max_results": 3
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "retrieve_case_law_abc123",
+          "content": "{\"cases\": [{\"citation\": \"Hodges v. United States, 2021 WL 123456\", \"holding\": \"Broad medical\u2011records discovery is permissible where the injury is central to liability and damages.\"}, {\"citation\": \"Johnson v. XYZ Ltd., 2020 Fed. Civ. R. 23-456\", \"holding\": \"Courts may order production of all related medical documentation, even ancillary records, if relevance is shown.\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "Got the cases. Next, I\u2019ll retrieve the IDs of the document set that contain the plaintiff\u2019s medical records. Please provide the batch ID of the ingested document collection.",
+          "tool_calls": []
+        },
+        {
+          "role": "user",
+          "content": "The documents are in batch ID `batch_2024_07_15`. Use that to locate the medical files."
+        },
+        {
+          "role": "assistant",
+          "content": "Searching the batch for medical\u2011record files related to the back injury.",
+          "tool_calls": [
+            {
+              "id": "search_documents_def456",
+              "name": "search_documents",
+              "arguments": {
+                "query": "\"back injury\" AND (\"medical record\" OR \"MRI\" OR \"X\u2011ray\")",
+                "doc_type": "pdf",
+                "max_results": 100
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "search_documents_def456",
+          "content": "{\"hits\": [{\"doc_id\": \"med_2023_01_12_001\"}, {\"doc_id\": \"med_2023_03_22_017\"}, {\"doc_id\": \"med_2023_05_05_023\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": "I have identified three medical\u2011record documents. I will now generate the formal Request for Production using the case citations and the evidence IDs.",
+          "tool_calls": [
+            {
+              "id": "generate_discovery_request_ghi789",
+              "name": "generate_discovery_request",
+              "arguments": {
+                "case_name": "Doe v. Acme Corp.",
+                "court": "U.S. District Court, Southern District of New York",
+                "request_type": "requests_for_production",
+                "evidence_ids": [
+                  "med_2023_01_12_001",
+                  "med_2023_03_22_017",
+                  "med_2023_05_05_023"
+                ],
+                "case_law_citations": [
+                  "Hodges v. United States, 2021 WL 123456",
+                  "Johnson v. XYZ Ltd., 2020 Fed. Civ. R. 23-456"
+                ],
+                "additional_instructions": "Request all records from the date of injury to the present, including related imaging, physician notes, and billing statements."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_discovery_request_ghi789",
+          "content": "# Request for Production\n**Case:** Doe v. Acme Corp.\n**Court:** U.S. District Court, Southern District of New York\n\n**Request:** Produce all medical records pertaining to Plaintiff\u2019s back injury, including but not limited to physician\u2019s notes, diagnostic imaging (MRI, X\u2011ray), treatment plans, and billing statements from the date of injury through the present.\n\n**Supporting Authority:**\n- *Hodges v. United States*, 2021 WL 123456 \u2013 broad medical\u2011records discovery is permissible where the injury is central to liability and damages.\n- *Johnson v. XYZ Ltd.*, 2020 Fed. Civ. R. 23-456 \u2013 courts may order production of all related medical documentation if relevance is shown.\n\n**References to Evidence:**\n- Document ID: med_2023_01_12_001\n- Document ID: med_2023_03_22_017\n- Document ID: med_2023_05_05_023\n\nPlease produce the documents within 30 days of service of this request."
+        },
+        {
+          "role": "assistant",
+          "content": "The request has been generated. Would you like it exported as a PDF?",
+          "tool_calls": []
+        },
+        {
+          "role": "user",
+          "content": "Yes, export it as PDF."
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "export_results_jkl012",
+              "name": "export_results",
+              "arguments": {
+                "format": "pdf",
+                "content": "# Request for Production\n**Case:** Doe v. Acme Corp.\n**Court:** U.S. District Court, Southern District of New York\n\n**Request:** Produce all medical records pertaining to Plaintiff\u2019s back injury, including but not limited to physician\u2019s notes, diagnostic imaging (MRI, X\u2011ray), treatment plans, and billing statements from the date of injury through the present.\n\n**Supporting Authority:**\n- *Hodges v. United States*, 2021 WL 123456 \u2013 broad medical\u2011records discovery is permissible where the injury is central to liability and damages.\n- *Johnson v. XYZ Ltd.*, 2020 Fed. Civ. R. 23-456 \u2013 courts may order production of all related medical documentation if relevance is shown.\n\n**References to Evidence:**\n- Document ID: med_2023_01_12_001\n- Document ID: med_2023_03_22_017\n- Document ID: med_2023_05_05_023\n\nPlease produce the documents within 30 days of service of this request."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "export_results_jkl012",
+          "content": "{\"download_url\": \"https://files.legaldiscoverypro.com/requests/DOE_vs_ACME_Request.pdf\"}"
+        },
+        {
+          "role": "assistant",
+          "content": "Your Request for Production has been exported as a PDF. You can download it here: https://files.legaldiscoverypro.com/requests/DOE_vs_ACME_Request.pdf",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

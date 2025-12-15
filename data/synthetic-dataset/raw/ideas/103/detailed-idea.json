@@ -1,0 +1,461 @@
+{
+  "name": "VendorReliance AI",
+  "description": "An agentic LLM service that automatically gathers financial statements, news alerts, and compliance records for a vendor, computes a risk score, and produces a concise reliability report for procurement teams.",
+  "tools": [
+    {
+      "name": "fetch_financials",
+      "description": "Retrieves the latest audited financial statements for a given vendor from public filings or paid financial data APIs.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "vendor_name": {
+            "type": "string",
+            "description": "Exact legal name of the vendor."
+          },
+          "year": {
+            "type": "integer",
+            "description": "Fiscal year for which financials are requested. If omitted, the most recent year is used."
+          }
+        },
+        "required": [
+          "vendor_name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_news",
+      "description": "Searches news sources for recent articles about the vendor and returns a list of headlines with URLs and publication dates.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "vendor_name": {
+            "type": "string",
+            "description": "Exact legal name of the vendor."
+          },
+          "days_back": {
+            "type": "integer",
+            "description": "Number of days in the past to look for news (default 30)."
+          }
+        },
+        "required": [
+          "vendor_name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_compliance",
+      "description": "Queries regulatory databases (e.g., sanction lists, adverse media, ESG registries) to retrieve any compliance flags for the vendor.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "vendor_name": {
+            "type": "string",
+            "description": "Exact legal name of the vendor."
+          }
+        },
+        "required": [
+          "vendor_name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "compute_risk_score",
+      "description": "Combines financial ratios, news sentiment, and compliance flags into a weighted risk score between 0 (low risk) and 100 (high risk).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "financials": {
+            "type": "object",
+            "description": "Financial metrics as returned by fetch_financials."
+          },
+          "news_sentiment": {
+            "type": "number",
+            "description": "Aggregated sentiment score from recent news (-1 to 1)."
+          },
+          "compliance_flags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of compliance issues returned by fetch_compliance."
+          }
+        },
+        "required": [
+          "financials",
+          "news_sentiment",
+          "compliance_flags"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "summarize_vendor",
+      "description": "Creates a markdown executive summary of the vendor\u2019s risk profile, including the score, key financial highlights, notable news, and compliance concerns.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "vendor_name": {
+            "type": "string",
+            "description": "Exact legal name of the vendor."
+          },
+          "score": {
+            "type": "number",
+            "description": "Risk score produced by compute_risk_score."
+          },
+          "key_findings": {
+            "type": "string",
+            "description": "Bullet\u2011point list of the most important observations."
+          }
+        },
+        "required": [
+          "vendor_name",
+          "score",
+          "key_findings"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "export_report",
+      "description": "Formats the markdown summary into the requested file type (PDF or HTML) and returns a secure download URL.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "vendor_name": {
+            "type": "string",
+            "description": "Exact legal name of the vendor."
+          },
+          "summary_markdown": {
+            "type": "string",
+            "description": "The markdown text produced by summarize_vendor."
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "html"
+            ],
+            "description": "Desired output format."
+          }
+        },
+        "required": [
+          "vendor_name",
+          "summary_markdown",
+          "format"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User asks for a single vendor risk evaluation; the assistant gathers data, computes a score, and returns a markdown summary.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are VendorReliance AI, an autonomous assistant that evaluates vendor reliability by fetching financials, news, and compliance data, calculating a risk score, and summarizing the findings."
+        },
+        {
+          "role": "user",
+          "content": "Please evaluate the reliability of Acme Corp for a $2\u202fM contract."
+        },
+        {
+          "role": "assistant",
+          "content": "Gathering the latest data for Acme Corp\u2026",
+          "tool_calls": [
+            {
+              "id": "fetch_financials_a1b2c3",
+              "name": "fetch_financials",
+              "arguments": {
+                "vendor_name": "Acme Corp"
+              }
+            },
+            {
+              "id": "fetch_news_d4e5f6",
+              "name": "fetch_news",
+              "arguments": {
+                "vendor_name": "Acme Corp",
+                "days_back": 30
+              }
+            },
+            {
+              "id": "fetch_compliance_7g8h9i",
+              "name": "fetch_compliance",
+              "arguments": {
+                "vendor_name": "Acme Corp"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_financials_a1b2c3",
+          "content": "{\"revenue\": 12500000, \"net_income\": 950000, \"debt_to_equity\": 0.42, \"current_ratio\": 1.8}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_news_d4e5f6",
+          "content": "[{\"title\":\"Acme Corp launches new product line\",\"url\":\"https://news.example.com/acme-product\",\"date\":\"2024-10-02\"},{\"title\":\"Acme Corp faces minor supply\u2011chain delay\",\"url\":\"https://news.example.com/acme-supply\",\"date\":\"2024-09-28\"}]"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_compliance_7g8h9i",
+          "content": "[\"No US sanctions\", \"ISO 27001 certified\", \"Pending GDPR audit\"]"
+        },
+        {
+          "role": "assistant",
+          "content": "Computing risk score based on the gathered information\u2026",
+          "tool_calls": [
+            {
+              "id": "compute_risk_score_j0k1l2",
+              "name": "compute_risk_score",
+              "arguments": {
+                "financials": {
+                  "revenue": 12500000,
+                  "net_income": 950000,
+                  "debt_to_equity": 0.42,
+                  "current_ratio": 1.8
+                },
+                "news_sentiment": 0.15,
+                "compliance_flags": [
+                  "Pending GDPR audit"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "compute_risk_score_j0k1l2",
+          "content": "42.7"
+        },
+        {
+          "role": "assistant",
+          "content": "Creating a concise executive summary\u2026",
+          "tool_calls": [
+            {
+              "id": "summarize_vendor_m3n4o5",
+              "name": "summarize_vendor",
+              "arguments": {
+                "vendor_name": "Acme Corp",
+                "score": 42.7,
+                "key_findings": "- Revenue $12.5\u202fM, net income $0.95\u202fM (healthy margin).\n- Debt\u2011to\u2011equity 0.42 (moderate leverage).\n- Positive news sentiment (+0.15) with recent product launch.\n- Compliance: ISO 27001 certified, pending GDPR audit."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_vendor_m3n4o5",
+          "content": "# Acme Corp \u2013 Vendor Risk Summary\n\n**Risk Score:** 42.7 / 100 (lower\u2011risk)\n\n## Key Findings\n- **Financial Health:** Revenue $12.5\u202fM, Net Income $0.95\u202fM, Debt\u2011to\u2011Equity 0.42, Current Ratio 1.8.\n- **News Sentiment:** Slightly positive (+0.15) driven by a new product launch.\n- **Compliance:** ISO\u202f27001 certified; GDPR audit pending.\n\nOverall, Acme Corp appears financially stable with modest risk. The pending GDPR audit should be monitored before final contract award."
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the vendor risk summary for Acme Corp:\n\n# Acme Corp \u2013 Vendor Risk Summary\n\n**Risk Score:** 42.7 / 100 (lower\u2011risk)\n\n## Key Findings\n- **Financial Health:** Revenue $12.5\u202fM, Net Income $0.95\u202fM, Debt\u2011to\u2011Equity 0.42, Current Ratio 1.8.\n- **News Sentiment:** Slightly positive (+0.15) driven by a new product launch.\n- **Compliance:** ISO\u202f27001 certified; GDPR audit pending.\n\nLet me know if you would like this report exported as PDF or HTML.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User requests a comparative analysis of two vendors and asks for the report in PDF format.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are VendorReliance AI, an autonomous assistant that evaluates multiple vendors, compares their risk scores, and can export the results as a formatted report."
+        },
+        {
+          "role": "user",
+          "content": "Compare the reliability of Beta Ltd and Gamma Inc for a joint procurement project and give me a PDF report."
+        },
+        {
+          "role": "assistant",
+          "content": "I\u2019ll collect data for both vendors. One moment\u2026",
+          "tool_calls": [
+            {
+              "id": "fetch_financials_p1q2r3",
+              "name": "fetch_financials",
+              "arguments": {
+                "vendor_name": "Beta Ltd"
+              }
+            },
+            {
+              "id": "fetch_financials_s4t5u6",
+              "name": "fetch_financials",
+              "arguments": {
+                "vendor_name": "Gamma Inc"
+              }
+            },
+            {
+              "id": "fetch_news_v7w8x9",
+              "name": "fetch_news",
+              "arguments": {
+                "vendor_name": "Beta Ltd",
+                "days_back": 60
+              }
+            },
+            {
+              "id": "fetch_news_y0z1a2",
+              "name": "fetch_news",
+              "arguments": {
+                "vendor_name": "Gamma Inc",
+                "days_back": 60
+              }
+            },
+            {
+              "id": "fetch_compliance_b3c4d5",
+              "name": "fetch_compliance",
+              "arguments": {
+                "vendor_name": "Beta Ltd"
+              }
+            },
+            {
+              "id": "fetch_compliance_e6f7g8",
+              "name": "fetch_compliance",
+              "arguments": {
+                "vendor_name": "Gamma Inc"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_financials_p1q2r3",
+          "content": "{\"revenue\": 8000000, \"net_income\": 600000, \"debt_to_equity\": 0.65, \"current_ratio\": 1.2}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_financials_s4t5u6",
+          "content": "{\"revenue\": 21000000, \"net_income\": 1500000, \"debt_to_equity\": 0.30, \"current_ratio\": 2.1}"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_news_v7w8x9",
+          "content": "[{\"title\":\"Beta Ltd wins regional contract\",\"url\":\"https://news.example.com/beta-win\",\"date\":\"2024-09-15\"}]"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_news_y0z1a2",
+          "content": "[{\"title\":\"Gamma Inc faces litigation over IP\",\"url\":\"https://news.example.com/gamma-lit\",\"date\":\"2024-08-20\"}]"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_compliance_b3c4d5",
+          "content": "[\"No sanctions\", \"ISO 9001 certified\"]"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "fetch_compliance_e6f7g8",
+          "content": "[\"US Entity List\", \"ISO 27001 certified\"]"
+        },
+        {
+          "role": "assistant",
+          "content": "Calculating risk scores for both vendors\u2026",
+          "tool_calls": [
+            {
+              "id": "compute_risk_score_h9i0j1",
+              "name": "compute_risk_score",
+              "arguments": {
+                "financials": {
+                  "revenue": 8000000,
+                  "net_income": 600000,
+                  "debt_to_equity": 0.65,
+                  "current_ratio": 1.2
+                },
+                "news_sentiment": 0.2,
+                "compliance_flags": []
+              }
+            },
+            {
+              "id": "compute_risk_score_k2l3m4",
+              "name": "compute_risk_score",
+              "arguments": {
+                "financials": {
+                  "revenue": 21000000,
+                  "net_income": 1500000,
+                  "debt_to_equity": 0.3,
+                  "current_ratio": 2.1
+                },
+                "news_sentiment": -0.35,
+                "compliance_flags": [
+                  "US Entity List"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "compute_risk_score_h9i0j1",
+          "content": "55.3"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "compute_risk_score_k2l3m4",
+          "content": "71.8"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating comparative markdown summary\u2026",
+          "tool_calls": [
+            {
+              "id": "summarize_vendor_n5o6p7",
+              "name": "summarize_vendor",
+              "arguments": {
+                "vendor_name": "Beta Ltd",
+                "score": 55.3,
+                "key_findings": "- Revenue $8\u202fM, net income $0.6\u202fM.\n- Debt\u2011to\u2011Equity 0.65 (higher leverage).\n- Positive news (+0.2) from recent contract win.\n- No compliance flags."
+              }
+            },
+            {
+              "id": "summarize_vendor_q8r9s0",
+              "name": "summarize_vendor",
+              "arguments": {
+                "vendor_name": "Gamma Inc",
+                "score": 71.8,
+                "key_findings": "- Revenue $21\u202fM, net income $1.5\u202fM.\n- Debt\u2011to\u2011Equity 0.30 (low leverage).\n- Negative news sentiment (-0.35) due to IP litigation.\n- Compliance flag: listed on US Entity List."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_vendor_n5o6p7",
+          "content": "## Beta Ltd \u2013 Vendor Risk Summary\n\n**Risk Score:** 55.3 / 100\n\n- Revenue: $8\u202fM\n- Net Income: $0.6\u202fM\n- Debt\u2011to\u2011Equity: 0.65\n- Current Ratio: 1.2\n- News Sentiment: +0.2 (contract win)\n- Compliance: ISO\u202f9001 certified\n\nOverall risk is moderate."
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "summarize_vendor_q8r9s0",
+          "content": "## Gamma Inc \u2013 Vendor Risk Summary\n\n**Risk Score:** 71.8 / 100\n\n- Revenue: $21\u202fM\n- Net Income: $1.5\u202fM\n- Debt\u2011to\u2011Equity: 0.30\n- Current Ratio: 2.1\n- News Sentiment: -0.35 (IP litigation)\n- Compliance: ISO\u202f27001 certified, **US Entity List**\n\nOverall risk is relatively high; the Entity List status should be cleared before proceeding."
+        },
+        {
+          "role": "assistant",
+          "content": "Compiling both summaries into a single PDF report\u2026",
+          "tool_calls": [
+            {
+              "id": "export_report_t1u2v3",
+              "name": "export_report",
+              "arguments": {
+                "vendor_name": "Beta Ltd & Gamma Inc",
+                "summary_markdown": "## Beta Ltd \u2013 Vendor Risk Summary\n\n**Risk Score:** 55.3 / 100\n\n- Revenue: $8\u202fM\n- Net Income: $0.6\u202fM\n- Debt\u2011to\u2011Equity: 0.65\n- Current Ratio: 1.2\n- News Sentiment: +0.2 (contract win)\n- Compliance: ISO\u202f9001 certified\n\nOverall risk is moderate.\n\n---\n\n## Gamma Inc \u2013 Vendor Risk Summary\n\n**Risk Score:** 71.8 / 100\n\n- Revenue: $21\u202fM\n- Net Income: $1.5\u202fM\n- Debt\u2011to\u2011Equity: 0.30\n- Current Ratio: 2.1\n- News Sentiment: -0.35 (IP litigation)\n- Compliance: ISO\u202f27001 certified, **US Entity List**\n\nOverall risk is relatively high; the Entity List status should be cleared before proceeding.",
+                "format": "pdf"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "export_report_t1u2v3",
+          "content": "https://reports.vendorreliance.ai/download/compare_beta_gamma_20241007.pdf"
+        },
+        {
+          "role": "assistant",
+          "content": "Your comparative PDF report is ready: https://reports.vendorreliance.ai/download/compare_beta_gamma_20241007.pdf\n\nFeel free to let me know if you need any further analysis or a different format.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}

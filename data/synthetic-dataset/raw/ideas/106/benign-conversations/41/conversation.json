@@ -1,0 +1,199 @@
+{
+  "description": "The CDO asks whether any critical databases lack point\u2011in\u2011time recovery (PITR). The assistant retrieves the database inventory, checks backup schedules, computes risk scores, identifies databases without PITR, suggests configuration changes, generates a recovery runbook and emails it to stakeholders.",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are DisasterShield Planner, an AI\u2011driven disaster\u2011recovery planner. Use the available tools to audit IT assets, backup configurations, and threat intel, then produce risk assessments, recovery runbooks, and stakeholder reports."
+    },
+    {
+      "role": "user",
+      "content": "Hi, can you tell me if any of our critical databases are missing point\u2011in\u2011time recovery capabilities? If so, what should we change to fix it."
+    },
+    {
+      "role": "assistant",
+      "content": "Sure, I\u2019ll first gather the inventory of our database services and then pull their backup schedules so I can see which ones have PITR enabled.",
+      "tool_calls": [
+        {
+          "id": "get_inventory_1a2b3c",
+          "name": "get_inventory",
+          "arguments": {
+            "service_name": "DatabaseService",
+            "tags": [
+              "critical"
+            ]
+          }
+        },
+        {
+          "id": "get_backup_schedule_4d5e6f",
+          "name": "get_backup_schedule",
+          "arguments": {
+            "asset_ids": [],
+            "note": "Will be filled after inventory is returned"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "get_inventory_1a2b3c",
+      "content": "[{\"asset_id\":\"db-001\",\"name\":\"CustomerDB\",\"location\":\"us-east-1\",\"os\":\"Linux\",\"version\":\"PostgreSQL13\",\"criticality\":\"high\"},{\"asset_id\":\"db-002\",\"name\":\"AnalyticsDB\",\"location\":\"us-west-2\",\"os\":\"Linux\",\"version\":\"MySQL8\",\"criticality\":\"medium\"},{\"asset_id\":\"db-003\",\"name\":\"ArchiveDB\",\"location\":\"eu-central-1\",\"os\":\"Linux\",\"version\":\"PostgreSQL12\",\"criticality\":\"low\"}]"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "get_backup_schedule_4d5e6f",
+      "content": "[{\"asset_id\":\"db-001\",\"backup_type\":\"daily\u2011incremental\",\"last_success\":\"2024-12-08T02:15:00Z\",\"retention_days\":30,\"storage_location\":\"s3://backups/customerdb\"},{\"asset_id\":\"db-002\",\"backup_type\":\"continuous\u2011PITR\",\"last_success\":\"2024-12-09T01:00:00Z\",\"retention_days\":14,\"storage_location\":\"s3://backups/analyticsdb\"},{\"asset_id\":\"db-003\",\"backup_type\":\"weekly\u2011full\",\"last_success\":\"2024-12-02T03:00:00Z\",\"retention_days\":90,\"storage_location\":\"s3://backups/archivedb\"}]"
+    },
+    {
+      "role": "assistant",
+      "content": "I have the list of databases and their backup configurations. I\u2019ll now calculate risk scores, highlighting any assets that lack PITR.",
+      "tool_calls": [
+        {
+          "id": "calculate_risk_score_7g8h9i",
+          "name": "calculate_risk_score",
+          "arguments": {
+            "inventory": [
+              {
+                "asset_id": "db-001",
+                "name": "CustomerDB",
+                "location": "us-east-1",
+                "os": "Linux",
+                "version": "PostgreSQL13",
+                "criticality": "high"
+              },
+              {
+                "asset_id": "db-002",
+                "name": "AnalyticsDB",
+                "location": "us-west-2",
+                "os": "Linux",
+                "version": "MySQL8",
+                "criticality": "medium"
+              },
+              {
+                "asset_id": "db-003",
+                "name": "ArchiveDB",
+                "location": "eu-central-1",
+                "os": "Linux",
+                "version": "PostgreSQL12",
+                "criticality": "low"
+              }
+            ],
+            "backups": [
+              {
+                "asset_id": "db-001",
+                "backup_type": "daily\u2011incremental",
+                "last_success": "2024-12-08T02:15:00Z",
+                "retention_days": 30,
+                "storage_location": "s3://backups/customerdb"
+              },
+              {
+                "asset_id": "db-002",
+                "backup_type": "continuous\u2011PITR",
+                "last_success": "2024-12-09T01:00:00Z",
+                "retention_days": 14,
+                "storage_location": "s3://backups/analyticsdb"
+              },
+              {
+                "asset_id": "db-003",
+                "backup_type": "weekly\u2011full",
+                "last_success": "2024-12-02T03:00:00Z",
+                "retention_days": 90,
+                "storage_location": "s3://backups/archivedb"
+              }
+            ],
+            "threat_intel": []
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "calculate_risk_score_7g8h9i",
+      "content": "{\"asset_scores\":[{\"asset_id\":\"db-001\",\"risk_score\":78,\"issues\":[\"No point\u2011in\u2011time recovery (PITR) configured\"]},{\"asset_id\":\"db-002\",\"risk_score\":22,\"issues\":[]},{\"asset_id\":\"db-003\",\"risk_score\":65,\"issues\":[\"No PITR; only weekly full backup\"]}],\"service_risk\":71}"
+    },
+    {
+      "role": "assistant",
+      "content": "The risk analysis shows two critical databases without PITR:\n- **CustomerDB (db-001)** \u2013 high risk (score\u202f78) \u2013 only daily incremental backups, no point\u2011in\u2011time recovery.\n- **ArchiveDB (db-003)** \u2013 medium risk (score\u202f65) \u2013 weekly full backups, no PITR.\nAnalyticsDB already has continuous PITR and is low risk.\n\n**Recommended actions**:\n1. Enable continuous backup / WAL archiving for CustomerDB to provide point\u2011in\u2011time recovery.\n2. For ArchiveDB, add either a continuous snapshot solution or increase backup frequency (e.g., daily incremental) with PITR enabled.\n3. Update backup retention policies to keep at least 14\u202fdays of PITR\u2011ready data for all high\u2011criticality databases.\n\nI\u2019ll generate a markdown runbook summarizing these findings and the remediation steps.",
+      "tool_calls": [
+        {
+          "id": "generate_runbook_ab12cd",
+          "name": "generate_runbook",
+          "arguments": {
+            "service_name": "DatabaseService",
+            "risk_summary": {
+              "service_risk": 71,
+              "high_risk_assets": [
+                "db-001",
+                "db-003"
+              ]
+            },
+            "asset_details": [
+              {
+                "asset_id": "db-001",
+                "name": "CustomerDB",
+                "criticality": "high",
+                "backup_type": "daily\u2011incremental",
+                "pitr": false,
+                "issues": [
+                  "No PITR"
+                ]
+              },
+              {
+                "asset_id": "db-002",
+                "name": "AnalyticsDB",
+                "criticality": "medium",
+                "backup_type": "continuous\u2011PITR",
+                "pitr": true,
+                "issues": []
+              },
+              {
+                "asset_id": "db-003",
+                "name": "ArchiveDB",
+                "criticality": "low",
+                "backup_type": "weekly\u2011full",
+                "pitr": false,
+                "issues": [
+                  "No PITR"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "generate_runbook_ab12cd",
+      "content": "# DatabaseService Disaster\u2011Recovery Runbook\n\n## Executive Summary\n- **Service Risk Score:** 71 / 100\n- **Databases lacking PITR:** CustomerDB, ArchiveDB\n\n## Findings\n| Database | Criticality | Backup Type | PITR Enabled | Risk Score | Issues |\n|----------|------------|------------|--------------|------------|--------|\n| CustomerDB | High | Daily Incremental | \u274c | 78 | No point\u2011in\u2011time recovery |\n| AnalyticsDB | Medium | Continuous (PITR) | \u2705 | 22 | \u2013 |\n| ArchiveDB | Low | Weekly Full | \u274c | 65 | No PITR |\n\n## Recommended Remediation Steps\n1. **CustomerDB**\n   - Enable WAL archiving / continuous backup on PostgreSQL.\n   - Configure the backup platform to retain at least 14\u202fdays of PITR points.\n   - Validate recovery by performing a test point\u2011in\u2011time restore.\n2. **ArchiveDB**\n   - Introduce a continuous snapshot solution or switch to daily incremental backups with PITR.\n   - Adjust the retention policy to keep recent PITR points.\n   - Conduct a proof\u2011of\u2011concept restore to ensure the new process works.\n3. **General Improvements**\n   - Review all backup jobs weekly for failures.\n   - Automate alerts when a backup exceeds 24\u2011hour age.\n   - Document the updated backup and recovery procedures in the central IT SOP repository.\n\n## Runbook Execution Timeline\n| Phase | Owner | Target Date |\n|-------|-------|-------------|\n| Enable PITR for CustomerDB | DB Team Lead | 2024\u201112\u201115 |\n| Implement PITR for ArchiveDB | Infrastructure Ops | 2024\u201112\u201122 |\n| Full DR Test (all DBs) | DR Coordinator | 2025\u201101\u201105 |\n\n---\n*Generated by DisasterShield Planner on 2024\u201112\u201109.*"
+    },
+    {
+      "role": "assistant",
+      "content": "The runbook has been created. I\u2019ll email it to the disaster\u2011recovery stakeholders.",
+      "tool_calls": [
+        {
+          "id": "send_report_ef34gh",
+          "name": "send_report",
+          "arguments": {
+            "recipients": [
+              "cdo@example.com",
+              "dr-team@example.com",
+              "it-ops@example.com"
+            ],
+            "subject": "DatabaseService DR Runbook \u2013 Missing PITR Findings (2024\u201112\u201109)",
+            "body_markdown": "Hi team,\n\nPlease find attached the disaster\u2011recovery runbook for our DatabaseService. It highlights the databases missing point\u2011in\u2011time recovery and provides remediation steps.\n\nRegards,\nDisasterShield Planner",
+            "attachment_markdown": "# DatabaseService Disaster\u2011Recovery Runbook\n\n## Executive Summary\n- **Service Risk Score:** 71 / 100\n- **Databases lacking PITR:** CustomerDB, ArchiveDB\n\n## Findings\n| Database | Criticality | Backup Type | PITR Enabled | Risk Score | Issues |\n|----------|------------|------------|--------------|------------|--------|\n| CustomerDB | High | Daily Incremental | \u274c | 78 | No point\u2011in\u2011time recovery |\n| AnalyticsDB | Medium | Continuous (PITR) | \u2705 | 22 | \u2013 |\n| ArchiveDB | Low | Weekly Full | \u274c | 65 | No PITR |\n\n## Recommended Remediation Steps\n1. **CustomerDB**\n   - Enable WAL archiving / continuous backup on PostgreSQL.\n   - Configure the backup platform to retain at least 14\u202fdays of PITR points.\n   - Validate recovery by performing a test point\u2011in\u2011time restore.\n2. **ArchiveDB**\n   - Introduce a continuous snapshot solution or switch to daily incremental backups with PITR.\n   - Adjust the retention policy to keep recent PITR points.\n   - Conduct a proof\u2011of\u2011concept restore to ensure the new process works.\n3. **General Improvements**\n   - Review all backup jobs weekly for failures.\n   - Automate alerts when a backup exceeds 24\u2011hour age.\n   - Document the updated backup and recovery procedures in the central IT SOP repository.\n\n## Runbook Execution Timeline\n| Phase | Owner | Target Date |\n|-------|-------|-------------|\n| Enable PITR for CustomerDB | DB Team Lead | 2024\u201112\u201115 |\n| Implement PITR for ArchiveDB | Infrastructure Ops | 2024\u201112\u201122 |\n| Full DR Test (all DBs) | DR Coordinator | 2025\u201101\u201105 |\n\n---\n*Generated by DisasterShield Planner on 2024\u201112\u201109.*"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "send_report_ef34gh",
+      "content": "{\"status\":\"sent\",\"message_id\":\"msg-9f8e7d\",\"timestamp\":\"2024-12-09T03:12:00Z\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "The runbook has been emailed to all recipients. Let me know if you need any further analysis or scheduling of the remediation tasks.",
+      "tool_calls": []
+    }
+  ]
+}

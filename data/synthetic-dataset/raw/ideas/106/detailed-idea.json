@@ -1,0 +1,739 @@
+{
+  "name": "DisasterShield Planner",
+  "description": "An AI\u2011driven Disaster Recovery Planner that audits an organization\u2019s IT infrastructure, backup schedules, and threat\u2011intel feeds. It automatically computes risk scores, builds customized recovery runbooks, and delivers compliance\u2011ready reports to stakeholders.",
+  "tools": [
+    {
+      "name": "get_inventory",
+      "description": "Retrieves the current inventory of servers, virtual machines, containers, databases and networking assets for a specified logical service or tag. Returns a JSON list with asset identifiers, locations, OS, version and criticality rating.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "service_name": {
+            "type": "string",
+            "description": "Logical name of the service or application to query (e.g., \"CustomerPortal\")."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional list of tags/labels to filter assets (e.g., [\"production\", \"frontend\"])."
+          }
+        },
+        "required": [
+          "service_name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_backup_schedule",
+      "description": "Connects to supported backup platforms (Veeam, Rubrik, Cloud native snapshots, etc.) and returns the backup frequency, retention policy, last successful backup timestamp and the storage location for each asset supplied.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "asset_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Array of asset identifiers as returned by get_inventory."
+          }
+        },
+        "required": [
+          "asset_ids"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_threat_intel",
+      "description": "Queries external threat\u2011intel feeds (STIX/TAXII, VirusTotal, OpenCTI) for known vulnerabilities, ransomware activity, or active exploits affecting the supplied assets. Returns a list of CVE IDs, severity, and exploit status.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "asset_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Asset identifiers for which to fetch relevant threat data."
+          }
+        },
+        "required": [
+          "asset_ids"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "calculate_risk_score",
+      "description": "Consumes inventory, backup, and threat\u2011intel data to compute a quantitative risk score (0\u2011100) for each asset and an aggregate service\u2011level risk. Uses configurable weighting for criticality, backup freshness, and vulnerability severity.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "inventory": {
+            "type": "array",
+            "description": "Output of get_inventory (list of asset objects).",
+            "items": {
+              "type": "object"
+            }
+          },
+          "backups": {
+            "type": "array",
+            "description": "Output of get_backup_schedule.",
+            "items": {
+              "type": "object"
+            }
+          },
+          "threat_intel": {
+            "type": "array",
+            "description": "Output of get_threat_intel.",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "inventory",
+          "backups",
+          "threat_intel"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_runbook",
+      "description": "Creates a markdown\u2011formatted disaster\u2011recovery runbook based on risk scores, backup details and recommended mitigation steps. Accepts a service name and the processed data structures and returns the full runbook text.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "service_name": {
+            "type": "string",
+            "description": "Logical name of the service the runbook is for."
+          },
+          "risk_summary": {
+            "type": "object",
+            "description": "Aggregated risk score and key findings."
+          },
+          "asset_details": {
+            "type": "array",
+            "description": "Per\u2011asset information (criticality, backup status, vulnerabilities).",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "service_name",
+          "risk_summary",
+          "asset_details"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "send_report",
+      "description": "Emails the generated runbook (or PDF attachment) to a list of recipients and logs the delivery status in an audit store.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "recipients": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "email"
+            },
+            "description": "Email addresses that should receive the report."
+          },
+          "subject": {
+            "type": "string",
+            "description": "Subject line for the email."
+          },
+          "body_markdown": {
+            "type": "string",
+            "description": "Optional email body in markdown."
+          },
+          "attachment_markdown": {
+            "type": "string",
+            "description": "The runbook markdown to attach (or embed)."
+          }
+        },
+        "required": [
+          "recipients",
+          "subject",
+          "attachment_markdown"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "description": "User requests a disaster\u2011recovery runbook for the CustomerPortal web application. The assistant gathers inventory, backup and threat intel, calculates risk, generates the runbook and emails it to the ops team.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are DisasterShield Planner, an autonomous assistant that creates disaster\u2011recovery runbooks by calling internal tools. Use the provided tools to collect data, compute risk, generate a markdown runbook and then send it via email."
+        },
+        {
+          "role": "user",
+          "content": "Please prepare a disaster\u2011recovery runbook for our CustomerPortal service and send it to alice@example.com and bob@example.com."
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching the current asset inventory for CustomerPortal\u2026",
+          "tool_calls": [
+            {
+              "id": "get_inventory_1a2b3c",
+              "name": "get_inventory",
+              "arguments": {
+                "service_name": "CustomerPortal"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_inventory_1a2b3c",
+          "content": "[{\"asset_id\":\"srv-001\",\"hostname\":\"cp-web-01\",\"os\":\"Ubuntu 22.04\",\"criticality\":\"high\"},{\"asset_id\":\"db-007\",\"hostname\":\"cp-db-01\",\"os\":\"PostgreSQL 14\",\"criticality\":\"high\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Retrieving backup schedules for the identified assets\u2026",
+          "tool_calls": [
+            {
+              "id": "get_backup_schedule_4d5e6f",
+              "name": "get_backup_schedule",
+              "arguments": {
+                "asset_ids": [
+                  "srv-001",
+                  "db-007"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_backup_schedule_4d5e6f",
+          "content": "[{\"asset_id\":\"srv-001\",\"frequency\":\"daily\",\"last_success\":\"2025-12-04T02:15:00Z\",\"retention\":\"30d\"},{\"asset_id\":\"db-007\",\"frequency\":\"hourly\",\"last_success\":\"2025-12-07T01:00:00Z\",\"retention\":\"15d\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Gathering recent threat\u2011intel for these assets\u2026",
+          "tool_calls": [
+            {
+              "id": "get_threat_intel_7g8h9i",
+              "name": "get_threat_intel",
+              "arguments": {
+                "asset_ids": [
+                  "srv-001",
+                  "db-007"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "get_threat_intel_7g8h9i",
+          "content": "[{\"asset_id\":\"srv-001\",\"cve\":\"CVE-2024-12345\",\"severity\":\"high\",\"exploit_status\":\"public\"},{\"asset_id\":\"db-007\",\"cve\":\"CVE-2023-9876\",\"severity\":\"medium\",\"exploit_status\":\"none\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Calculating risk scores based on the collected data\u2026",
+          "tool_calls": [
+            {
+              "id": "calculate_risk_score_ab12cd",
+              "name": "calculate_risk_score",
+              "arguments": {
+                "inventory": [
+                  {
+                    "asset_id": "srv-001",
+                    "hostname": "cp-web-01",
+                    "os": "Ubuntu 22.04",
+                    "criticality": "high"
+                  },
+                  {
+                    "asset_id": "db-007",
+                    "hostname": "cp-db-01",
+                    "os": "PostgreSQL 14",
+                    "criticality": "high"
+                  }
+                ],
+                "backups": [
+                  {
+                    "asset_id": "srv-001",
+                    "frequency": "daily",
+                    "last_success": "2025-12-04T02:15:00Z",
+                    "retention": "30d"
+                  },
+                  {
+                    "asset_id": "db-007",
+                    "frequency": "hourly",
+                    "last_success": "2025-12-07T01:00:00Z",
+                    "retention": "15d"
+                  }
+                ],
+                "threat_intel": [
+                  {
+                    "asset_id": "srv-001",
+                    "cve": "CVE-2024-12345",
+                    "severity": "high",
+                    "exploit_status": "public"
+                  },
+                  {
+                    "asset_id": "db-007",
+                    "cve": "CVE-2023-9876",
+                    "severity": "medium",
+                    "exploit_status": "none"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "calculate_risk_score_ab12cd",
+          "content": "{\"service_risk\":78,\"asset_risk\":{\"srv-001\":85,\"db-007\":68}}"
+        },
+        {
+          "role": "assistant",
+          "content": "Generating the markdown runbook for CustomerPortal\u2026",
+          "tool_calls": [
+            {
+              "id": "generate_runbook_ef34gh",
+              "name": "generate_runbook",
+              "arguments": {
+                "service_name": "CustomerPortal",
+                "risk_summary": {
+                  "overall_score": 78,
+                  "high_risk_assets": [
+                    "srv-001"
+                  ]
+                },
+                "asset_details": [
+                  {
+                    "asset_id": "srv-001",
+                    "criticality": "high",
+                    "backup_status": "last backup 2025-12-04 02:15 UTC",
+                    "vulnerabilities": [
+                      "CVE-2024-12345 (high, public exploit)"
+                    ]
+                  },
+                  {
+                    "asset_id": "db-007",
+                    "criticality": "high",
+                    "backup_status": "last backup 2025-12-07 01:00 UTC",
+                    "vulnerabilities": [
+                      "CVE-2023-9876 (medium, no exploit)"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_runbook_ef34gh",
+          "content": "# CustomerPortal Disaster Recovery Runbook\n\n## Executive Summary\n- **Overall Risk Score:** 78/100 (High)\n- **Critical Assets:** srv-001 (web front\u2011end), db-007 (database)\n\n## Prerequisites\n- Verify backup integrity for `srv-001` and `db-007`.\n- Ensure admin credentials are available in the secure vault.\n\n## Step\u2011by\u2011Step Recovery\n### 1. Web Tier (`srv-001`)\n1. Isolate the compromised host.\n2. If ransomware is active (CVE\u20112024\u201112345), execute OS re\u2011image from the latest clean snapshot dated **2025\u201112\u201104**.\n3. Restore application binaries from backup storage `s3://dr\u2011backups/cp-web`.\n4. Run health checks.\n\n### 2. Database Tier (`db-007`)\n1. Perform point\u2011in\u2011time recovery to **2025\u201112\u201107 00:55 UTC** using hourly snapshots.\n2. Apply latest security patches for PostgreSQL 14.\n3. Validate data integrity with checksum comparison.\n\n## Post\u2011Recovery Validation\n- Run end\u2011to\u2011end functional tests.\n- Update incident ticket with timestamps and actions taken.\n\n## Contacts\n- **Ops Lead:** Alice (alice@example.com)\n- **Security Lead:** Bob (bob@example.com)\n\n*Generated automatically by DisasterShield Planner.*"
+        },
+        {
+          "role": "assistant",
+          "content": "Sending the runbook via email to the requested recipients\u2026",
+          "tool_calls": [
+            {
+              "id": "send_report_jk56lm",
+              "name": "send_report",
+              "arguments": {
+                "recipients": [
+                  "alice@example.com",
+                  "bob@example.com"
+                ],
+                "subject": "CustomerPortal Disaster Recovery Runbook",
+                "body_markdown": "Hi team,\n\nPlease find the generated disaster\u2011recovery runbook attached.\n\nBest,\nDisasterShield Planner",
+                "attachment_markdown": "# CustomerPortal Disaster Recovery Runbook\n..."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "send_report_jk56lm",
+          "content": "Email sent to 2 recipients; delivery status: all delivered."
+        },
+        {
+          "role": "assistant",
+          "content": "The Disaster Recovery runbook for **CustomerPortal** has been emailed to Alice and Bob. Let me know if you need any modifications or additional documentation.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "description": "User asks for a quarterly compliance audit covering all critical services. The assistant loops through a predefined list, aggregates risk scores, produces a summary report and delivers it.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are DisasterShield Planner, an autonomous assistant that can enumerate critical services, gather their data, compute risk, and produce a compliance audit report."
+        },
+        {
+          "role": "user",
+          "content": "Run a Q4 disaster\u2011recovery compliance audit for all our critical services and email the summary to compliance@example.com."
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching the catalog of critical services\u2026",
+          "tool_calls": [
+            {
+              "id": "list_critical_services_001",
+              "name": "get_inventory",
+              "arguments": {
+                "service_name": "ALL_CRITICAL",
+                "tags": [
+                  "critical"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "list_critical_services_001",
+          "content": "[{\"service_name\":\"CustomerPortal\"},{\"service_name\":\"PaymentGateway\"},{\"service_name\":\"AnalyticsEngine\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Processing each critical service to obtain risk details\u2026\nGathering data for CustomerPortal\u2026",
+          "tool_calls": [
+            {
+              "id": "process_customerportal_a1",
+              "name": "get_inventory",
+              "arguments": {
+                "service_name": "CustomerPortal"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "process_customerportal_a1",
+          "content": "[{\"asset_id\":\"srv-001\",\"hostname\":\"cp-web-01\",\"os\":\"Ubuntu 22.04\",\"criticality\":\"high\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Continuing with backup and threat data for CustomerPortal\u2026",
+          "tool_calls": [
+            {
+              "id": "backup_customerportal_a1",
+              "name": "get_backup_schedule",
+              "arguments": {
+                "asset_ids": [
+                  "srv-001"
+                ]
+              }
+            },
+            {
+              "id": "threat_customerportal_a1",
+              "name": "get_threat_intel",
+              "arguments": {
+                "asset_ids": [
+                  "srv-001"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "backup_customerportal_a1",
+          "content": "[{\"asset_id\":\"srv-001\",\"frequency\":\"daily\",\"last_success\":\"2025-12-05T02:00:00Z\",\"retention\":\"30d\"}]"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "threat_customerportal_a1",
+          "content": "[]"
+        },
+        {
+          "role": "assistant",
+          "content": "Computing risk for CustomerPortal\u2026",
+          "tool_calls": [
+            {
+              "id": "risk_customerportal_a1",
+              "name": "calculate_risk_score",
+              "arguments": {
+                "inventory": [
+                  {
+                    "asset_id": "srv-001",
+                    "hostname": "cp-web-01",
+                    "os": "Ubuntu 22.04",
+                    "criticality": "high"
+                  }
+                ],
+                "backups": [
+                  {
+                    "asset_id": "srv-001",
+                    "frequency": "daily",
+                    "last_success": "2025-12-05T02:00:00Z",
+                    "retention": "30d"
+                  }
+                ],
+                "threat_intel": []
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "risk_customerportal_a1",
+          "content": "{\"service_risk\":45,\"asset_risk\":{\"srv-001\":45}}"
+        },
+        {
+          "role": "assistant",
+          "content": "Gathering data for PaymentGateway\u2026",
+          "tool_calls": [
+            {
+              "id": "inventory_paymentgateway_b2",
+              "name": "get_inventory",
+              "arguments": {
+                "service_name": "PaymentGateway"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "inventory_paymentgateway_b2",
+          "content": "[{\"asset_id\":\"srv-010\",\"hostname\":\"pg-api-01\",\"os\":\"RHEL 8\",\"criticality\":\"high\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching backup and threat intel for PaymentGateway\u2026",
+          "tool_calls": [
+            {
+              "id": "backup_paymentgateway_b2",
+              "name": "get_backup_schedule",
+              "arguments": {
+                "asset_ids": [
+                  "srv-010"
+                ]
+              }
+            },
+            {
+              "id": "threat_paymentgateway_b2",
+              "name": "get_threat_intel",
+              "arguments": {
+                "asset_ids": [
+                  "srv-010"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "backup_paymentgateway_b2",
+          "content": "[{\"asset_id\":\"srv-010\",\"frequency\":\"hourly\",\"last_success\":\"2025-12-07T01:30:00Z\",\"retention\":\"15d\"}]"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "threat_paymentgateway_b2",
+          "content": "[{\"asset_id\":\"srv-010\",\"cve\":\"CVE-2024-5678\",\"severity\":\"high\",\"exploit_status\":\"public\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Computing risk for PaymentGateway\u2026",
+          "tool_calls": [
+            {
+              "id": "risk_paymentgateway_b2",
+              "name": "calculate_risk_score",
+              "arguments": {
+                "inventory": [
+                  {
+                    "asset_id": "srv-010",
+                    "hostname": "pg-api-01",
+                    "os": "RHEL 8",
+                    "criticality": "high"
+                  }
+                ],
+                "backups": [
+                  {
+                    "asset_id": "srv-010",
+                    "frequency": "hourly",
+                    "last_success": "2025-12-07T01:30:00Z",
+                    "retention": "15d"
+                  }
+                ],
+                "threat_intel": [
+                  {
+                    "asset_id": "srv-010",
+                    "cve": "CVE-2024-5678",
+                    "severity": "high",
+                    "exploit_status": "public"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "risk_paymentgateway_b2",
+          "content": "{\"service_risk\":82,\"asset_risk\":{\"srv-010\":82}}"
+        },
+        {
+          "role": "assistant",
+          "content": "Gathering data for AnalyticsEngine\u2026",
+          "tool_calls": [
+            {
+              "id": "inventory_analytics_c3",
+              "name": "get_inventory",
+              "arguments": {
+                "service_name": "AnalyticsEngine"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "inventory_analytics_c3",
+          "content": "[{\"asset_id\":\"srv-020\",\"hostname\":\"ae-node-01\",\"os\":\"CentOS 7\",\"criticality\":\"medium\"}]"
+        },
+        {
+          "role": "assistant",
+          "content": "Fetching backup and threat intel for AnalyticsEngine\u2026",
+          "tool_calls": [
+            {
+              "id": "backup_analytics_c3",
+              "name": "get_backup_schedule",
+              "arguments": {
+                "asset_ids": [
+                  "srv-020"
+                ]
+              }
+            },
+            {
+              "id": "threat_analytics_c3",
+              "name": "get_threat_intel",
+              "arguments": {
+                "asset_ids": [
+                  "srv-020"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "backup_analytics_c3",
+          "content": "[{\"asset_id\":\"srv-020\",\"frequency\":\"daily\",\"last_success\":\"2025-12-06T03:00:00Z\",\"retention\":\"30d\"}]"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "threat_analytics_c3",
+          "content": "[]"
+        },
+        {
+          "role": "assistant",
+          "content": "Computing risk for AnalyticsEngine\u2026",
+          "tool_calls": [
+            {
+              "id": "risk_analytics_c3",
+              "name": "calculate_risk_score",
+              "arguments": {
+                "inventory": [
+                  {
+                    "asset_id": "srv-020",
+                    "hostname": "ae-node-01",
+                    "os": "CentOS 7",
+                    "criticality": "medium"
+                  }
+                ],
+                "backups": [
+                  {
+                    "asset_id": "srv-020",
+                    "frequency": "daily",
+                    "last_success": "2025-12-06T03:00:00Z",
+                    "retention": "30d"
+                  }
+                ],
+                "threat_intel": []
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "risk_analytics_c3",
+          "content": "{\"service_risk\":30,\"asset_risk\":{\"srv-020\":30}}"
+        },
+        {
+          "role": "assistant",
+          "content": "Aggregating the results into a compliance summary report\u2026",
+          "tool_calls": [
+            {
+              "id": "generate_summary_report_zzz",
+              "name": "generate_runbook",
+              "arguments": {
+                "service_name": "Quarterly Compliance Summary",
+                "risk_summary": {
+                  "overall_score": 52,
+                  "services": [
+                    {
+                      "name": "CustomerPortal",
+                      "score": 45
+                    },
+                    {
+                      "name": "PaymentGateway",
+                      "score": 82
+                    },
+                    {
+                      "name": "AnalyticsEngine",
+                      "score": 30
+                    }
+                  ]
+                },
+                "asset_details": []
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "generate_summary_report_zzz",
+          "content": "# Q4 Disaster\u2011Recovery Compliance Summary\n\n| Service | Overall Risk Score |\n|---------|-------------------|\n| CustomerPortal | 45 |\n| PaymentGateway | 82 |\n| AnalyticsEngine | 30 |\n\n**Average Risk Score:** 52 (Medium)\n\n*All services meet the minimum compliance threshold of 40, but PaymentGateway requires immediate remediation.*"
+        },
+        {
+          "role": "assistant",
+          "content": "Emailing the compliance summary to the compliance team\u2026",
+          "tool_calls": [
+            {
+              "id": "email_report_123",
+              "name": "send_report",
+              "arguments": {
+                "recipients": [
+                  "compliance@example.com"
+                ],
+                "subject": "Q4 Disaster\u2011Recovery Compliance Summary",
+                "body_markdown": "Hello Compliance Team,\n\nPlease find attached the disaster\u2011recovery compliance summary for Q4.\n\nRegards,\nDisasterShield Planner",
+                "attachment_markdown": "# Q4 Disaster\u2011Recovery Compliance Summary\n..."
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "email_report_123",
+          "content": "Email delivered to compliance@example.com."
+        },
+        {
+          "role": "assistant",
+          "content": "The quarterly compliance report has been sent. PaymentGateway exceeds the risk threshold; consider scheduling a remediation workshop.",
+          "tool_calls": []
+        }
+      ]
+    }
+  ]
+}
